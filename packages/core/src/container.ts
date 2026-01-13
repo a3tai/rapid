@@ -87,17 +87,14 @@ export function getContainerName(rootDir: string, devcontainerConfig?: Devcontai
 }
 
 /**
- * Check container status
+ * Check container status using devcontainer labels
  */
-export async function getContainerStatus(rootDir: string, config?: RapidConfig): Promise<ContainerStatus> {
-  const devcontainerConfig = await loadDevcontainerConfig(rootDir, config);
-  const containerName = getContainerName(rootDir, devcontainerConfig ?? undefined);
-
+export async function getContainerStatus(rootDir: string, _config?: RapidConfig): Promise<ContainerStatus> {
   try {
-    // Check if container exists and is running
+    // Use devcontainer label to find the container (this is how devcontainer CLI tracks containers)
     const result = await execa('docker', [
       'ps', '-a',
-      '--filter', `name=${containerName}`,
+      '--filter', `label=devcontainer.local_folder=${rootDir}`,
       '--format', '{{.ID}}\t{{.State}}\t{{.Names}}'
     ]);
 
