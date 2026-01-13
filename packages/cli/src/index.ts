@@ -9,6 +9,8 @@ import { initCommand } from './commands/init.js';
 import { devCommand } from './commands/dev.js';
 import { statusCommand } from './commands/status.js';
 import { agentCommand } from './commands/agent.js';
+import { startCommand } from './commands/start.js';
+import { stopCommand } from './commands/stop.js';
 
 const VERSION = '0.1.0';
 
@@ -32,7 +34,9 @@ program
 
 // Register commands
 program.addCommand(initCommand);
+program.addCommand(startCommand);
 program.addCommand(devCommand);
+program.addCommand(stopCommand);
 program.addCommand(statusCommand);
 program.addCommand(agentCommand);
 

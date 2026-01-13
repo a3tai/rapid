@@ -44,3 +44,18 @@ export {
   getLogLevel,
   type LogLevel,
 } from './logger.js';
+
+// Container
+export {
+  hasDevcontainerCli,
+  hasDocker,
+  getDevcontainerPath,
+  loadDevcontainerConfig,
+  getContainerName,
+  getContainerStatus,
+  startContainer,
+  stopContainer,
+  execInContainer,
+  type ContainerStatus,
+  type DevcontainerConfig,
+} from './container.js';
