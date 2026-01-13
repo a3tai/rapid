@@ -1,0 +1,48 @@
+{
+  "name": "@a3t/rapid-schema",
+  "version": "0.1.0",
+  "description": "JSON schema and TypeScript types for RAPID configuration",
+  "license": "MIT",
+  "author": "A3T <hello@a3t.ai>",
+  "homepage": "https://getrapid.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/a3tai/rapid.git",
+    "directory": "packages/schema"
+  },
+  "keywords": [
+    "rapid",
+    "ai",
+    "devcontainer",
+    "schema",
+    "json-schema",
+    "typescript"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./schema": {
+      "import": "./src/rapid.schema.json"
+    },
+    "./rapid.schema.json": "./src/rapid.schema.json"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src/rapid.schema.json"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "pnpm build"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

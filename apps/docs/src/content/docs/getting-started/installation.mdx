@@ -1,0 +1,141 @@
+---
+title: Installation
+description: Install RAPID CLI and set up your development environment.
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Prerequisites
+
+Before installing RAPID, ensure you have:
+
+| Requirement | Version | Notes |
+|-------------|---------|-------|
+| Node.js | 20+ | For RAPID CLI |
+| Docker | Latest | Docker Desktop, Podman, or compatible runtime |
+| 1Password CLI | Latest | Recommended for secrets management |
+| direnv | Latest | For automatic environment loading |
+
+## Install RAPID CLI
+
+<Tabs>
+  <TabItem label="npm">
+    ```bash
+    npm install -g @a3t/rapid-cli
+    ```
+  </TabItem>
+  <TabItem label="pnpm">
+    ```bash
+    pnpm add -g @a3t/rapid-cli
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```bash
+    yarn global add @a3t/rapid-cli
+    ```
+  </TabItem>
+</Tabs>
+
+Verify the installation:
+
+```bash
+rapid --version
+```
+
+## Install direnv
+
+direnv automatically loads environment variables when you enter a project directory.
+
+<Tabs>
+  <TabItem label="macOS">
+    ```bash
+    brew install direnv
+    ```
+  </TabItem>
+  <TabItem label="Linux">
+    ```bash
+    # Ubuntu/Debian
+    sudo apt install direnv
+
+    # Arch
+    sudo pacman -S direnv
+    ```
+  </TabItem>
+</Tabs>
+
+Add the hook to your shell:
+
+<Tabs>
+  <TabItem label="bash">
+    ```bash
+    echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
+    source ~/.bashrc
+    ```
+  </TabItem>
+  <TabItem label="zsh">
+    ```bash
+    echo 'eval "$(direnv hook zsh)"' >> ~/.zshrc
+    source ~/.zshrc
+    ```
+  </TabItem>
+  <TabItem label="fish">
+    ```fish
+    echo 'direnv hook fish | source' >> ~/.config/fish/config.fish
+    ```
+  </TabItem>
+</Tabs>
+
+## Install 1Password CLI (Recommended)
+
+1Password CLI enables secure secret management without storing API keys in plaintext.
+
+<Tabs>
+  <TabItem label="macOS">
+    ```bash
+    brew install 1password-cli
+    ```
+  </TabItem>
+  <TabItem label="Linux">
+    ```bash
+    curl -sS https://downloads.1password.com/linux/keys/1password.asc | \
+      sudo gpg --dearmor --output /usr/share/keyrings/1password-archive-keyring.gpg
+
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] https://downloads.1password.com/linux/debian/$(dpkg --print-architecture) stable main" | \
+      sudo tee /etc/apt/sources.list.d/1password.list
+
+    sudo apt update && sudo apt install 1password-cli
+    ```
+  </TabItem>
+</Tabs>
+
+Sign in to 1Password:
+
+```bash
+eval $(op signin)
+```
+
+<Aside type="tip">
+  If you don't use 1Password, RAPID also supports HashiCorp Vault or plain environment variables. See [Secrets Management](/guides/secrets-management/) for details.
+</Aside>
+
+## Verify Setup
+
+Run the following to verify everything is installed:
+
+```bash
+# Check RAPID
+rapid --version
+
+# Check Docker
+docker --version
+
+# Check direnv
+direnv --version
+
+# Check 1Password (optional)
+op --version
+```
+
+## Next Steps
+
+You're ready to create your first RAPID project. Head to the [Quickstart guide](/getting-started/quickstart/).

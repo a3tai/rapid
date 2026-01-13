@@ -1,0 +1,437 @@
+---
+title: Agent Configuration
+description: How to configure AI coding agents in RAPID
+---
+
+This guide covers how to configure AI coding agents in RAPID.
+
+## Overview
+
+RAPID supports multiple AI coding agents. Each agent is configured in `rapid.json` under the `agents` section:
+
+```json
+{
+  "agents": {
+    "default": "claude",
+    "available": {
+      "claude": { ... },
+      "opencode": { ... },
+      "aider": { ... }
+    }
+  }
+}
+```
+
+## Agent Properties
+
+Each agent configuration supports:
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `cli` | string | Yes | Command to execute |
+| `instructionFile` | string | No | Path to instruction file |
+| `envVars` | array | No | Required environment variables |
+| `installCmd` | string | No | Installation command |
+| `args` | array | No | Additional CLI arguments |
+
+---
+
+## Claude Code
+
+Anthropic's AI coding assistant.
+
+### Installation
+
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+### Configuration
+
+```json
+{
+  "agents": {
+    "available": {
+      "claude": {
+        "cli": "claude",
+        "instructionFile": "CLAUDE.md",
+        "envVars": ["ANTHROPIC_API_KEY"],
+        "installCmd": "npm install -g @anthropic-ai/claude-code"
+      }
+    }
+  }
+}
+```
+
+### Required Secrets
+
+```json
+{
+  "secrets": {
+    "items": {
+      "ANTHROPIC_API_KEY": "op://Development/Anthropic/api-key"
+    }
+  }
+}
+```
+
+### Instruction File (CLAUDE.md)
+
+```markdown
+# Project: my-project
+
+## Overview
+Brief description of the project.
+
+## Code Style
+- Language: TypeScript
+- Style guide: Airbnb
+- Formatting: Prettier
+
+## Important Commands
+- `npm run dev` - Start dev server
+- `npm test` - Run tests
+- `npm run build` - Build for production
+
+## Architecture
+Description of project structure.
+
+## Restrictions
+- Do not modify config files without asking
+- Always run tests after changes
+```
+
+---
+
+## OpenCode
+
+Multi-provider AI coding assistant.
+
+### Installation
+
+```bash
+npm install -g opencode
+```
+
+### Configuration
+
+```json
+{
+  "agents": {
+    "available": {
+      "opencode": {
+        "cli": "opencode",
+        "instructionFile": "AGENTS.md",
+        "envVars": ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"],
+        "installCmd": "npm install -g opencode"
+      }
+    }
+  }
+}
+```
+
+### Required Secrets
+
+```json
+{
+  "secrets": {
+    "items": {
+      "ANTHROPIC_API_KEY": "op://Development/Anthropic/api-key",
+      "OPENAI_API_KEY": "op://Development/OpenAI/api-key"
+    }
+  }
+}
+```
+
+### Instruction File (AGENTS.md)
+
+```markdown
+# Agent Instructions
+
+## Project Type
+Node.js/TypeScript REST API
+
+## Key Files
+- `src/index.ts` - Entry point
+- `src/routes/` - API routes
+- `src/services/` - Business logic
+
+## Commands
+- Test: `npm test`
+- Lint: `npm run lint`
+- Build: `npm run build`
+
+## Guidelines
+- Use async/await for async operations
+- Add JSDoc comments to exported functions
+- Write tests for new features
+```
+
+---
+
+## Aider
+
+AI pair programming tool.
+
+### Installation
+
+```bash
+pip install aider-chat
+```
+
+### Configuration
+
+```json
+{
+  "agents": {
+    "available": {
+      "aider": {
+        "cli": "aider",
+        "instructionFile": ".aider.conf.yml",
+        "envVars": ["OPENAI_API_KEY"],
+        "installCmd": "pip install aider-chat",
+        "args": ["--model", "gpt-4o"]
+      }
+    }
+  }
+}
+```
+
+### Required Secrets
+
+```json
+{
+  "secrets": {
+    "items": {
+      "OPENAI_API_KEY": "op://Development/OpenAI/api-key"
+    }
+  }
+}
+```
+
+### Configuration File (.aider.conf.yml)
+
+```yaml
+model: gpt-4o
+auto-commits: true
+gitignore: true
+map-tokens: 1024
+dark-mode: true
+```
+
+### Using Anthropic Models
+
+```json
+{
+  "agents": {
+    "available": {
+      "aider": {
+        "cli": "aider",
+        "envVars": ["ANTHROPIC_API_KEY"],
+        "args": ["--model", "claude-3-5-sonnet-20241022"]
+      }
+    }
+  }
+}
+```
+
+---
+
+## GitHub Copilot CLI
+
+GitHub's AI assistant.
+
+### Installation
+
+```bash
+gh extension install github/gh-copilot
+```
+
+### Configuration
+
+```json
+{
+  "agents": {
+    "available": {
+      "copilot": {
+        "cli": "gh",
+        "args": ["copilot"],
+        "envVars": ["GITHUB_TOKEN"],
+        "installCmd": "gh extension install github/gh-copilot"
+      }
+    }
+  }
+}
+```
+
+### Required Secrets
+
+```json
+{
+  "secrets": {
+    "items": {
+      "GITHUB_TOKEN": "op://Development/GitHub/pat"
+    }
+  }
+}
+```
+
+---
+
+## Custom Agents
+
+Add any CLI-based AI tool:
+
+```json
+{
+  "agents": {
+    "available": {
+      "my-custom-agent": {
+        "cli": "my-ai-tool",
+        "instructionFile": "MY_AGENT.md",
+        "envVars": ["MY_API_KEY"],
+        "installCmd": "npm install -g my-ai-tool",
+        "args": ["--config", ".my-ai-config.json"]
+      }
+    }
+  }
+}
+```
+
+---
+
+## Multi-Agent Setup
+
+Configure multiple agents for different tasks:
+
+```json
+{
+  "agents": {
+    "default": "claude",
+    "available": {
+      "claude": {
+        "cli": "claude",
+        "instructionFile": "CLAUDE.md",
+        "envVars": ["ANTHROPIC_API_KEY"]
+      },
+      "aider": {
+        "cli": "aider",
+        "args": ["--model", "gpt-4o"],
+        "envVars": ["OPENAI_API_KEY"]
+      },
+      "opencode": {
+        "cli": "opencode",
+        "instructionFile": "AGENTS.md",
+        "envVars": ["ANTHROPIC_API_KEY"]
+      }
+    }
+  }
+}
+```
+
+### Running Multiple Agents
+
+```bash
+# Launch all in tmux panes
+rapid dev --multi
+
+# Specific agents
+rapid dev --multi --agents claude,aider
+```
+
+---
+
+## Environment Variables
+
+Agents receive environment variables in this order:
+
+1. System environment
+2. Container environment (`containerEnv` in devcontainer.json)
+3. RAPID secrets (from 1Password/Vault)
+4. Agent-specific overrides
+
+---
+
+## Switching Agents
+
+### Temporarily
+
+```bash
+# Use different agent for this session
+rapid dev --agent aider
+```
+
+### Permanently
+
+```bash
+# Change default
+rapid agent default opencode
+
+# Or edit rapid.json
+{
+  "agents": {
+    "default": "opencode"
+  }
+}
+```
+
+---
+
+## Troubleshooting
+
+### Agent not found
+
+```bash
+# Check if installed
+which claude
+which aider
+
+# Reinstall
+rapid start --reinstall-tools
+```
+
+### API key errors
+
+```bash
+# Verify secrets
+rapid secrets verify
+
+# Check specific secret
+rapid secrets get ANTHROPIC_API_KEY
+```
+
+### Wrong model
+
+Check the agent's `args` in `rapid.json`:
+
+```json
+{
+  "aider": {
+    "args": ["--model", "gpt-4o"]  // Verify model name
+  }
+}
+```
+
+---
+
+## Best Practices
+
+1. **Use specific agents for specific tasks**
+   - Claude: Complex reasoning, architecture
+   - Aider: Quick refactoring, auto-commits
+   - OpenCode: Multi-model flexibility
+
+2. **Keep instruction files concise**
+   - Focus on project-specific info
+   - Don't duplicate README content
+   - Update when architecture changes
+
+3. **Secure your API keys**
+   - Never commit keys to git
+   - Use 1Password or Vault
+   - Rotate keys periodically
+
+4. **Test agent availability**
+   ```bash
+   rapid status
+   ```

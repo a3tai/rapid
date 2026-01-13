@@ -1,0 +1,25 @@
+# .envrc.local - Personal Overrides (GITIGNORED)
+#
+# Copy this file to .envrc.local and customize for your local environment.
+# This file should NEVER be committed to git.
+#
+# Usage:
+#   cp .envrc.local.example .envrc.local
+#   # Edit as needed
+#   direnv allow
+
+# =============================================================================
+# PERSONAL API KEYS (override team keys with your own)
+# =============================================================================
+
+# Use your personal 1Password vault instead of team vault
+# export ANTHROPIC_API_KEY=$(op read "op://Personal/Anthropic/api-key")
+# export OPENAI_API_KEY=$(op read "op://Personal/OpenAI/api-key")
+
+# =============================================================================
+# LOCAL DEVELOPMENT SETTINGS
+# =============================================================================
+
+# export LOG_LEVEL=debug
+# export API_TIMEOUT=60000
+# export ENABLE_FEATURE_X=true

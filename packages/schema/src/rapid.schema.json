@@ -1,0 +1,271 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://getrapid.dev/schema/v1/rapid.json",
+  "title": "RAPID Configuration",
+  "description": "Configuration file for RAPID - AI-assisted development with dev containers",
+  "type": "object",
+  "required": ["version", "agents"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON schema URL for validation and IntelliSense"
+    },
+    "version": {
+      "type": "string",
+      "enum": ["1.0"],
+      "description": "RAPID configuration specification version"
+    },
+    "name": {
+      "type": "string",
+      "description": "Project name (defaults to directory name)"
+    },
+    "container": {
+      "$ref": "#/definitions/ContainerConfig"
+    },
+    "secrets": {
+      "$ref": "#/definitions/SecretsConfig"
+    },
+    "agents": {
+      "$ref": "#/definitions/AgentsConfig"
+    },
+    "context": {
+      "$ref": "#/definitions/ContextConfig"
+    },
+    "mcp": {
+      "$ref": "#/definitions/McpConfig"
+    }
+  },
+  "definitions": {
+    "ContainerConfig": {
+      "type": "object",
+      "description": "Container lifecycle configuration",
+      "properties": {
+        "devcontainer": {
+          "type": "string",
+          "default": ".devcontainer/devcontainer.json",
+          "description": "Path to devcontainer.json"
+        },
+        "compose": {
+          "type": "string",
+          "description": "Docker Compose file (overrides devcontainer)"
+        },
+        "autoStart": {
+          "type": "boolean",
+          "default": true,
+          "description": "Start container automatically on rapid dev"
+        },
+        "buildArgs": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Additional Docker build arguments"
+        }
+      }
+    },
+    "SecretsConfig": {
+      "type": "object",
+      "description": "Secret management configuration",
+      "properties": {
+        "provider": {
+          "type": "string",
+          "enum": ["1password", "vault", "env"],
+          "default": "1password",
+          "description": "Secret provider to use"
+        },
+        "vault": {
+          "type": "string",
+          "description": "Vault name (1Password) or path (HashiCorp)"
+        },
+        "address": {
+          "type": "string",
+          "description": "Vault server address (HashiCorp Vault only)"
+        },
+        "items": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Map of environment variable names to secret references"
+        },
+        "envrc": {
+          "$ref": "#/definitions/EnvrcConfig"
+        },
+        "dotenv": {
+          "$ref": "#/definitions/DotenvConfig"
+        }
+      }
+    },
+    "EnvrcConfig": {
+      "type": "object",
+      "description": ".envrc generation settings",
+      "properties": {
+        "generate": {
+          "type": "boolean",
+          "default": true,
+          "description": "Auto-generate .envrc from items"
+        },
+        "path": {
+          "type": "string",
+          "default": ".envrc",
+          "description": "Path to .envrc file"
+        },
+        "includeLocal": {
+          "type": "boolean",
+          "default": true,
+          "description": "Source .envrc.local if present"
+        }
+      }
+    },
+    "DotenvConfig": {
+      "type": "object",
+      "description": ".env file integration (discouraged)",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable .env file loading"
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [".env", ".env.local"],
+          "description": ".env files to load"
+        },
+        "warn": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show security warning when loading .env files"
+        }
+      }
+    },
+    "AgentsConfig": {
+      "type": "object",
+      "description": "AI agent configuration",
+      "required": ["default", "available"],
+      "properties": {
+        "default": {
+          "type": "string",
+          "description": "Name of the default agent"
+        },
+        "available": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/AgentDefinition"
+          },
+          "description": "Map of agent name to configuration"
+        }
+      }
+    },
+    "AgentDefinition": {
+      "type": "object",
+      "description": "Configuration for a single AI agent",
+      "required": ["cli"],
+      "properties": {
+        "cli": {
+          "type": "string",
+          "description": "CLI command to execute"
+        },
+        "instructionFile": {
+          "type": "string",
+          "description": "Path to instruction file for this agent"
+        },
+        "envVars": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Required environment variables"
+        },
+        "installCmd": {
+          "type": "string",
+          "description": "Command to install the CLI tool"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Additional CLI arguments"
+        }
+      }
+    },
+    "ContextConfig": {
+      "type": "object",
+      "description": "Context file generation and management",
+      "properties": {
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": ["README.md"],
+          "description": "Files to include in agent context"
+        },
+        "dirs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": ["docs/"],
+          "description": "Directories to include"
+        },
+        "exclude": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Patterns to exclude"
+        },
+        "generateAgentFiles": {
+          "type": "boolean",
+          "default": true,
+          "description": "Auto-generate AGENTS.md, CLAUDE.md"
+        },
+        "templateDir": {
+          "type": "string",
+          "description": "Custom templates for agent files"
+        },
+        "preserve": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Files to preserve from auto-updates"
+        }
+      }
+    },
+    "McpConfig": {
+      "type": "object",
+      "description": "Model Context Protocol server configuration",
+      "properties": {
+        "configFile": {
+          "type": "string",
+          "default": ".mcp.json",
+          "description": "Path to MCP config file"
+        },
+        "servers": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/McpServerConfig"
+          },
+          "description": "MCP server configurations"
+        }
+      }
+    },
+    "McpServerConfig": {
+      "type": "object",
+      "description": "Configuration for a single MCP server",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable this MCP server"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

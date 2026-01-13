@@ -1,0 +1,67 @@
+---
+title: RAPID
+description: AI-assisted development with dev containers. An open source project by A3T.
+template: splash
+hero:
+  title: RAPID
+  tagline: Orchestrate AI coding assistants in containerized environments.
+  actions:
+    - text: Get Started
+      link: /getting-started/introduction/
+      variant: primary
+    - text: GitHub
+      link: https://github.com/a3tai/rapid
+      variant: secondary
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+## Built for AI-native development
+
+RAPID wraps **Claude Code**, **OpenCode**, and **Aider** to provide a unified experience with secure secret management and reproducible environments.
+
+<CardGrid>
+  <LinkCard
+    title="Secure secrets"
+    description="Load API keys from 1Password or Vault. Never stored in plaintext."
+    href="/guides/secrets-management/"
+  />
+  <LinkCard
+    title="Multi-agent"  
+    description="Run multiple AI assistants concurrently. Switch seamlessly."
+    href="/reference/supported-agents/"
+  />
+  <LinkCard
+    title="Containers"
+    description="Consistent environments across machines. VS Code compatible."
+    href="/concepts/container-lifecycle/"
+  />
+  <LinkCard
+    title="Zero config"
+    description="Sensible defaults. Deep customization when needed."
+    href="/reference/rapid-json-spec/"
+  />
+</CardGrid>
+
+---
+
+## Quick start
+
+```bash
+# Install
+npm install -g @a3t/rapid-cli
+
+# Initialize
+rapid init --template typescript
+
+# Start environment and launch AI session
+rapid start && rapid dev
+```
+
+<div class="not-content" style="margin-top: 2rem;">
+  <LinkCard
+    title="Continue to the guide"
+    description="Full walkthrough of setting up RAPID in your project."
+    href="/getting-started/introduction/"
+  />
+</div>

@@ -1,0 +1,144 @@
+---
+title: Quickstart
+description: Get a RAPID-enabled project running in 5 minutes.
+---
+
+import { Aside, Steps, Tabs, TabItem, Code } from '@astrojs/starlight/components';
+
+Get RAPID running in your project in under 5 minutes.
+
+## Initialize a Project
+
+<Steps>
+
+1. **Navigate to your project** (or create a new one):
+
+   ```bash
+   mkdir my-project && cd my-project
+   ```
+
+2. **Initialize RAPID**:
+
+   ```bash
+   rapid init --template typescript
+   ```
+
+   This creates:
+   - `rapid.json` — RAPID configuration
+   - `.envrc` — Secure secrets loading (safe to commit)
+   - `.devcontainer/` — Dev container configuration
+   - `CLAUDE.md` — AI instruction file
+
+3. **Configure your secrets**:
+
+   Edit `rapid.json` to point to your 1Password vault:
+
+   ```json
+   {
+     "secrets": {
+       "provider": "1password",
+       "vault": "Development",
+       "items": {
+         "ANTHROPIC_API_KEY": "op://Development/Anthropic/api-key"
+       }
+     }
+   }
+   ```
+
+4. **Allow direnv**:
+
+   ```bash
+   direnv allow
+   ```
+
+5. **Start the environment**:
+
+   ```bash
+   rapid start
+   ```
+
+6. **Launch AI coding session**:
+
+   ```bash
+   rapid dev
+   ```
+
+</Steps>
+
+<Aside type="tip">
+  If you don't have API keys set up in 1Password yet, you can use environment variables temporarily:
+  
+  ```bash
+  export ANTHROPIC_API_KEY="your-key-here"
+  rapid start --skip-secrets
+  rapid dev
+  ```
+</Aside>
+
+## What Just Happened?
+
+When you ran `rapid start`, RAPID:
+
+1. Built and started a dev container based on your template
+2. Loaded secrets from 1Password into the container environment
+3. Installed AI CLI tools (Claude Code, OpenCode) inside the container
+4. Generated/updated the `CLAUDE.md` instruction file
+
+When you ran `rapid dev`, RAPID:
+
+1. Attached to the running container
+2. Launched your configured AI coding assistant (Claude by default)
+3. The AI tool reads `CLAUDE.md` for project context
+
+## Common Workflows
+
+### Switch AI Agents
+
+```bash
+# Use a different agent for this session
+rapid dev --agent aider
+
+# Or change the default
+rapid agent default opencode
+```
+
+### Run Multiple Agents
+
+```bash
+# Launch all configured agents in split panes
+rapid dev --multi
+```
+
+### Rebuild Environment
+
+```bash
+# After changing devcontainer.json or Dockerfile
+rapid start --rebuild
+```
+
+### Stop Environment
+
+```bash
+rapid stop
+```
+
+## Project Structure
+
+After initialization, your project looks like:
+
+```
+my-project/
+├── rapid.json              # RAPID configuration
+├── .envrc                  # Secret references (safe to commit)
+├── CLAUDE.md               # AI instruction file
+├── AGENTS.md               # Generic AI instructions
+└── .devcontainer/
+    └── devcontainer.json   # Container configuration
+```
+
+## Next Steps
+
+- [Customize your AI agents](/guides/agent-configuration/)
+- [Set up secure secrets](/guides/secrets-management/)
+- [Explore dev container templates](/guides/devcontainer-templates/)
+- [Learn the CLI commands](/guides/cli-reference/)

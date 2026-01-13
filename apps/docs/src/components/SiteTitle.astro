@@ -1,0 +1,57 @@
+---
+/**
+ * Custom SiteTitle component for RAPID
+ * Shows RAPID branding with blinking cursor
+ */
+---
+
+<a href="/" class="site-title">
+  <span class="title-text">RAPID</span><span class="cursor">_</span>
+</a>
+
+<style>
+  .site-title {
+    display: flex;
+    align-items: center;
+    font-family: var(--font-mono);
+    font-size: 1.25rem;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    text-decoration: none;
+    color: hsl(var(--foreground));
+    transition: color 0.2s ease;
+  }
+  
+  .site-title:hover {
+    color: hsl(var(--brand));
+  }
+  
+  .title-text {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--foreground)) 0%,
+      hsl(var(--brand)) 100%
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .site-title:hover .title-text {
+    background: hsl(var(--brand));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .cursor {
+    color: hsl(var(--brand));
+    -webkit-text-fill-color: hsl(var(--brand));
+    animation: blink 1s step-end infinite;
+  }
+  
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+</style>

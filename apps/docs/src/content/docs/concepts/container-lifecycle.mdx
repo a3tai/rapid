@@ -1,0 +1,235 @@
+---
+title: Container Lifecycle
+description: How RAPID manages dev container lifecycle.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+RAPID manages dev container lifecycle through simple commands. This document explains how containers are started, managed, and stopped.
+
+## Container States
+
+Containers move through these states:
+
+| State | Description |
+|-------|-------------|
+| **Not Created** | No container exists |
+| **Building** | Container image being built |
+| **Running** | Container active and ready |
+| **Stopped** | Container exists but not running |
+
+**Transitions:**
+- `rapid start` → Building → Running
+- `rapid stop` → Stopped
+- `rapid stop --remove` → Not Created
+
+## Commands
+
+### rapid start
+
+Starts the development environment:
+
+```bash
+rapid start [options]
+```
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--rebuild` | Force rebuild the container image |
+| `--no-cache` | Build without Docker cache |
+| `--reinstall-tools` | Reinstall AI CLI tools |
+| `--skip-secrets` | Skip secret loading |
+| `-d, --detach` | Run in background |
+
+**What it does:**
+
+<Steps>
+1. Reads configuration from `rapid.json` and `devcontainer.json`
+2. Builds container image (if needed)
+3. Starts container with `devcontainer up`
+4. Loads secrets from 1Password/Vault
+5. Installs missing AI CLI tools
+6. Generates/updates instruction files
+7. Configures MCP servers
+</Steps>
+
+### rapid dev
+
+Launches an AI coding session:
+
+```bash
+rapid dev [options]
+```
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--agent <name>` | Use specific agent (overrides default) |
+| `--multi` | Launch all configured agents |
+| `--attach` | Attach to existing session |
+
+**What it does:**
+
+<Steps>
+1. Verifies container is running (starts if `autoStart: true`)
+2. Attaches to container
+3. Launches configured AI CLI
+4. Manages session for multi-agent mode
+</Steps>
+
+### rapid stop
+
+Stops the development environment:
+
+```bash
+rapid stop [options]
+```
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--remove` | Remove container after stopping |
+| `--volumes` | Also remove volumes |
+| `--force` | Force stop (SIGKILL) |
+
+## Lifecycle Hooks
+
+RAPID integrates with devcontainer lifecycle hooks:
+
+```json
+// devcontainer.json
+{
+  "initializeCommand": "rapid hooks initialize",
+  "onCreateCommand": "rapid hooks onCreate",
+  "postCreateCommand": "rapid hooks postCreate",
+  "postStartCommand": "rapid hooks postStart"
+}
+```
+
+### Hook Sequence
+
+| Hook | When | Actions |
+|------|------|---------|
+| `initializeCommand` | On host, before build | Validate config, pre-fetch secrets |
+| `onCreateCommand` | First time only | Install system dependencies |
+| `postCreateCommand` | First time only | Install AI tools, generate files |
+| `postStartCommand` | Every start | Load secrets, update files |
+
+## Container Configuration
+
+### From rapid.json
+
+```json
+{
+  "container": {
+    "devcontainer": ".devcontainer/devcontainer.json",
+    "compose": null,
+    "autoStart": true,
+    "buildArgs": {
+      "NODE_VERSION": "20"
+    }
+  }
+}
+```
+
+### Relationship with devcontainer.json
+
+RAPID uses but does not modify `devcontainer.json`:
+
+| Concern | Configured In |
+|---------|---------------|
+| Base image | devcontainer.json |
+| System packages | devcontainer.json |
+| VS Code extensions | devcontainer.json |
+| Port forwarding | devcontainer.json |
+| AI agents | rapid.json |
+| Secrets | rapid.json |
+| Context files | rapid.json |
+| MCP servers | rapid.json |
+
+## Docker Compose Support
+
+For multi-container setups:
+
+```json
+{
+  "container": {
+    "compose": "docker-compose.yml",
+    "service": "app"
+  }
+}
+```
+
+RAPID will:
+1. Start all services in the compose file
+2. Attach to the specified service for AI sessions
+
+## Volume Management
+
+### Workspace Mount
+
+By default, devcontainers mount the project directory:
+
+```json
+{
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/${localWorkspaceFolderBasename},type=bind",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}"
+}
+```
+
+### Persistent Volumes
+
+For data that should persist across rebuilds:
+
+```json
+{
+  "mounts": [
+    "source=rapid-cache,target=/home/vscode/.cache,type=volume"
+  ]
+}
+```
+
+## Troubleshooting
+
+### Container won't start
+
+```bash
+# Check Docker is running
+docker info
+
+# View container logs
+docker logs <container-id>
+
+# Rebuild from scratch
+rapid start --rebuild --no-cache
+```
+
+### Container slow on macOS
+
+Enable VirtioFS in Docker Desktop settings for better file system performance.
+
+### Permission issues
+
+```bash
+# Fix ownership (in container)
+sudo chown -R vscode:vscode /workspaces
+```
+
+### Tools not found after restart
+
+```bash
+# Reinstall tools
+rapid start --reinstall-tools
+```
+
+## Best Practices
+
+1. **Use devcontainer features** for common tools
+2. **Keep images small** — Install only what's needed
+3. **Use volumes** for caches (npm, pip, etc.)
+4. **Don't store secrets** in the container image
+5. **Rebuild periodically** to get security updates

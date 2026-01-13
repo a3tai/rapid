@@ -1,0 +1,74 @@
+---
+title: Introduction
+description: Learn what RAPID is and how it transforms AI-assisted development.
+---
+
+import { Aside, Card, CardGrid } from '@astrojs/starlight/components';
+
+**RAPID** is an orchestration layer for AI-assisted development. It manages the complexity of running AI coding tools inside containerized environments.
+
+## What RAPID Does
+
+- **Manages dev container lifecycle** — `rapid start` / `rapid stop` handle everything
+- **Auto-configures AI coding tools** — Installs and configures Claude, OpenCode, Aider inside containers
+- **Handles secrets securely** — 1Password, Vault, or environment-based secret loading via `.envrc`
+- **Generates agent instruction files** — Creates `AGENTS.md`, `CLAUDE.md` with project context
+- **Supports concurrent AI agents** — Run multiple agents in split panes
+
+## The Problem
+
+AI coding assistants are powerful but require significant setup:
+
+1. **Environment Consistency** — AI tools need consistent environments to work reliably
+2. **Context Preparation** — Agents perform better with proper documentation and project context
+3. **Secret Management** — API keys must be injected securely, not committed to repos
+4. **Container Isolation** — Running AI agents in containers provides security boundaries
+5. **Tool Fragmentation** — Each AI tool (Claude, OpenCode, Aider) has different setup requirements
+
+Setting this up for each project is tedious, error-prone, and often results in inconsistent experiences.
+
+## The Solution
+
+RAPID provides a single orchestration layer that handles all of this automatically:
+
+```bash
+# That's it. You're ready to code with AI.
+rapid start
+rapid dev
+```
+
+## The RAPID Methodology
+
+Beyond tooling, RAPID embodies a methodology for effective AI-assisted development:
+
+| Phase | Purpose |
+|-------|---------|
+| **R**esearch | Gather context before engaging AI — codebase structure, docs, patterns |
+| **A**ugment | Enhance with external knowledge — APIs, documentation, MCP servers |
+| **P**lan | Structure work before execution — task breakdown, acceptance criteria |
+| **I**ntegrate | Ensure environment readiness — containers, secrets, tooling |
+| **D**evelop | Execute with AI assistance — generate, test, iterate, review |
+
+<Aside type="tip">
+  AI output quality correlates directly with context quality. The Research and Augment phases are where you set up for success.
+</Aside>
+
+## Supported AI Tools
+
+| Tool | CLI | Status |
+|------|-----|--------|
+| Claude Code | `claude` | Supported |
+| OpenCode | `opencode` | Supported |
+| Aider | `aider` | Supported |
+| GitHub Copilot CLI | `gh copilot` | Planned |
+
+## Next Steps
+
+<CardGrid>
+  <Card title="Installation" icon="download">
+    [Install RAPID](/getting-started/installation/) and get your environment set up.
+  </Card>
+  <Card title="Quickstart" icon="rocket">
+    [Get started in 5 minutes](/getting-started/quickstart/) with your first RAPID project.
+  </Card>
+</CardGrid>

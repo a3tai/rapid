@@ -1,0 +1,534 @@
+# Secrets Management
+
+RAPID uses `.envrc` with direnv as the secure source of truth for project secrets. This approach ensures secrets are loaded dynamically, never stored in plaintext, and automatically available when entering a project directory.
+
+## Philosophy
+
+**Secure by default, easy to use.**
+
+- Secrets are fetched just-in-time from secure vaults (1Password, HashiCorp Vault)
+- No plaintext secrets stored on disk
+- Automatic loading/unloading when entering/leaving project directories
+- Works seamlessly with dev containers
+
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph Host["Host Machine"]
+        envrc[".envrc"]
+        direnv["direnv"]
+        op["1Password CLI"]
+        vault["Vault CLI"]
+    end
+    
+    subgraph Secrets["Secret Providers"]
+        onepass["1Password"]
+        hashivault["HashiCorp Vault"]
+    end
+    
+    subgraph Container["Dev Container"]
+        env["Environment Variables"]
+        agents["AI Agents"]
+    end
+    
+    envrc --> direnv
+    direnv --> op --> onepass
+    direnv --> vault --> hashivault
+    direnv --> env --> agents
+```
+
+## Quick Start
+
+### 1. Install direnv
+
+```bash
+# macOS
+brew install direnv
+
+# Linux
+sudo apt install direnv
+
+# Add to shell (bash)
+echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
+
+# Add to shell (zsh)
+echo 'eval "$(direnv hook zsh)"' >> ~/.zshrc
+```
+
+### 2. Install 1Password CLI (Recommended)
+
+```bash
+# macOS
+brew install 1password-cli
+
+# Sign in
+eval $(op signin)
+```
+
+### 3. Create Project .envrc
+
+```bash
+# Run in your project directory
+rapid init
+```
+
+This creates a `.envrc` file configured for your project:
+
+```bash
+# .envrc - RAPID project secrets
+# This file is safe to commit - it contains NO secrets, only references
+
+# Load secrets from 1Password
+export ANTHROPIC_API_KEY=$(op read "op://Development/Anthropic/api-key")
+export OPENAI_API_KEY=$(op read "op://Development/OpenAI/api-key")
+export GITHUB_TOKEN=$(op read "op://Development/GitHub/pat")
+
+# Optional: Load from .env.local for non-sensitive overrides
+[[ -f .env.local ]] && source_env .env.local
+```
+
+### 4. Allow direnv
+
+```bash
+direnv allow
+```
+
+Now secrets automatically load when you `cd` into the project.
+
+---
+
+## Configuration in rapid.json
+
+```json
+{
+  "secrets": {
+    "provider": "1password",
+    "vault": "Development",
+    "items": {
+      "ANTHROPIC_API_KEY": "op://Development/Anthropic/api-key",
+      "OPENAI_API_KEY": "op://Development/OpenAI/api-key",
+      "GITHUB_TOKEN": "op://Development/GitHub/pat"
+    },
+    "envrc": {
+      "generate": true,
+      "path": ".envrc"
+    }
+  }
+}
+```
+
+When you run `rapid init` or `rapid secrets generate`, RAPID creates the `.envrc` from this config.
+
+---
+
+## Providers
+
+### 1Password (Recommended)
+
+Best for individuals and teams. Secrets stored in 1Password vaults, fetched via CLI.
+
+#### Setup
+
+1. Create a vault in 1Password (e.g., "Development")
+2. Add items for each secret (API Credential type works well)
+3. Reference in rapid.json using `op://` format
+
+#### Secret Reference Format
+
+```
+op://vault-name/item-name/field-name
+```
+
+Examples:
+- `op://Development/Anthropic/api-key`
+- `op://Work/AWS/access-key-id`
+- `op://Personal/GitHub/token`
+
+#### Generated .envrc
+
+```bash
+# .envrc
+export ANTHROPIC_API_KEY=$(op read "op://Development/Anthropic/api-key")
+export OPENAI_API_KEY=$(op read "op://Development/OpenAI/api-key")
+```
+
+### HashiCorp Vault
+
+Best for enterprise and teams with existing Vault infrastructure.
+
+#### Setup
+
+```bash
+export VAULT_ADDR="https://vault.example.com"
+vault login
+```
+
+#### Configuration
+
+```json
+{
+  "secrets": {
+    "provider": "vault",
+    "address": "https://vault.example.com",
+    "path": "secret/data/myproject",
+    "items": {
+      "ANTHROPIC_API_KEY": "anthropic_key",
+      "OPENAI_API_KEY": "openai_key"
+    }
+  }
+}
+```
+
+#### Generated .envrc
+
+```bash
+# .envrc
+export VAULT_ADDR="https://vault.example.com"
+export ANTHROPIC_API_KEY=$(vault kv get -field=anthropic_key secret/data/myproject)
+export OPENAI_API_KEY=$(vault kv get -field=openai_key secret/data/myproject)
+```
+
+---
+
+## .env Files (Not Recommended)
+
+**.env files are a security risk.** They store secrets in plaintext on disk, making them vulnerable to:
+
+- Accidental git commits
+- Malicious npm/pip packages reading filesystem
+- Log file exposure
+- Backup/sync service leaks
+
+### If You Must Use .env Files
+
+RAPID will detect and load `.env` files, but with warnings:
+
+```json
+{
+  "secrets": {
+    "provider": "env",
+    "dotenv": {
+      "enabled": true,
+      "files": [".env", ".env.local"],
+      "warn": true
+    }
+  }
+}
+```
+
+### Safer Alternative: .env.local for Non-Secrets
+
+Use `.env.local` for non-sensitive configuration only:
+
+```bash
+# .env.local (add to .gitignore)
+# Non-sensitive overrides only!
+LOG_LEVEL=debug
+API_TIMEOUT=30000
+
+# NEVER put secrets here:
+# ANTHROPIC_API_KEY=sk-ant-...  # DON'T DO THIS
+```
+
+Reference in `.envrc`:
+
+```bash
+# .envrc
+# Load secrets securely from 1Password
+export ANTHROPIC_API_KEY=$(op read "op://Development/Anthropic/api-key")
+
+# Load non-sensitive config from .env.local
+[[ -f .env.local ]] && source_env .env.local
+```
+
+---
+
+## Secret Loading Flow
+
+```mermaid
+flowchart TB
+    cd["cd into project"]
+    
+    direnv["direnv detects .envrc"]
+    
+    check{"Secrets cached<br/>and fresh?"}
+    
+    fetch["Fetch from provider<br/>(1Password/Vault)"]
+    
+    export["Export to environment"]
+    
+    ready["Secrets available"]
+    
+    rapid["rapid start / rapid dev"]
+    
+    container["Inject into container"]
+    
+    cd --> direnv --> check
+    check -->|No| fetch --> export
+    check -->|Yes| export
+    export --> ready --> rapid --> container
+```
+
+---
+
+## Commands
+
+### rapid secrets generate
+
+Generate `.envrc` from `rapid.json` configuration:
+
+```bash
+rapid secrets generate
+```
+
+Output:
+```
+Generated .envrc with 3 secrets
+Run 'direnv allow' to activate
+```
+
+### rapid secrets verify
+
+Verify all secrets are accessible:
+
+```bash
+rapid secrets verify
+```
+
+Output:
+```
+Verifying secrets...
+  ✓ ANTHROPIC_API_KEY (1password)
+  ✓ OPENAI_API_KEY (1password)
+  ✓ GITHUB_TOKEN (1password)
+
+All secrets verified.
+```
+
+### rapid secrets list
+
+List configured secrets (names only, not values):
+
+```bash
+rapid secrets list
+```
+
+Output:
+```
+Configured secrets:
+  ANTHROPIC_API_KEY  op://Development/Anthropic/api-key
+  OPENAI_API_KEY     op://Development/OpenAI/api-key
+  GITHUB_TOKEN       op://Development/GitHub/pat
+```
+
+---
+
+## Security Best Practices
+
+### Do
+
+- Use 1Password or Vault for all secrets
+- Commit `.envrc` to git (it contains no secrets, only references)
+- Add `.env*` to `.gitignore`
+- Use separate vaults for dev/staging/prod
+- Rotate API keys periodically
+- Audit secret access in your vault
+
+### Don't
+
+- Store secrets in `.env` files
+- Commit any file containing actual secret values
+- Share API keys between projects
+- Use the same keys across environments
+- Log or print secret values
+- Store secrets in rapid.json
+
+### Gitignore Template
+
+```gitignore
+# Secrets - NEVER commit these
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# .envrc is safe to commit (contains only references)
+# !.envrc
+```
+
+---
+
+## Dev Container Integration
+
+When `rapid start` runs, it:
+
+1. Sources `.envrc` to get current secrets
+2. Passes them as environment variables to the container
+3. Secrets are available inside the container without being written to disk
+
+```mermaid
+flowchart LR
+    subgraph Host
+        envrc[".envrc"]
+        rapid["rapid start"]
+    end
+    
+    subgraph Container
+        env["$ANTHROPIC_API_KEY<br/>$OPENAI_API_KEY"]
+        claude["claude"]
+        opencode["opencode"]
+    end
+    
+    envrc --> rapid
+    rapid -->|"inject env vars"| env
+    env --> claude
+    env --> opencode
+```
+
+### How It Works
+
+```bash
+# rapid start internally does something like:
+source .envrc
+devcontainer up --env ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
+                --env OPENAI_API_KEY="$OPENAI_API_KEY"
+```
+
+Secrets never touch the container filesystem - they exist only in memory as environment variables.
+
+---
+
+## Team Setup
+
+### Shared Vault Approach
+
+1. Create a shared 1Password vault: "Team-ProjectName"
+2. Add team members to the vault
+3. Everyone uses the same `.envrc`:
+
+```bash
+# .envrc (committed to repo)
+export ANTHROPIC_API_KEY=$(op read "op://Team-ProjectName/Anthropic/api-key")
+export OPENAI_API_KEY=$(op read "op://Team-ProjectName/OpenAI/api-key")
+```
+
+### Personal Overrides
+
+Developers can override with personal credentials using `.envrc.local`:
+
+```bash
+# .envrc.local (gitignored)
+export ANTHROPIC_API_KEY=$(op read "op://Personal/Anthropic/api-key")
+```
+
+Update `.envrc` to load it:
+
+```bash
+# .envrc
+export ANTHROPIC_API_KEY=$(op read "op://Team-ProjectName/Anthropic/api-key")
+
+# Allow personal overrides
+[[ -f .envrc.local ]] && source_env .envrc.local
+```
+
+---
+
+## Troubleshooting
+
+### "direnv: error .envrc is blocked"
+
+```bash
+direnv allow
+```
+
+### "op: not signed in"
+
+```bash
+eval $(op signin)
+```
+
+### "op: item not found"
+
+Verify the reference path:
+```bash
+op item get "Anthropic" --vault "Development"
+```
+
+### Secrets not in container
+
+```bash
+# Verify they're loaded on host
+echo $ANTHROPIC_API_KEY
+
+# Verify rapid sees them
+rapid secrets verify
+
+# Restart container
+rapid stop && rapid start
+```
+
+### Slow secret loading
+
+1Password caches credentials. If fetching is slow:
+```bash
+# Sign in again to refresh session
+eval $(op signin)
+```
+
+---
+
+## Migration from .env Files
+
+If you have existing `.env` files:
+
+### 1. Create secrets in 1Password
+
+For each secret in `.env`:
+1. Create an item in 1Password
+2. Add the secret value
+
+### 2. Update rapid.json
+
+```json
+{
+  "secrets": {
+    "provider": "1password",
+    "vault": "Development",
+    "items": {
+      "ANTHROPIC_API_KEY": "op://Development/Anthropic/api-key"
+    }
+  }
+}
+```
+
+### 3. Generate new .envrc
+
+```bash
+rapid secrets generate
+direnv allow
+```
+
+### 4. Delete .env file
+
+```bash
+rm .env
+```
+
+### 5. Update .gitignore
+
+Ensure `.env*` patterns are in `.gitignore`.
+
+---
+
+## Summary
+
+| Method | Security | Convenience | Recommended |
+|--------|----------|-------------|-------------|
+| `.envrc` + 1Password | High | High | Yes |
+| `.envrc` + Vault | High | Medium | Yes (enterprise) |
+| `.env` files | Low | High | No |
+| Environment export | Medium | Low | Fallback only |
+
+**Use `.envrc` with 1Password or Vault.** It's secure, easy, and works seamlessly with RAPID and dev containers.

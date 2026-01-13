@@ -1,0 +1,338 @@
+# Supported Agents
+
+Compatibility matrix and feature comparison for AI coding agents supported by RAPID.
+
+## Agent Comparison
+
+| Feature | Claude Code | OpenCode | Aider | Copilot CLI |
+|---------|-------------|----------|-------|-------------|
+| **Provider** | Anthropic | Multi | Multi | GitHub |
+| **Interface** | Chat CLI | Chat CLI | Chat CLI | Commands |
+| **File Editing** | Yes | Yes | Yes | No |
+| **Git Integration** | Yes | Yes | Yes | No |
+| **Multi-file** | Yes | Yes | Yes | No |
+| **Auto-commit** | No | No | Yes | N/A |
+| **MCP Support** | Yes | Yes | No | No |
+| **Context Files** | CLAUDE.md | AGENTS.md | .aider.conf.yml | N/A |
+
+## Detailed Agent Information
+
+### Claude Code
+
+**Developer:** Anthropic  
+**License:** Commercial  
+**Models:** Claude 3.5 Sonnet, Claude 3 Opus
+
+#### Strengths
+- Excellent reasoning capabilities
+- Strong at complex refactoring
+- Good understanding of context
+- MCP server integration
+
+#### Best For
+- Architecture decisions
+- Complex code changes
+- Code review
+- Documentation
+
+#### Configuration
+
+```json
+{
+  "claude": {
+    "cli": "claude",
+    "instructionFile": "CLAUDE.md",
+    "envVars": ["ANTHROPIC_API_KEY"],
+    "installCmd": "npm install -g @anthropic-ai/claude-code"
+  }
+}
+```
+
+#### Pricing
+- Based on API token usage
+- See [Anthropic pricing](https://anthropic.com/pricing)
+
+---
+
+### OpenCode
+
+**Developer:** Community  
+**License:** MIT  
+**Models:** Claude, GPT-4, GPT-3.5, Local models
+
+#### Strengths
+- Multi-provider support
+- Extensible architecture
+- Open source
+- MCP integration
+
+#### Best For
+- Flexibility in model choice
+- Cost optimization
+- Custom workflows
+
+#### Configuration
+
+```json
+{
+  "opencode": {
+    "cli": "opencode",
+    "instructionFile": "AGENTS.md",
+    "envVars": ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"],
+    "installCmd": "npm install -g opencode"
+  }
+}
+```
+
+#### Pricing
+- Based on underlying provider pricing
+- Can use local models for free
+
+---
+
+### Aider
+
+**Developer:** Paul Gauthier  
+**License:** Apache 2.0  
+**Models:** GPT-4, GPT-3.5, Claude, Local models
+
+#### Strengths
+- Automatic git commits
+- Strong pair programming workflow
+- Efficient token usage
+- Voice mode support
+
+#### Best For
+- Quick code changes
+- Iterative development
+- Auto-committing workflow
+
+#### Configuration
+
+```json
+{
+  "aider": {
+    "cli": "aider",
+    "instructionFile": ".aider.conf.yml",
+    "envVars": ["OPENAI_API_KEY"],
+    "installCmd": "pip install aider-chat",
+    "args": ["--model", "gpt-4o"]
+  }
+}
+```
+
+#### Model Options
+
+```json
+{
+  "args": ["--model", "gpt-4o"]           // OpenAI GPT-4
+}
+```
+
+```json
+{
+  "args": ["--model", "claude-3-5-sonnet-20241022"]  // Anthropic
+}
+```
+
+#### Pricing
+- Based on underlying provider pricing
+- Token-efficient architecture
+
+---
+
+### GitHub Copilot CLI
+
+**Developer:** GitHub/Microsoft  
+**License:** Commercial (GitHub subscription)  
+**Models:** OpenAI Codex
+
+#### Strengths
+- GitHub integration
+- Explain commands
+- Generate shell commands
+
+#### Limitations
+- No file editing
+- No multi-file context
+- Command-focused only
+
+#### Best For
+- Shell command generation
+- Git operations
+- Quick explanations
+
+#### Configuration
+
+```json
+{
+  "copilot": {
+    "cli": "gh",
+    "args": ["copilot"],
+    "envVars": ["GITHUB_TOKEN"],
+    "installCmd": "gh extension install github/gh-copilot"
+  }
+}
+```
+
+#### Pricing
+- Included with GitHub Copilot subscription
+
+---
+
+## Model Comparison
+
+| Model | Provider | Context | Speed | Cost | Best For |
+|-------|----------|---------|-------|------|----------|
+| Claude 3.5 Sonnet | Anthropic | 200K | Fast | $$ | General coding |
+| Claude 3 Opus | Anthropic | 200K | Slow | $$$ | Complex reasoning |
+| GPT-4o | OpenAI | 128K | Fast | $$ | Quick tasks |
+| GPT-4 Turbo | OpenAI | 128K | Medium | $$ | Balanced |
+| GPT-3.5 Turbo | OpenAI | 16K | Fast | $ | Simple tasks |
+
+---
+
+## Feature Details
+
+### File Editing
+
+How agents modify files:
+
+| Agent | Method | Confirmation |
+|-------|--------|--------------|
+| Claude Code | Direct write | Shows diff first |
+| OpenCode | Direct write | Configurable |
+| Aider | Direct write | Optional confirm |
+| Copilot CLI | N/A | N/A |
+
+### Git Integration
+
+| Agent | Auto-stage | Auto-commit | Custom messages |
+|-------|------------|-------------|-----------------|
+| Claude Code | Yes | No | N/A |
+| OpenCode | Yes | No | N/A |
+| Aider | Yes | Yes | Yes |
+| Copilot CLI | No | No | No |
+
+### Context Window Usage
+
+How agents use available context:
+
+| Agent | Strategy |
+|-------|----------|
+| Claude Code | Full context + instruction file |
+| OpenCode | Selective context loading |
+| Aider | Repository map + focused files |
+| Copilot CLI | Current command only |
+
+---
+
+## Choosing an Agent
+
+### Decision Tree
+
+```mermaid
+flowchart TB
+    q1{"Need complex<br/>reasoning?"}
+    q2{"Need<br/>auto-commits?"}
+    q3{"Need<br/>multi-provider?"}
+    
+    claude1["Claude Code"]
+    claude2["Claude Code"]
+    aider["Aider"]
+    opencode["OpenCode"]
+    
+    q1 -->|Yes| claude1
+    q1 -->|No| q2
+    q2 -->|Yes| aider
+    q2 -->|No| q3
+    q3 -->|Yes| opencode
+    q3 -->|No| claude2
+```
+
+### Use Case Recommendations
+
+| Use Case | Recommended Agent |
+|----------|-------------------|
+| New feature development | Claude Code |
+| Bug fixing | Aider |
+| Code review | Claude Code |
+| Quick refactoring | Aider |
+| Architecture decisions | Claude Code |
+| Cost-sensitive work | OpenCode (GPT-3.5) |
+| Local/offline | OpenCode (Ollama) |
+| Git workflow | Aider |
+
+---
+
+## Adding New Agents
+
+RAPID can work with any CLI-based AI tool:
+
+```json
+{
+  "agents": {
+    "available": {
+      "custom-agent": {
+        "cli": "my-ai-tool",
+        "instructionFile": "MY_AGENT.md",
+        "envVars": ["MY_API_KEY"],
+        "installCmd": "npm install -g my-ai-tool",
+        "args": ["--flag", "value"]
+      }
+    }
+  }
+}
+```
+
+### Requirements
+
+For an agent to work with RAPID:
+
+1. **CLI interface** - Must be runnable from command line
+2. **Environment variables** - Must read API keys from env
+3. **Interactive mode** - Must support chat/interactive session
+4. **Exit cleanly** - Must handle SIGTERM gracefully
+
+---
+
+## Troubleshooting
+
+### Agent not starting
+
+```bash
+# Verify installation
+which claude
+which aider
+
+# Check env vars
+echo $ANTHROPIC_API_KEY
+
+# Reinstall
+rapid start --reinstall-tools
+```
+
+### Slow response times
+
+- Check model selection (Opus slower than Sonnet)
+- Reduce context window
+- Use faster model for simple tasks
+
+### Rate limiting
+
+- Implement request queuing
+- Use multiple API keys
+- Switch to different provider
+
+---
+
+## Future Agents
+
+Planned support:
+
+| Agent | Status | ETA |
+|-------|--------|-----|
+| Cursor CLI | Planned | TBD |
+| Continue | Evaluating | TBD |
+| Cody | Evaluating | TBD |
+| Local LLMs (Ollama) | Via OpenCode | Available |

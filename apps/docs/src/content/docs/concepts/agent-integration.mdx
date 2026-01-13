@@ -1,0 +1,210 @@
+---
+title: Agent Integration
+description: How RAPID integrates with AI coding CLI tools.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+RAPID integrates with AI coding CLI tools by wrapping them rather than reimplementing them. This document explains how RAPID manages and orchestrates these tools.
+
+## Supported Agents
+
+| Agent | CLI Command | Instruction File | Provider |
+|-------|-------------|------------------|----------|
+| Claude Code | `claude` | `CLAUDE.md` | Anthropic |
+| OpenCode | `opencode` | `AGENTS.md` | Multi-provider |
+| Aider | `aider` | `.aider.conf.yml` | OpenAI/Anthropic |
+| GitHub Copilot | `gh copilot` | — | GitHub |
+
+## Integration Model
+
+RAPID CLI takes three inputs:
+
+1. **Config** (`rapid.json`) — Which agents, how to install them
+2. **Secrets** (1Password/Vault) — API keys loaded securely
+3. **Context** (`AGENTS.md`) — Project-specific instructions
+
+These flow through:
+
+1. **Environment Setup**
+   - Export API keys as env vars
+   - Generate/update instruction files
+   - Configure MCP servers
+
+2. **Agent Launcher**
+   - Install CLI if missing
+   - Launch with configured args
+   - Manage sessions for multi-agent mode
+
+3. **AI CLI Tool**
+   - Reads environment variables and instruction files
+   - Provides chat interface, code generation, file editing
+
+## How RAPID Wraps Agents
+
+### 1. Environment Preparation
+
+Before launching any agent, RAPID:
+
+```bash
+# Loads secrets and exports as environment variables
+export ANTHROPIC_API_KEY="sk-ant-..."
+export OPENAI_API_KEY="sk-..."
+
+# Sets working directory
+cd /workspaces/project
+
+# Ensures instruction files exist
+# (AGENTS.md, CLAUDE.md, etc.)
+```
+
+### 2. Agent Installation
+
+If the CLI tool is missing, RAPID installs it:
+
+```bash
+# From rapid.json agents.available.<name>.installCmd
+npm install -g @anthropic-ai/claude-code  # Claude
+npm install -g opencode                     # OpenCode  
+pip install aider-chat                      # Aider
+```
+
+### 3. Agent Launch
+
+RAPID executes the configured CLI:
+
+```bash
+# Single agent mode
+claude
+
+# With additional args (from rapid.json)
+aider --model gpt-4o --auto-commits
+```
+
+## Instruction Files
+
+Each agent reads project-specific instructions from designated files.
+
+### CLAUDE.md
+
+Used by Claude Code to understand project context:
+
+```markdown
+# Project: my-api
+
+## Overview
+Express.js REST API with PostgreSQL database.
+
+## Code Style
+- TypeScript with strict mode
+- Async/await for all async operations
+- Zod for validation
+
+## Commands
+- `npm run dev` - Start development server
+- `npm test` - Run tests
+- `npm run build` - Production build
+```
+
+### AGENTS.md
+
+Generic instruction file used by OpenCode and others:
+
+```markdown
+# Agent Instructions
+
+## Project Type
+TypeScript Node.js application
+
+## Important Files
+- src/index.ts - Entry point
+- src/config.ts - Configuration
+- package.json - Dependencies
+
+## Testing
+Always run `npm test` after changes.
+```
+
+### .aider.conf.yml
+
+Aider-specific configuration:
+
+```yaml
+model: gpt-4o
+auto-commits: true
+gitignore: true
+map-tokens: 1024
+```
+
+## Multi-Agent Mode
+
+RAPID supports running multiple agents concurrently:
+
+```bash
+rapid dev --multi
+```
+
+This creates a split-pane session with each configured agent:
+
+| Pane | Agent | Use Case |
+|------|-------|----------|
+| Left | Claude Code | Architecture, complex reasoning |
+| Right | OpenCode | Implementation |
+| Bottom | Aider | Quick fixes, auto-commits |
+
+### Controls
+
+| Key | Action |
+|-----|--------|
+| `Ctrl+b` then `o` | Switch panes |
+| `Ctrl+b` then `arrow` | Navigate panes |
+| `Ctrl+b` then `z` | Zoom current pane |
+| `Ctrl+b` then `d` | Detach (keeps running) |
+
+## Adding Custom Agents
+
+Add new agents to `rapid.json`:
+
+```json
+{
+  "agents": {
+    "available": {
+      "my-agent": {
+        "cli": "my-ai-tool",
+        "instructionFile": "MY_AGENT.md",
+        "envVars": ["MY_API_KEY"],
+        "installCmd": "npm install -g my-ai-tool",
+        "args": ["--verbose", "--model", "custom"]
+      }
+    }
+  }
+}
+```
+
+## Agent Communication
+
+Agents don't directly communicate with each other. Instead:
+
+1. All agents share the same filesystem
+2. Changes made by one agent are visible to others
+3. Use git to track and review changes from any agent
+4. Instruction files provide consistent context
+
+## Best Practices
+
+1. **Use specific agents for specific tasks**
+   - Claude: Architecture, complex reasoning
+   - Aider: Quick code changes, refactoring
+   - OpenCode: Multi-model flexibility
+
+2. **Keep instruction files updated**
+   - Update when project structure changes
+   - Add new patterns as they emerge
+
+3. **Review multi-agent changes carefully**
+   - Each agent may have different styles
+   - Use git diff to review before committing
+
+4. **Set appropriate context**
+   - More context = better results
+   - But too much context = slower responses

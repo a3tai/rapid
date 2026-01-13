@@ -1,0 +1,51 @@
+{
+  "$schema": "https://rapid.dev/schema/v1/rapid.json",
+  "version": "1.0",
+  "name": "infrastructure-project",
+
+  "container": {
+    "devcontainer": ".devcontainer/devcontainer.json",
+    "autoStart": true
+  },
+
+  "secrets": {
+    "provider": "1password",
+    "vault": "Development",
+    "items": {
+      "ANTHROPIC_API_KEY": "op://Development/Anthropic/api-key",
+      "AWS_ACCESS_KEY_ID": "op://Development/AWS/access-key-id",
+      "AWS_SECRET_ACCESS_KEY": "op://Development/AWS/secret-access-key",
+      "AWS_REGION": "op://Development/AWS/region",
+      "AZURE_SUBSCRIPTION_ID": "op://Development/Azure/subscription-id",
+      "AZURE_TENANT_ID": "op://Development/Azure/tenant-id"
+    },
+    "envrc": {
+      "generate": true,
+      "includeLocal": true
+    }
+  },
+
+  "agents": {
+    "default": "claude",
+    "available": {
+      "claude": {
+        "cli": "claude",
+        "instructionFile": "CLAUDE.md",
+        "envVars": ["ANTHROPIC_API_KEY"],
+        "installCmd": "npm install -g @anthropic-ai/claude-code"
+      },
+      "opencode": {
+        "cli": "opencode",
+        "instructionFile": "AGENTS.md",
+        "envVars": ["ANTHROPIC_API_KEY"],
+        "installCmd": "npm install -g opencode"
+      }
+    }
+  },
+
+  "context": {
+    "files": ["README.md", "docs/architecture.md"],
+    "dirs": ["docs/", "modules/"],
+    "generateAgentFiles": true
+  }
+}

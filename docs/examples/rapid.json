@@ -1,0 +1,99 @@
+{
+  "$schema": "https://rapid.dev/schema/v1/rapid.json",
+  "version": "1.0",
+  "name": "example-rapid-project",
+
+  "container": {
+    "devcontainer": ".devcontainer/devcontainer.json",
+    "autoStart": true,
+    "buildArgs": {
+      "NODE_VERSION": "20",
+      "PYTHON_VERSION": "3.11"
+    }
+  },
+
+  "secrets": {
+    "provider": "1password",
+    "vault": "Development",
+    "items": {
+      "ANTHROPIC_API_KEY": "op://Development/Anthropic/api-key",
+      "OPENAI_API_KEY": "op://Development/OpenAI/api-key",
+      "GITHUB_TOKEN": "op://Development/GitHub/pat",
+      "DATABASE_URL": "op://Development/Database/connection-string"
+    },
+    "envrc": {
+      "generate": true,
+      "path": ".envrc",
+      "includeLocal": true
+    }
+  },
+
+  "agents": {
+    "default": "claude",
+    "available": {
+      "claude": {
+        "cli": "claude",
+        "instructionFile": "CLAUDE.md",
+        "envVars": ["ANTHROPIC_API_KEY"],
+        "installCmd": "npm install -g @anthropic-ai/claude-code"
+      },
+      "opencode": {
+        "cli": "opencode",
+        "instructionFile": "AGENTS.md",
+        "envVars": ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"],
+        "installCmd": "npm install -g opencode"
+      },
+      "aider": {
+        "cli": "aider",
+        "instructionFile": ".aider.conf.yml",
+        "envVars": ["OPENAI_API_KEY"],
+        "installCmd": "pip install aider-chat",
+        "args": ["--model", "gpt-4o", "--auto-commits"]
+      },
+      "copilot": {
+        "cli": "gh",
+        "args": ["copilot", "suggest"],
+        "envVars": ["GITHUB_TOKEN"],
+        "installCmd": "gh extension install github/gh-copilot"
+      }
+    }
+  },
+
+  "context": {
+    "files": [
+      "README.md",
+      "CONTRIBUTING.md",
+      "docs/architecture.md",
+      "docs/api-reference.md"
+    ],
+    "dirs": [
+      "docs/",
+      "specs/"
+    ],
+    "exclude": [
+      "docs/internal/",
+      "**/*.draft.md"
+    ],
+    "generateAgentFiles": true
+  },
+
+  "mcp": {
+    "configFile": ".mcp.json",
+    "servers": {
+      "filesystem": {
+        "enabled": true
+      },
+      "github": {
+        "enabled": true,
+        "repo": "${localEnv:GITHUB_REPOSITORY}"
+      },
+      "postgres": {
+        "enabled": true,
+        "connectionString": "${env:DATABASE_URL}"
+      },
+      "memory": {
+        "enabled": true
+      }
+    }
+  }
+}

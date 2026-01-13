@@ -1,0 +1,47 @@
+{
+  "$schema": "https://rapid.dev/schema/v1/rapid.json",
+  "version": "1.0",
+  "name": "go-project",
+
+  "container": {
+    "devcontainer": ".devcontainer/devcontainer.json",
+    "autoStart": true
+  },
+
+  "secrets": {
+    "provider": "1password",
+    "vault": "Development",
+    "items": {
+      "ANTHROPIC_API_KEY": "op://Development/Anthropic/api-key",
+      "OPENAI_API_KEY": "op://Development/OpenAI/api-key"
+    },
+    "envrc": {
+      "generate": true,
+      "includeLocal": true
+    }
+  },
+
+  "agents": {
+    "default": "claude",
+    "available": {
+      "claude": {
+        "cli": "claude",
+        "instructionFile": "CLAUDE.md",
+        "envVars": ["ANTHROPIC_API_KEY"],
+        "installCmd": "npm install -g @anthropic-ai/claude-code"
+      },
+      "opencode": {
+        "cli": "opencode",
+        "instructionFile": "AGENTS.md",
+        "envVars": ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"],
+        "installCmd": "npm install -g opencode"
+      }
+    }
+  },
+
+  "context": {
+    "files": ["README.md", "go.mod"],
+    "dirs": ["docs/"],
+    "generateAgentFiles": true
+  }
+}
