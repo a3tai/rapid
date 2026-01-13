@@ -1,0 +1,40 @@
+{
+  "name": "@a3t/rapid-cli",
+  "version": "0.1.0",
+  "description": "CLI for RAPID - AI-assisted development with dev containers",
+  "type": "module",
+  "bin": {
+    "rapid": "./dist/bin.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/bin.ts src/index.ts --format esm --dts --clean",
+    "dev": "tsup src/bin.ts src/index.ts --format esm --dts --watch",
+    "typecheck": "tsc --noEmit",
+    "rapid": "node --loader ts-node/esm src/bin.ts"
+  },
+  "dependencies": {
+    "@a3t/rapid-core": "workspace:*",
+    "@a3t/rapid-schema": "workspace:*",
+    "commander": "^12.1.0",
+    "inquirer": "^12.3.0",
+    "ora": "^8.1.1"
+  },
+  "devDependencies": {
+    "@types/inquirer": "^9.0.7",
+    "@types/node": "^20.17.12",
+    "ts-node": "^10.9.2",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2"
+  }
+}

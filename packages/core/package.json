@@ -1,0 +1,38 @@
+{
+  "name": "@a3t/rapid-core",
+  "version": "0.1.0",
+  "description": "Core library for RAPID - AI-assisted development with dev containers",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "chalk": "^5.3.0",
+    "cosmiconfig": "^9.0.0",
+    "execa": "^9.5.2",
+    "which": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.12",
+    "@types/which": "^3.0.4",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2"
+  },
+  "peerDependencies": {
+    "@a3t/rapid-schema": "workspace:*"
+  }
+}

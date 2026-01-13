@@ -1,0 +1,45 @@
+{
+  "$schema": "https://getrapid.dev/schema/v1/rapid.json",
+  "version": "1.0",
+  "agents": {
+    "default": "claude",
+    "available": {
+      "claude": {
+        "cli": "claude",
+        "instructionFile": "CLAUDE.md",
+        "envVars": [
+          "ANTHROPIC_API_KEY"
+        ]
+      },
+      "opencode": {
+        "cli": "opencode",
+        "instructionFile": "AGENTS.md",
+        "envVars": [
+          "ANTHROPIC_API_KEY"
+        ]
+      },
+      "aider": {
+        "cli": "aider",
+        "instructionFile": "AGENTS.md",
+        "envVars": [
+          "ANTHROPIC_API_KEY"
+        ],
+        "args": [
+          "--model",
+          "claude-3-5-sonnet-20241022"
+        ]
+      }
+    }
+  },
+  "secrets": {
+    "provider": "env"
+  },
+  "context": {
+    "files": [
+      "README.md",
+      "CLAUDE.md",
+      "AGENTS.md"
+    ],
+    "generateAgentFiles": false
+  }
+}

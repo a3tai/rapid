@@ -24,7 +24,10 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,mdx,css}\"",
     "clean": "turbo clean && rm -rf node_modules",
     "docs:dev": "pnpm --filter @a3t/rapid-docs dev",
-    "docs:build": "pnpm --filter @a3t/rapid-docs build"
+    "docs:build": "pnpm --filter @a3t/rapid-docs build",
+    "cli:build": "pnpm --filter @a3t/rapid-cli build",
+    "cli:dev": "pnpm --filter @a3t/rapid-cli dev",
+    "rapid": "pnpm --filter @a3t/rapid-cli rapid"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
