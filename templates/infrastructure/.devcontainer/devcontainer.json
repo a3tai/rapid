@@ -9,6 +9,7 @@
       "version": "3.12"
     },
     "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/devcontainers/features/terraform:1": {
       "version": "latest",
       "tflint": "latest",
@@ -24,11 +25,30 @@
     "ghcr.io/devcontainers/features/docker-in-docker:2": {},
     "ghcr.io/devcontainers-contrib/features/direnv:1": {},
     "ghcr.io/devcontainers-contrib/features/starship:1": {},
-    "ghcr.io/devcontainers-contrib/features/1password-cli:1": {}
+    "ghcr.io/devcontainers-contrib/features/1password-cli:1": {},
+    "ghcr.io/devcontainers-contrib/features/jq:1": {}
   },
   "containerEnv": {
-    "OP_SERVICE_ACCOUNT_TOKEN": "${localEnv:OP_SERVICE_ACCOUNT_TOKEN}"
+    "OP_SERVICE_ACCOUNT_TOKEN": "${localEnv:OP_SERVICE_ACCOUNT_TOKEN}",
+    "SSH_AUTH_SOCK": "/ssh-agent"
   },
+  "mounts": [
+    {
+      "source": "${localEnv:SSH_AUTH_SOCK}",
+      "target": "/ssh-agent",
+      "type": "bind"
+    },
+    {
+      "source": "${localEnv:HOME}/.kube",
+      "target": "/home/vscode/.kube",
+      "type": "bind"
+    },
+    {
+      "source": "${localEnv:HOME}/.aws",
+      "target": "/home/vscode/.aws",
+      "type": "bind"
+    }
+  ],
   "customizations": {
     "vscode": {
       "extensions": [
@@ -48,9 +68,5 @@
   },
   "postCreateCommand": "npm install -g @anthropic-ai/claude-code && curl -fsSL https://opencode.ai/install | bash && pip install checkov pre-commit",
   "postStartCommand": "direnv allow 2>/dev/null || true",
-  "mounts": [
-    "source=${localEnv:HOME}/.kube,target=/home/vscode/.kube,type=bind,consistency=cached",
-    "source=${localEnv:HOME}/.aws,target=/home/vscode/.aws,type=bind,consistency=cached"
-  ],
   "remoteUser": "vscode"
 }
