@@ -1,62 +1,145 @@
 # Secrets Management
 
-RAPID uses `.envrc` with direnv as the secure source of truth for project secrets. This approach ensures secrets are loaded dynamically, never stored in plaintext, and automatically available when entering a project directory.
+RAPID provides seamless, secure secrets management for AI-assisted development. When you run `rapid dev`, secrets are automatically fetched from 1Password and injected into your agent session - no manual configuration required.
 
 ## Philosophy
 
-**Secure by default, easy to use.**
+**Secure by default, invisible to use.**
 
-- Secrets are fetched just-in-time from secure vaults (1Password, HashiCorp Vault)
-- No plaintext secrets stored on disk
-- Automatic loading/unloading when entering/leaving project directories
-- Works seamlessly with dev containers
+- One command: `rapid dev` handles everything
+- Secrets fetched just-in-time via biometric authentication (Touch ID, Face ID)
+- Never stored in containers or on disk
+- Audit trail in 1Password
+
+## How It Works
+
+When you run `rapid dev`:
+
+1. RAPID reads your `rapid.json` secrets configuration
+2. Fetches secrets from 1Password (prompts for biometric auth)
+3. Injects them into the container session
+4. Launches your AI agent with secrets available
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant RAPID
+    participant 1Password
+    participant Container
+    participant Agent
+
+    User->>RAPID: rapid dev
+    RAPID->>1Password: Fetch secrets (op read)
+    1Password->>User: Biometric prompt
+    User->>1Password: Touch ID / Face ID
+    1Password->>RAPID: Secret values
+    RAPID->>Container: Inject as env vars
+    RAPID->>Agent: Launch (claude/opencode)
+    Note over Agent: ANTHROPIC_API_KEY available
+```
 
 ## Architecture
 
 ```mermaid
-flowchart LR
-    subgraph Host["Host Machine"]
-        envrc[".envrc"]
-        direnv["direnv"]
+flowchart TB
+    subgraph Host["Host Machine (where you run rapid)"]
+        rapid["rapid dev"]
         op["1Password CLI"]
-        vault["Vault CLI"]
+        app["1Password App<br/>(biometric)"]
     end
-    
-    subgraph Secrets["Secret Providers"]
-        onepass["1Password"]
-        hashivault["HashiCorp Vault"]
+
+    subgraph Cloud["1Password Cloud"]
+        vault["Your Vault"]
     end
-    
+
     subgraph Container["Dev Container"]
-        env["Environment Variables"]
-        agents["AI Agents"]
+        env["Environment Variables<br/>(in memory only)"]
+        agent["AI Agent<br/>(Claude/OpenCode)"]
     end
-    
-    envrc --> direnv
-    direnv --> op --> onepass
-    direnv --> vault --> hashivault
-    direnv --> env --> agents
+
+    rapid -->|"1. op read"| op
+    op -->|"2. biometric"| app
+    app -->|"3. fetch"| vault
+    vault -->|"4. secrets"| rapid
+    rapid -->|"5. inject"| env
+    env --> agent
 ```
 
 ## Quick Start
 
-### 1. Install direnv
+### 1. Install 1Password + CLI
+
+```bash
+# Install 1Password desktop app (required for biometric auth)
+# Download from: https://1password.com/downloads
+
+# Install CLI
+brew install 1password-cli
+```
+
+Enable CLI integration in 1Password:
+
+1. Open 1Password → Settings → Developer
+2. Enable "Integrate with 1Password CLI"
+
+### 2. Add Secrets to 1Password
+
+Create items in a vault (e.g., "Development"):
+
+- Item: "Anthropic" with field "api-key"
+- Item: "OpenAI" with field "api-key"
+
+### 3. Configure rapid.json
+
+```json
+{
+  "secrets": {
+    "provider": "1password",
+    "vault": "Development",
+    "items": {
+      "ANTHROPIC_API_KEY": "op://Development/Anthropic/api-key",
+      "OPENAI_API_KEY": "op://Development/OpenAI/api-key"
+    }
+  }
+}
+```
+
+### 4. Run
+
+```bash
+rapid dev
+```
+
+That's it! RAPID will prompt for biometric auth and inject secrets automatically.
+
+---
+
+## Optional: direnv for Host Development
+
+If you also want secrets available on your host machine (outside containers), use direnv:
+
+### Install direnv
 
 ```bash
 # macOS
 brew install direnv
 
-# Linux
-sudo apt install direnv
-
-# Add to shell (bash)
-echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
-
 # Add to shell (zsh)
 echo 'eval "$(direnv hook zsh)"' >> ~/.zshrc
 ```
 
-### 2. Install 1Password CLI (Recommended)
+### Generate .envrc
+
+```bash
+rapid secrets generate
+direnv allow
+```
+
+Now secrets auto-load when you `cd` into the project.
+
+---
+
+## Alternative: Manual 1Password CLI
 
 ```bash
 # macOS
@@ -141,6 +224,7 @@ op://vault-name/item-name/field-name
 ```
 
 Examples:
+
 - `op://Development/Anthropic/api-key`
 - `op://Work/AWS/access-key-id`
 - `op://Personal/GitHub/token`
@@ -152,6 +236,42 @@ Examples:
 export ANTHROPIC_API_KEY=$(op read "op://Development/Anthropic/api-key")
 export OPENAI_API_KEY=$(op read "op://Development/OpenAI/api-key")
 ```
+
+#### Authentication Methods
+
+**Interactive (Local Development)**
+
+```bash
+# Sign in with biometric or password
+eval $(op signin)
+```
+
+**Service Account (Dev Containers / CI)**
+
+For non-interactive environments like dev containers, create a 1Password Service Account:
+
+1. Go to [1Password Service Accounts](https://start.1password.com/developer-tools/infrastructure-secrets/serviceaccount/)
+2. Create a new service account with access to your Development vault
+3. Copy the service account token
+4. Set the environment variable:
+
+```bash
+export OP_SERVICE_ACCOUNT_TOKEN="ops_..."
+```
+
+For dev containers, add to your `.devcontainer/devcontainer.json`:
+
+```json
+{
+  "containerEnv": {
+    "OP_SERVICE_ACCOUNT_TOKEN": "${localEnv:OP_SERVICE_ACCOUNT_TOKEN}"
+  }
+}
+```
+
+Then set `OP_SERVICE_ACCOUNT_TOKEN` in your shell profile (`.bashrc`, `.zshrc`) on the host machine.
+
+> **Security Note:** Service account tokens should be treated like passwords. Never commit them to version control. Store them in your host machine's environment only.
 
 ### HashiCorp Vault
 
@@ -249,21 +369,21 @@ export ANTHROPIC_API_KEY=$(op read "op://Development/Anthropic/api-key")
 ```mermaid
 flowchart TB
     cd["cd into project"]
-    
+
     direnv["direnv detects .envrc"]
-    
+
     check{"Secrets cached<br/>and fresh?"}
-    
+
     fetch["Fetch from provider<br/>(1Password/Vault)"]
-    
+
     export["Export to environment"]
-    
+
     ready["Secrets available"]
-    
+
     rapid["rapid start / rapid dev"]
-    
+
     container["Inject into container"]
-    
+
     cd --> direnv --> check
     check -->|No| fetch --> export
     check -->|Yes| export
@@ -283,6 +403,7 @@ rapid secrets generate
 ```
 
 Output:
+
 ```
 Generated .envrc with 3 secrets
 Run 'direnv allow' to activate
@@ -297,6 +418,7 @@ rapid secrets verify
 ```
 
 Output:
+
 ```
 Verifying secrets...
   ✓ ANTHROPIC_API_KEY (1password)
@@ -315,6 +437,7 @@ rapid secrets list
 ```
 
 Output:
+
 ```
 Configured secrets:
   ANTHROPIC_API_KEY  op://Development/Anthropic/api-key
@@ -362,11 +485,65 @@ Configured secrets:
 
 ## Dev Container Integration
 
-When `rapid start` runs, it:
+RAPID supports two approaches for secrets in dev containers:
 
-1. Sources `.envrc` to get current secrets
-2. Passes them as environment variables to the container
-3. Secrets are available inside the container without being written to disk
+### Option 1: Service Account Token (Recommended)
+
+Use a 1Password Service Account for seamless secrets access inside the container.
+
+```mermaid
+flowchart LR
+    subgraph Host
+        token["OP_SERVICE_ACCOUNT_TOKEN"]
+    end
+
+    subgraph Container
+        op["op CLI"]
+        secrets["Secrets"]
+        agents["AI Agents"]
+    end
+
+    subgraph "1Password Cloud"
+        vault["Vault"]
+    end
+
+    token -->|"passed to container"| op
+    op -->|"fetches at runtime"| vault
+    vault -->|"returns secrets"| secrets
+    secrets --> agents
+```
+
+**Setup:**
+
+1. Create a 1Password Service Account with access to your Development vault
+2. Set the token in your host environment:
+   ```bash
+   # Add to ~/.bashrc or ~/.zshrc
+   export OP_SERVICE_ACCOUNT_TOKEN="ops_..."
+   ```
+3. Configure your devcontainer.json:
+   ```json
+   {
+     "features": {
+       "ghcr.io/devcontainers-extra/features/1password-cli:1": {}
+     },
+     "containerEnv": {
+       "OP_SERVICE_ACCOUNT_TOKEN": "${localEnv:OP_SERVICE_ACCOUNT_TOKEN}"
+     }
+   }
+   ```
+4. Inside the container, use `rapid secrets verify` to confirm access
+
+**Benefits:**
+
+- Secrets fetched just-in-time, never stored in container
+- Works with `op read` commands in scripts
+- No interactive authentication needed
+- Audit trail in 1Password
+
+### Option 2: Environment Injection
+
+Pass pre-resolved secrets to the container via environment variables.
 
 ```mermaid
 flowchart LR
@@ -374,20 +551,20 @@ flowchart LR
         envrc[".envrc"]
         rapid["rapid start"]
     end
-    
+
     subgraph Container
         env["$ANTHROPIC_API_KEY<br/>$OPENAI_API_KEY"]
         claude["claude"]
         opencode["opencode"]
     end
-    
+
     envrc --> rapid
     rapid -->|"inject env vars"| env
     env --> claude
     env --> opencode
 ```
 
-### How It Works
+**How It Works:**
 
 ```bash
 # rapid start internally does something like:
@@ -396,7 +573,16 @@ devcontainer up --env ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
                 --env OPENAI_API_KEY="$OPENAI_API_KEY"
 ```
 
-Secrets never touch the container filesystem - they exist only in memory as environment variables.
+Secrets are resolved on the host and passed as environment variables. They exist only in memory inside the container.
+
+### Which to Choose?
+
+| Approach              | Best For      | Pros                          | Cons                        |
+| --------------------- | ------------- | ----------------------------- | --------------------------- |
+| Service Account       | Teams, CI/CD  | Dynamic fetching, audit trail | Requires network access     |
+| Environment Injection | Simple setups | Works offline                 | Secrets in container memory |
+
+For most teams, **Service Account** is recommended as it provides better security and audit capabilities.
 
 ---
 
@@ -452,6 +638,7 @@ eval $(op signin)
 ### "op: item not found"
 
 Verify the reference path:
+
 ```bash
 op item get "Anthropic" --vault "Development"
 ```
@@ -472,6 +659,7 @@ rapid stop && rapid start
 ### Slow secret loading
 
 1Password caches credentials. If fetching is slow:
+
 ```bash
 # Sign in again to refresh session
 eval $(op signin)
@@ -486,6 +674,7 @@ If you have existing `.env` files:
 ### 1. Create secrets in 1Password
 
 For each secret in `.env`:
+
 1. Create an item in 1Password
 2. Add the secret value
 
@@ -524,11 +713,11 @@ Ensure `.env*` patterns are in `.gitignore`.
 
 ## Summary
 
-| Method | Security | Convenience | Recommended |
-|--------|----------|-------------|-------------|
-| `.envrc` + 1Password | High | High | Yes |
-| `.envrc` + Vault | High | Medium | Yes (enterprise) |
-| `.env` files | Low | High | No |
-| Environment export | Medium | Low | Fallback only |
+| Method               | Security | Convenience | Recommended      |
+| -------------------- | -------- | ----------- | ---------------- |
+| `.envrc` + 1Password | High     | High        | Yes              |
+| `.envrc` + Vault     | High     | Medium      | Yes (enterprise) |
+| `.env` files         | Low      | High        | No               |
+| Environment export   | Medium   | Low         | Fallback only    |
 
 **Use `.envrc` with 1Password or Vault.** It's secure, easy, and works seamlessly with RAPID and dev containers.

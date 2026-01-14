@@ -12,7 +12,7 @@ stateDiagram-v2
     Running --> Stopped: rapid stop
     Stopped --> Running: rapid start
     Stopped --> NotCreated: rapid stop --remove
-    
+
     note right of Building: First time only
     note right of Running: Container active
 ```
@@ -29,12 +29,12 @@ rapid start [options]
 
 **Options:**
 
-| Option | Description |
-|--------|-------------|
-| `--rebuild` | Force rebuild the container image |
-| `--no-cache` | Build without Docker cache |
-| `--reinstall-tools` | Reinstall AI CLI tools |
-| `--skip-secrets` | Skip secret loading |
+| Option              | Description                       |
+| ------------------- | --------------------------------- |
+| `--rebuild`         | Force rebuild the container image |
+| `--no-cache`        | Build without Docker cache        |
+| `--reinstall-tools` | Reinstall AI CLI tools            |
+| `--skip-secrets`    | Skip secret loading               |
 
 **What it does:**
 
@@ -56,11 +56,11 @@ rapid dev [options]
 
 **Options:**
 
-| Option | Description |
-|--------|-------------|
+| Option           | Description                            |
+| ---------------- | -------------------------------------- |
 | `--agent <name>` | Use specific agent (overrides default) |
-| `--multi` | Launch all configured agents in tmux |
-| `--attach` | Attach to existing session |
+| `--multi`        | Launch all configured agents in tmux   |
+| `--attach`       | Attach to existing session             |
 
 **What it does:**
 
@@ -79,10 +79,10 @@ rapid stop [options]
 
 **Options:**
 
-| Option | Description |
-|--------|-------------|
-| `--remove` | Remove container after stopping |
-| `--volumes` | Also remove volumes |
+| Option      | Description                     |
+| ----------- | ------------------------------- |
+| `--remove`  | Remove container after stopping |
+| `--volumes` | Also remove volumes             |
 
 **What it does:**
 
@@ -109,19 +109,19 @@ RAPID integrates with devcontainer lifecycle hooks:
 ```mermaid
 flowchart TB
     start["rapid start"]
-    
+
     init["initializeCommand (on host)<br/>• Validate rapid.json<br/>• Pre-fetch secrets"]
-    
+
     build["Container Build<br/>(if needed)"]
-    
+
     onCreate["onCreateCommand (first time)<br/>• Install system dependencies<br/>• Setup base configuration"]
-    
+
     postCreate["postCreateCommand (first time)<br/>• Install AI CLI tools<br/>• Generate instruction files<br/>• Configure MCP servers"]
-    
+
     postStart["postStartCommand (every start)<br/>• Load/refresh secrets<br/>• Update instruction files<br/>• Verify tool availability"]
-    
+
     ready["Environment Ready"]
-    
+
     start --> init --> build --> onCreate --> postCreate --> postStart --> ready
 ```
 
@@ -146,16 +146,16 @@ flowchart TB
 
 RAPID uses but does not modify `devcontainer.json`. The relationship:
 
-| Concern | Configured In |
-|---------|---------------|
-| Base image | devcontainer.json |
-| System packages | devcontainer.json |
+| Concern            | Configured In     |
+| ------------------ | ----------------- |
+| Base image         | devcontainer.json |
+| System packages    | devcontainer.json |
 | VS Code extensions | devcontainer.json |
-| Port forwarding | devcontainer.json |
-| AI agents | rapid.json |
-| Secrets | rapid.json |
-| Context files | rapid.json |
-| MCP servers | rapid.json |
+| Port forwarding    | devcontainer.json |
+| AI agents          | rapid.json        |
+| Secrets            | rapid.json        |
+| Context files      | rapid.json        |
+| MCP servers        | rapid.json        |
 
 ## Docker Compose Support
 
@@ -171,6 +171,7 @@ For multi-container setups, specify a compose file:
 ```
 
 RAPID will:
+
 1. Start all services in the compose file
 2. Attach to the specified service for AI sessions
 
@@ -195,9 +196,7 @@ For data that should persist across rebuilds:
 ```json
 // devcontainer.json
 {
-  "mounts": [
-    "source=rapid-cache,target=/home/vscode/.cache,type=volume"
-  ]
+  "mounts": ["source=rapid-cache,target=/home/vscode/.cache,type=volume"]
 }
 ```
 

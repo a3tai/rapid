@@ -11,11 +11,7 @@
   },
   "customizations": {
     "vscode": {
-      "extensions": [
-        "golang.go",
-        "zxh404.vscode-proto3",
-        "tamasfe.even-better-toml"
-      ],
+      "extensions": ["golang.go", "zxh404.vscode-proto3", "tamasfe.even-better-toml"],
       "settings": {
         "go.useLanguageServer": true,
         "go.lintTool": "golangci-lint",

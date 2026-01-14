@@ -1,9 +1,12 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
-import tailwind from '@astrojs/tailwind';
+import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   site: 'https://getrapid.dev',
+  vite: {
+    plugins: [tailwindcss()],
+  },
   integrations: [
     starlight({
       title: 'RAPID',
@@ -13,22 +16,16 @@ export default defineConfig({
         dark: './src/assets/logo-dark.svg',
         replacesTitle: true,
       },
-      social: {
-        github: 'https://github.com/a3tai/rapid',
-      },
+      social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/a3tai/rapid' }],
       editLink: {
         baseUrl: 'https://github.com/a3tai/rapid/edit/main/apps/docs/',
       },
       components: {
-        // Custom components for RAPID branding
         SiteTitle: './src/components/SiteTitle.astro',
         Hero: './src/components/Hero.astro',
         Footer: './src/components/Footer.astro',
       },
-      customCss: [
-        './src/styles/fonts.css',
-        './src/styles/theme.css',
-      ],
+      customCss: ['./src/styles/global.css', './src/styles/fonts.css', './src/styles/theme.css'],
 
       head: [
         {
@@ -81,9 +78,6 @@ export default defineConfig({
           ],
         },
       ],
-    }),
-    tailwind({
-      applyBaseStyles: false,
     }),
   ],
 });

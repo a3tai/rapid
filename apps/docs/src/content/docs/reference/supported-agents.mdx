@@ -7,16 +7,16 @@ Compatibility matrix and feature comparison for AI coding agents supported by RA
 
 ## Agent Comparison
 
-| Feature | Claude Code | OpenCode | Aider | Copilot CLI |
-|---------|-------------|----------|-------|-------------|
-| **Provider** | Anthropic | Multi | Multi | GitHub |
-| **Interface** | Chat CLI | Chat CLI | Chat CLI | Commands |
-| **File Editing** | Yes | Yes | Yes | No |
-| **Git Integration** | Yes | Yes | Yes | No |
-| **Multi-file** | Yes | Yes | Yes | No |
-| **Auto-commit** | No | No | Yes | N/A |
-| **MCP Support** | Yes | Yes | No | No |
-| **Context Files** | CLAUDE.md | AGENTS.md | .aider.conf.yml | N/A |
+| Feature             | Claude Code | OpenCode  | Aider           | Copilot CLI |
+| ------------------- | ----------- | --------- | --------------- | ----------- |
+| **Provider**        | Anthropic   | Multi     | Multi           | GitHub      |
+| **Interface**       | Chat CLI    | Chat CLI  | Chat CLI        | Commands    |
+| **File Editing**    | Yes         | Yes       | Yes             | No          |
+| **Git Integration** | Yes         | Yes       | Yes             | No          |
+| **Multi-file**      | Yes         | Yes       | Yes             | No          |
+| **Auto-commit**     | No          | No        | Yes             | N/A         |
+| **MCP Support**     | Yes         | Yes       | No              | No          |
+| **Context Files**   | CLAUDE.md   | AGENTS.md | .aider.conf.yml | N/A         |
 
 ## Detailed Agent Information
 
@@ -27,12 +27,14 @@ Compatibility matrix and feature comparison for AI coding agents supported by RA
 **Models:** Claude 3.5 Sonnet, Claude 3 Opus
 
 #### Strengths
+
 - Excellent reasoning capabilities
 - Strong at complex refactoring
 - Good understanding of context
 - MCP server integration
 
 #### Best For
+
 - Architecture decisions
 - Complex code changes
 - Code review
@@ -52,6 +54,7 @@ Compatibility matrix and feature comparison for AI coding agents supported by RA
 ```
 
 #### Pricing
+
 - Based on API token usage
 - See [Anthropic pricing](https://anthropic.com/pricing)
 
@@ -64,12 +67,14 @@ Compatibility matrix and feature comparison for AI coding agents supported by RA
 **Models:** Claude, GPT-4, GPT-3.5, Local models
 
 #### Strengths
+
 - Multi-provider support
 - Extensible architecture
 - Open source
 - MCP integration
 
 #### Best For
+
 - Flexibility in model choice
 - Cost optimization
 - Custom workflows
@@ -88,6 +93,7 @@ Compatibility matrix and feature comparison for AI coding agents supported by RA
 ```
 
 #### Pricing
+
 - Based on underlying provider pricing
 - Can use local models for free
 
@@ -100,12 +106,14 @@ Compatibility matrix and feature comparison for AI coding agents supported by RA
 **Models:** GPT-4, GPT-3.5, Claude, Local models
 
 #### Strengths
+
 - Automatic git commits
 - Strong pair programming workflow
 - Efficient token usage
 - Voice mode support
 
 #### Best For
+
 - Quick code changes
 - Iterative development
 - Auto-committing workflow
@@ -128,17 +136,18 @@ Compatibility matrix and feature comparison for AI coding agents supported by RA
 
 ```json
 {
-  "args": ["--model", "gpt-4o"]           // OpenAI GPT-4
+  "args": ["--model", "gpt-4o"] // OpenAI GPT-4
 }
 ```
 
 ```json
 {
-  "args": ["--model", "claude-3-5-sonnet-20241022"]  // Anthropic
+  "args": ["--model", "claude-3-5-sonnet-20241022"] // Anthropic
 }
 ```
 
 #### Pricing
+
 - Based on underlying provider pricing
 - Token-efficient architecture
 
@@ -151,16 +160,19 @@ Compatibility matrix and feature comparison for AI coding agents supported by RA
 **Models:** OpenAI Codex
 
 #### Strengths
+
 - GitHub integration
 - Explain commands
 - Generate shell commands
 
 #### Limitations
+
 - No file editing
 - No multi-file context
 - Command-focused only
 
 #### Best For
+
 - Shell command generation
 - Git operations
 - Quick explanations
@@ -179,19 +191,20 @@ Compatibility matrix and feature comparison for AI coding agents supported by RA
 ```
 
 #### Pricing
+
 - Included with GitHub Copilot subscription
 
 ---
 
 ## Model Comparison
 
-| Model | Provider | Context | Speed | Cost | Best For |
-|-------|----------|---------|-------|------|----------|
-| Claude 3.5 Sonnet | Anthropic | 200K | Fast | $$ | General coding |
-| Claude 3 Opus | Anthropic | 200K | Slow | $$$ | Complex reasoning |
-| GPT-4o | OpenAI | 128K | Fast | $$ | Quick tasks |
-| GPT-4 Turbo | OpenAI | 128K | Medium | $$ | Balanced |
-| GPT-3.5 Turbo | OpenAI | 16K | Fast | $ | Simple tasks |
+| Model             | Provider  | Context | Speed  | Cost | Best For          |
+| ----------------- | --------- | ------- | ------ | ---- | ----------------- |
+| Claude 3.5 Sonnet | Anthropic | 200K    | Fast   | $$   | General coding    |
+| Claude 3 Opus     | Anthropic | 200K    | Slow   | $$$  | Complex reasoning |
+| GPT-4o            | OpenAI    | 128K    | Fast   | $$   | Quick tasks       |
+| GPT-4 Turbo       | OpenAI    | 128K    | Medium | $$   | Balanced          |
+| GPT-3.5 Turbo     | OpenAI    | 16K     | Fast   | $    | Simple tasks      |
 
 ---
 
@@ -201,32 +214,32 @@ Compatibility matrix and feature comparison for AI coding agents supported by RA
 
 How agents modify files:
 
-| Agent | Method | Confirmation |
-|-------|--------|--------------|
+| Agent       | Method       | Confirmation     |
+| ----------- | ------------ | ---------------- |
 | Claude Code | Direct write | Shows diff first |
-| OpenCode | Direct write | Configurable |
-| Aider | Direct write | Optional confirm |
-| Copilot CLI | N/A | N/A |
+| OpenCode    | Direct write | Configurable     |
+| Aider       | Direct write | Optional confirm |
+| Copilot CLI | N/A          | N/A              |
 
 ### Git Integration
 
-| Agent | Auto-stage | Auto-commit | Custom messages |
-|-------|------------|-------------|-----------------|
-| Claude Code | Yes | No | N/A |
-| OpenCode | Yes | No | N/A |
-| Aider | Yes | Yes | Yes |
-| Copilot CLI | No | No | No |
+| Agent       | Auto-stage | Auto-commit | Custom messages |
+| ----------- | ---------- | ----------- | --------------- |
+| Claude Code | Yes        | No          | N/A             |
+| OpenCode    | Yes        | No          | N/A             |
+| Aider       | Yes        | Yes         | Yes             |
+| Copilot CLI | No         | No          | No              |
 
 ### Context Window Usage
 
 How agents use available context:
 
-| Agent | Strategy |
-|-------|----------|
+| Agent       | Strategy                        |
+| ----------- | ------------------------------- |
 | Claude Code | Full context + instruction file |
-| OpenCode | Selective context loading |
-| Aider | Repository map + focused files |
-| Copilot CLI | Current command only |
+| OpenCode    | Selective context loading       |
+| Aider       | Repository map + focused files  |
+| Copilot CLI | Current command only            |
 
 ---
 
@@ -234,16 +247,16 @@ How agents use available context:
 
 ### Use Case Recommendations
 
-| Use Case | Recommended Agent |
-|----------|-------------------|
-| New feature development | Claude Code |
-| Bug fixing | Aider |
-| Code review | Claude Code |
-| Quick refactoring | Aider |
-| Architecture decisions | Claude Code |
-| Cost-sensitive work | OpenCode (GPT-3.5) |
-| Local/offline | OpenCode (Ollama) |
-| Git workflow | Aider |
+| Use Case                | Recommended Agent  |
+| ----------------------- | ------------------ |
+| New feature development | Claude Code        |
+| Bug fixing              | Aider              |
+| Code review             | Claude Code        |
+| Quick refactoring       | Aider              |
+| Architecture decisions  | Claude Code        |
+| Cost-sensitive work     | OpenCode (GPT-3.5) |
+| Local/offline           | OpenCode (Ollama)  |
+| Git workflow            | Aider              |
 
 ---
 
@@ -312,9 +325,9 @@ rapid start --reinstall-tools
 
 Planned support:
 
-| Agent | Status | ETA |
-|-------|--------|-----|
-| Cursor CLI | Planned | TBD |
-| Continue | Evaluating | TBD |
-| Cody | Evaluating | TBD |
+| Agent               | Status       | ETA       |
+| ------------------- | ------------ | --------- |
+| Cursor CLI          | Planned      | TBD       |
+| Continue            | Evaluating   | TBD       |
+| Cody                | Evaluating   | TBD       |
 | Local LLMs (Ollama) | Via OpenCode | Available |

@@ -3,21 +3,41 @@
  * Custom Hero component for RAPID homepage
  * Replaces Starlight's default hero with a sophisticated, minimal design
  */
-import type { Props } from '@astrojs/starlight/props';
 import { Icon } from '@astrojs/starlight/components';
 
-const { data } = Astro.props.entry;
+const { entry } = Astro.locals.starlightRoute;
+const { data } = entry;
 const { hero } = data;
 const title = hero?.title || data.title || 'RAPID';
 const tagline = hero?.tagline || 'AI-assisted development with dev containers.';
 const actions = hero?.actions || [];
 
 const rapidMethods = [
-  { letter: 'R', name: 'Research', desc: 'Explore codebase structure and patterns.', icon: 'open-book' },
-  { letter: 'A', name: 'Augment', desc: 'Connect APIs, MCP servers, docs.', icon: 'puzzle' },
-  { letter: 'P', name: 'Plan', desc: 'Break down tasks and set criteria.', icon: 'document' },
-  { letter: 'I', name: 'Integrate', desc: 'Configure containers and secrets.', icon: 'laptop' },
-  { letter: 'D', name: 'Develop', desc: 'Generate, test, iterate, ship.', icon: 'pencil' },
+  {
+    letter: 'R',
+    name: 'Research',
+    desc: 'Explore codebase structure and patterns.',
+    icon: 'open-book' as const,
+  },
+  {
+    letter: 'A',
+    name: 'Augment',
+    desc: 'Connect APIs, MCP servers, docs.',
+    icon: 'puzzle' as const,
+  },
+  {
+    letter: 'P',
+    name: 'Plan',
+    desc: 'Break down tasks and set criteria.',
+    icon: 'document' as const,
+  },
+  {
+    letter: 'I',
+    name: 'Integrate',
+    desc: 'Configure containers and secrets.',
+    icon: 'laptop' as const,
+  },
+  { letter: 'D', name: 'Develop', desc: 'Generate, test, iterate, ship.', icon: 'pencil' as const },
 ];
 ---
 
@@ -26,40 +46,66 @@ const rapidMethods = [
   <svg width="0" height="0" style="position: absolute;">
     <defs>
       <linearGradient id="icon-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" style="stop-color: #ffffff" />
-        <stop offset="100%" style="stop-color: #a5b4fc" />
+        <stop offset="0%" style="stop-color: #ffffff"></stop>
+        <stop offset="100%" style="stop-color: #a5b4fc"></stop>
       </linearGradient>
     </defs>
   </svg>
 
   <div class="hero-content">
-    <h1 class="hero-title"><span class="title-text" set:html={title} /><span class="cursor">_</span></h1>
-    
+    <h1 class="hero-title">
+      <span class="title-text" set:html={title} /><span class="cursor">_</span>
+    </h1>
+
     <p class="hero-tagline" set:html={tagline} />
-    
-    {actions.length > 0 && (
-      <div class="hero-actions">
-        {actions.map((action: any) => (
-          <a 
-            href={action.link} 
-            class={`btn ${action.variant === 'primary' ? 'btn-primary' : 'btn-secondary'}`}
-          >
-            {action.text}
-          </a>
-        ))}
-      </div>
-    )}
-    
+
+    {
+      actions.length > 0 && (
+        <div class="hero-actions">
+          {actions.map((action: any) => (
+            <a
+              href={action.link}
+              class={`btn ${action.variant === 'primary' ? 'btn-primary' : 'btn-secondary'}`}
+            >
+              {action.text}
+            </a>
+          ))}
+        </div>
+      )
+    }
+
     <div class="hero-install">
       <div class="install-box">
         <span class="install-prompt">$</span>
-        <code class="install-command">npm install -g @a3t/rapid-cli</code>
-        <button class="copy-btn" data-copy="npm install -g @a3t/rapid-cli" aria-label="Copy to clipboard">
-          <svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <code class="install-command">npm install -g @a3t/rapid</code>
+        <button
+          class="copy-btn"
+          data-copy="npm install -g @a3t/rapid"
+          aria-label="Copy to clipboard"
+        >
+          <svg
+            class="copy-icon"
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
             <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
           </svg>
-          <svg class="check-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg
+            class="check-icon"
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
             <polyline points="20 6 9 17 4 12"></polyline>
           </svg>
         </button>
@@ -67,23 +113,25 @@ const rapidMethods = [
     </div>
 
     <div class="rapid-methods">
-      {rapidMethods.map((method) => (
-        <div class="method-card">
-          <div class="method-icon">
-            <Icon name={method.icon} />
+      {
+        rapidMethods.map((method) => (
+          <div class="method-card">
+            <div class="method-icon">
+              <Icon name={method.icon} />
+            </div>
+            <div class="method-name">{method.name}</div>
+            <div class="method-desc">{method.desc}</div>
           </div>
-          <div class="method-name">{method.name}</div>
-          <div class="method-desc">{method.desc}</div>
-        </div>
-      ))}
+        ))
+      }
     </div>
   </div>
-  
+
   <div class="hero-glow"></div>
 </div>
 
 <script>
-  document.querySelectorAll('.copy-btn').forEach(btn => {
+  document.querySelectorAll('.copy-btn').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const text = btn.getAttribute('data-copy');
       if (text) {
@@ -108,15 +156,17 @@ const rapidMethods = [
     /* Break out of container to span full width */
     width: 100vw;
     margin-left: calc(-50vw + 50%);
+    /* Remove gap from parent container */
+    margin-top: -1rem;
   }
-  
+
   .hero-content {
     position: relative;
     z-index: 1;
     max-width: 64rem;
     width: 100%;
   }
-  
+
   .hero-title {
     font-family: var(--font-mono);
     font-size: clamp(2.5rem, 8vw, 4rem);
@@ -126,30 +176,31 @@ const rapidMethods = [
     margin: 0 0 1rem;
     line-height: 1;
   }
-  
+
   .title-text {
-    background: linear-gradient(
-      135deg,
-      hsl(var(--foreground)) 0%,
-      hsl(var(--brand)) 100%
-    );
+    background: linear-gradient(135deg, hsl(var(--foreground)) 0%, hsl(var(--brand)) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
-  
+
   .cursor {
     display: inline-block;
     color: hsl(var(--brand));
     animation: blink 1s step-end infinite;
     -webkit-text-fill-color: hsl(var(--brand));
   }
-  
+
   @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0;
+    }
   }
-  
+
   .hero-tagline {
     font-family: var(--font-sans);
     font-size: 1.125rem;
@@ -157,7 +208,7 @@ const rapidMethods = [
     margin: 0 0 2rem;
     line-height: 1.6;
   }
-  
+
   .hero-actions {
     display: flex;
     gap: 0.75rem;
@@ -165,7 +216,7 @@ const rapidMethods = [
     flex-wrap: wrap;
     margin-bottom: 2rem;
   }
-  
+
   .btn {
     font-family: var(--font-mono);
     font-size: 0.8125rem;
@@ -179,13 +230,13 @@ const rapidMethods = [
     overflow: hidden;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
-  
+
   .btn-primary {
     background: linear-gradient(135deg, hsl(250 85% 60%) 0%, hsl(240 85% 55%) 100%);
     color: white;
     font-weight: 600;
     border: 1px solid hsl(0 0% 100% / 0.1);
-    box-shadow: 
+    box-shadow:
       0 1px 2px hsl(0 0% 0% / 0.2),
       0 4px 12px hsl(0 0% 0% / 0.15),
       inset 0 1px 0 hsl(0 0% 100% / 0.1);
@@ -201,12 +252,12 @@ const rapidMethods = [
     background: linear-gradient(135deg, hsl(0 0% 100% / 0.12) 0%, transparent 50%);
     pointer-events: none;
   }
-  
+
   .btn-primary:hover {
     background: linear-gradient(135deg, hsl(250 90% 65%) 0%, hsl(240 90% 60%) 100%);
     border-color: hsl(0 0% 100% / 0.15);
     transform: translateY(-2px);
-    box-shadow: 
+    box-shadow:
       0 4px 8px hsl(0 0% 0% / 0.25),
       0 8px 24px hsl(0 0% 0% / 0.2),
       inset 0 1px 0 hsl(0 0% 100% / 0.15);
@@ -214,11 +265,11 @@ const rapidMethods = [
 
   .btn-primary:active {
     transform: translateY(0);
-    box-shadow: 
+    box-shadow:
       0 1px 2px hsl(0 0% 0% / 0.2),
       0 2px 8px hsl(0 0% 0% / 0.15);
   }
-  
+
   .btn-secondary {
     background: hsl(0 0% 100% / 0.03);
     color: hsl(var(--foreground) / 0.9);
@@ -226,13 +277,13 @@ const rapidMethods = [
     box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.03);
     backdrop-filter: blur(8px);
   }
-  
+
   .btn-secondary:hover {
     background: hsl(0 0% 100% / 0.06);
     border-color: hsl(0 0% 100% / 0.12);
     color: hsl(var(--foreground));
     transform: translateY(-2px);
-    box-shadow: 
+    box-shadow:
       0 4px 12px hsl(0 0% 0% / 0.15),
       inset 0 1px 0 hsl(0 0% 100% / 0.05);
   }
@@ -240,13 +291,13 @@ const rapidMethods = [
   .btn-secondary:active {
     transform: translateY(0);
   }
-  
+
   .hero-install {
     display: flex;
     justify-content: center;
     margin-bottom: 2.5rem;
   }
-  
+
   .install-box {
     display: flex;
     align-items: center;
@@ -259,17 +310,17 @@ const rapidMethods = [
     font-size: 0.8125rem;
     backdrop-filter: blur(8px);
   }
-  
+
   .install-prompt {
     color: hsl(var(--muted-foreground));
     user-select: none;
     opacity: 0.5;
   }
-  
+
   .install-command {
     color: hsl(var(--foreground));
   }
-  
+
   .copy-btn {
     background: none;
     border: none;
@@ -281,20 +332,20 @@ const rapidMethods = [
     align-items: center;
     justify-content: center;
   }
-  
+
   .copy-btn:hover {
     color: hsl(var(--brand));
   }
-  
+
   .copy-btn .check-icon {
     display: none;
     color: hsl(142 76% 50%);
   }
-  
+
   .copy-btn.copied .copy-icon {
     display: none;
   }
-  
+
   .copy-btn.copied .check-icon {
     display: block;
   }
@@ -353,7 +404,7 @@ const rapidMethods = [
     color: hsl(var(--muted-foreground));
     line-height: 1.4;
   }
-  
+
   .hero-glow {
     position: absolute;
     top: 0;
@@ -370,7 +421,7 @@ const rapidMethods = [
     pointer-events: none;
     opacity: 0.8;
   }
-  
+
   @media (max-width: 960px) {
     .rapid-methods {
       grid-template-columns: repeat(3, 1fr);
@@ -381,15 +432,15 @@ const rapidMethods = [
     .hero {
       padding: 2rem 1rem 1.5rem;
     }
-    
+
     .hero-title {
       letter-spacing: 0.1em;
     }
-    
+
     .hero-tagline {
       font-size: 1rem;
     }
-    
+
     .install-box {
       flex-wrap: wrap;
       justify-content: center;

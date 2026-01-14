@@ -11,6 +11,7 @@ import { statusCommand } from './commands/status.js';
 import { agentCommand } from './commands/agent.js';
 import { startCommand } from './commands/start.js';
 import { stopCommand } from './commands/stop.js';
+import { secretsCommand } from './commands/secrets.js';
 
 const VERSION = '0.1.0';
 
@@ -39,6 +40,7 @@ program.addCommand(devCommand);
 program.addCommand(stopCommand);
 program.addCommand(statusCommand);
 program.addCommand(agentCommand);
+program.addCommand(secretsCommand);
 
 // Default action - show help
 program.action(() => {

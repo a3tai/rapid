@@ -5,8 +5,7 @@
 import { Command } from 'commander';
 import { loadConfig, checkAllAgents, logger } from '@a3t/rapid-core';
 
-export const agentCommand = new Command('agent')
-  .description('Manage AI agents');
+export const agentCommand = new Command('agent').description('Manage AI agents');
 
 // rapid agent list
 agentCommand
@@ -15,7 +14,7 @@ agentCommand
   .action(async () => {
     try {
       const loaded = await loadConfig();
-      
+
       if (!loaded) {
         logger.error('No rapid.json found. Run `rapid init` first.');
         process.exit(1);
@@ -23,24 +22,27 @@ agentCommand
 
       const { config } = loaded;
       const statuses = await checkAllAgents(config);
-      
+
       logger.header('Available Agents');
-      
+
       statuses.forEach((status) => {
         const isDefault = status.name === config.agents.default;
         const icon = status.available ? '✓' : '○';
         const defaultTag = isDefault ? ' (default)' : '';
         const versionTag = status.version ? ` - ${status.version}` : '';
-        
+
         if (status.available) {
-          console.log(`  ${logger.brand(icon)} ${status.name}${defaultTag}${logger.dim(versionTag)}`);
+          console.log(
+            `  ${logger.brand(icon)} ${status.name}${defaultTag}${logger.dim(versionTag)}`
+          );
         } else {
-          console.log(`  ${logger.dim(icon)} ${logger.dim(status.name)}${defaultTag} ${logger.dim('[not installed]')}`);
+          console.log(
+            `  ${logger.dim(icon)} ${logger.dim(status.name)}${defaultTag} ${logger.dim('[not installed]')}`
+          );
         }
       });
-      
+
       logger.blank();
-      
     } catch (error) {
       logger.error(error instanceof Error ? error.message : String(error));
       process.exit(1);
@@ -54,14 +56,14 @@ agentCommand
   .action(async (name) => {
     try {
       const loaded = await loadConfig();
-      
+
       if (!loaded) {
         logger.error('No rapid.json found. Run `rapid init` first.');
         process.exit(1);
       }
 
       const { config } = loaded;
-      
+
       if (!name) {
         // Show current default
         console.log(config.agents.default);
@@ -81,7 +83,6 @@ agentCommand
       // TODO: Write the updated config
       logger.warn('Setting default agent requires editing rapid.json');
       logger.info(`Set "agents.default" to "${name}" in your rapid.json`);
-      
     } catch (error) {
       logger.error(error instanceof Error ? error.message : String(error));
       process.exit(1);

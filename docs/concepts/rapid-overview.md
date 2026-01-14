@@ -28,7 +28,7 @@ flowchart TB
         s5["5. Configure MCP servers"]
         s1 --> s2 --> s3 --> s4 --> s5
     end
-    
+
     subgraph dev["rapid dev"]
         d1["1. Attach to running container"]
         d2["2. Launch configured AI CLI"]
@@ -37,14 +37,14 @@ flowchart TB
         d5["5. Optional: Launch multiple agents"]
         d1 --> d2 --> d3 --> d4 --> d5
     end
-    
+
     subgraph stop["rapid stop"]
         t1["1. Gracefully exit AI CLI session"]
         t2["2. Stop dev container"]
         t3["3. Cleanup temporary resources"]
         t1 --> t2 --> t3
     end
-    
+
     start --> dev --> stop
 ```
 
@@ -57,6 +57,7 @@ RAPID wraps existing AI coding tools rather than building another one. Claude Co
 ### 2. Configuration as Code
 
 Everything is defined in `rapid.json`:
+
 - Which AI agents are available
 - How secrets are loaded
 - What context files to include
@@ -79,6 +80,7 @@ Beyond tooling, RAPID embodies a methodology for effective AI-assisted developme
 ### Research (R)
 
 Before engaging AI, gather context:
+
 - Read existing documentation
 - Understand codebase structure
 - Identify patterns and conventions
@@ -89,6 +91,7 @@ Before engaging AI, gather context:
 ### Augment (A)
 
 Enhance gathered context with external knowledge:
+
 - API documentation
 - Framework references
 - Design patterns
@@ -99,6 +102,7 @@ Enhance gathered context with external knowledge:
 ### Plan (P)
 
 Structure work before execution:
+
 - Break complex tasks into steps
 - Define acceptance criteria
 - Identify dependencies
@@ -109,6 +113,7 @@ Structure work before execution:
 ### Integrate (I)
 
 Ensure environment is ready:
+
 - Start dev containers
 - Load secrets
 - Verify tooling
@@ -119,6 +124,7 @@ Ensure environment is ready:
 ### Develop (D)
 
 Execute with AI assistance:
+
 - Generate code
 - Test implementations
 - Iterate on feedback
@@ -128,24 +134,26 @@ Execute with AI assistance:
 
 ## Comparison to Manual Setup
 
-| Task | Manual | With RAPID |
-|------|--------|------------|
-| Start container | `devcontainer up`, wait, attach | `rapid start` |
-| Load secrets | Export vars, source .env, etc. | Automatic |
-| Install AI tools | npm install -g, pip install, etc. | Automatic |
-| Generate context files | Write AGENTS.md manually | Auto-generated |
-| Switch AI tools | Exit, configure, restart | `rapid agent <name>` |
-| Run multiple agents | Manual tmux setup | `rapid dev --multi` |
+| Task                   | Manual                            | With RAPID           |
+| ---------------------- | --------------------------------- | -------------------- |
+| Start container        | `devcontainer up`, wait, attach   | `rapid start`        |
+| Load secrets           | Export vars, source .env, etc.    | Automatic            |
+| Install AI tools       | npm install -g, pip install, etc. | Automatic            |
+| Generate context files | Write AGENTS.md manually          | Auto-generated       |
+| Switch AI tools        | Exit, configure, restart          | `rapid agent <name>` |
+| Run multiple agents    | Manual tmux setup                 | `rapid dev --multi`  |
 
 ## When to Use RAPID
 
 **Good fit:**
+
 - Teams wanting consistent AI-assisted workflows
 - Projects requiring secure secret management
 - Developers using multiple AI tools
 - Organizations with container-based development
 
 **Not necessary:**
+
 - Single-file scripts or quick experiments
 - Projects not using containers
 - When using only one AI tool without secrets

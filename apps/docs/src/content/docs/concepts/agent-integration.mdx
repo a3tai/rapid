@@ -9,12 +9,12 @@ RAPID integrates with AI coding CLI tools by wrapping them rather than reimpleme
 
 ## Supported Agents
 
-| Agent | CLI Command | Instruction File | Provider |
-|-------|-------------|------------------|----------|
-| Claude Code | `claude` | `CLAUDE.md` | Anthropic |
-| OpenCode | `opencode` | `AGENTS.md` | Multi-provider |
-| Aider | `aider` | `.aider.conf.yml` | OpenAI/Anthropic |
-| GitHub Copilot | `gh copilot` | — | GitHub |
+| Agent          | CLI Command  | Instruction File  | Provider         |
+| -------------- | ------------ | ----------------- | ---------------- |
+| Claude Code    | `claude`     | `CLAUDE.md`       | Anthropic        |
+| OpenCode       | `opencode`   | `AGENTS.md`       | Multi-provider   |
+| Aider          | `aider`      | `.aider.conf.yml` | OpenAI/Anthropic |
+| GitHub Copilot | `gh copilot` | —                 | GitHub           |
 
 ## Integration Model
 
@@ -65,7 +65,7 @@ If the CLI tool is missing, RAPID installs it:
 ```bash
 # From rapid.json agents.available.<name>.installCmd
 npm install -g @anthropic-ai/claude-code  # Claude
-npm install -g opencode                     # OpenCode  
+npm install -g opencode                     # OpenCode
 pip install aider-chat                      # Aider
 ```
 
@@ -93,14 +93,17 @@ Used by Claude Code to understand project context:
 # Project: my-api
 
 ## Overview
+
 Express.js REST API with PostgreSQL database.
 
 ## Code Style
+
 - TypeScript with strict mode
 - Async/await for all async operations
 - Zod for validation
 
 ## Commands
+
 - `npm run dev` - Start development server
 - `npm test` - Run tests
 - `npm run build` - Production build
@@ -114,14 +117,17 @@ Generic instruction file used by OpenCode and others:
 # Agent Instructions
 
 ## Project Type
+
 TypeScript Node.js application
 
 ## Important Files
+
 - src/index.ts - Entry point
 - src/config.ts - Configuration
 - package.json - Dependencies
 
 ## Testing
+
 Always run `npm test` after changes.
 ```
 
@@ -146,20 +152,20 @@ rapid dev --multi
 
 This creates a split-pane session with each configured agent:
 
-| Pane | Agent | Use Case |
-|------|-------|----------|
-| Left | Claude Code | Architecture, complex reasoning |
-| Right | OpenCode | Implementation |
-| Bottom | Aider | Quick fixes, auto-commits |
+| Pane   | Agent       | Use Case                        |
+| ------ | ----------- | ------------------------------- |
+| Left   | Claude Code | Architecture, complex reasoning |
+| Right  | OpenCode    | Implementation                  |
+| Bottom | Aider       | Quick fixes, auto-commits       |
 
 ### Controls
 
-| Key | Action |
-|-----|--------|
-| `Ctrl+b` then `o` | Switch panes |
-| `Ctrl+b` then `arrow` | Navigate panes |
-| `Ctrl+b` then `z` | Zoom current pane |
-| `Ctrl+b` then `d` | Detach (keeps running) |
+| Key                   | Action                 |
+| --------------------- | ---------------------- |
+| `Ctrl+b` then `o`     | Switch panes           |
+| `Ctrl+b` then `arrow` | Navigate panes         |
+| `Ctrl+b` then `z`     | Zoom current pane      |
+| `Ctrl+b` then `d`     | Detach (keeps running) |
 
 ## Adding Custom Agents
 

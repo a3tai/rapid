@@ -24,16 +24,16 @@ RAPID looks for configuration in this order:
 
 ## Top-Level Properties
 
-| Property | Type | Required | Default | Description |
-|----------|------|----------|---------|-------------|
-| `$schema` | string | No | - | JSON schema URL for validation/IntelliSense |
-| `version` | string | Yes | - | Specification version (`"1.0"`) |
-| `name` | string | No | Directory name | Project name |
-| `container` | object | No | See below | Container configuration |
-| `secrets` | object | No | `{"provider": "env"}` | Secret management |
-| `agents` | object | Yes | - | AI agent configuration |
-| `context` | object | No | See below | Context file settings |
-| `mcp` | object | No | - | MCP server configuration |
+| Property    | Type   | Required | Default               | Description                                 |
+| ----------- | ------ | -------- | --------------------- | ------------------------------------------- |
+| `$schema`   | string | No       | -                     | JSON schema URL for validation/IntelliSense |
+| `version`   | string | Yes      | -                     | Specification version (`"1.0"`)             |
+| `name`      | string | No       | Directory name        | Project name                                |
+| `container` | object | No       | See below             | Container configuration                     |
+| `secrets`   | object | No       | `{"provider": "env"}` | Secret management                           |
+| `agents`    | object | Yes      | -                     | AI agent configuration                      |
+| `context`   | object | No       | See below             | Context file settings                       |
+| `mcp`       | object | No       | -                     | MCP server configuration                    |
 
 ---
 
@@ -41,12 +41,12 @@ RAPID looks for configuration in this order:
 
 Container lifecycle configuration.
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `devcontainer` | string | `".devcontainer/devcontainer.json"` | Path to devcontainer.json |
-| `compose` | string | `null` | Docker Compose file (overrides devcontainer) |
-| `autoStart` | boolean | `true` | Start container automatically on `rapid dev` |
-| `buildArgs` | object | `{}` | Additional Docker build arguments |
+| Property       | Type    | Default                             | Description                                  |
+| -------------- | ------- | ----------------------------------- | -------------------------------------------- |
+| `devcontainer` | string  | `".devcontainer/devcontainer.json"` | Path to devcontainer.json                    |
+| `compose`      | string  | `null`                              | Docker Compose file (overrides devcontainer) |
+| `autoStart`    | boolean | `true`                              | Start container automatically on `rapid dev` |
+| `buildArgs`    | object  | `{}`                                | Additional Docker build arguments            |
 
 ### Example
 
@@ -68,21 +68,21 @@ Container lifecycle configuration.
 
 Secret management configuration. RAPID uses `.envrc` with direnv as the source of truth for secure secret loading.
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `provider` | enum | `"1password"` | `"1password"`, `"vault"`, `"env"` |
-| `vault` | string | - | Vault name (1Password) or path (HashiCorp) |
-| `address` | string | - | Vault server address (HashiCorp only) |
-| `items` | object | `{}` | Map of env var names to secret references |
-| `envrc` | object | `{}` | `.envrc` generation settings |
+| Property   | Type   | Default       | Description                                |
+| ---------- | ------ | ------------- | ------------------------------------------ |
+| `provider` | enum   | `"1password"` | `"1password"`, `"vault"`, `"env"`          |
+| `vault`    | string | -             | Vault name (1Password) or path (HashiCorp) |
+| `address`  | string | -             | Vault server address (HashiCorp only)      |
+| `items`    | object | `{}`          | Map of env var names to secret references  |
+| `envrc`    | object | `{}`          | `.envrc` generation settings               |
 
 ### envrc Options
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `generate` | boolean | `true` | Auto-generate `.envrc` from items |
-| `path` | string | `".envrc"` | Path to `.envrc` file |
-| `includeLocal` | boolean | `true` | Source `.envrc.local` if present |
+| Property       | Type    | Default    | Description                       |
+| -------------- | ------- | ---------- | --------------------------------- |
+| `generate`     | boolean | `true`     | Auto-generate `.envrc` from items |
+| `path`         | string  | `".envrc"` | Path to `.envrc` file             |
+| `includeLocal` | boolean | `true`     | Source `.envrc.local` if present  |
 
 ### Provider: 1password (Recommended)
 
@@ -183,22 +183,22 @@ When `warn: true`, RAPID will display a security warning when loading `.env` fil
 
 AI agent configuration.
 
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `default` | string | Yes | Name of the default agent |
-| `available` | object | Yes | Map of agent name to configuration |
+| Property    | Type   | Required | Description                        |
+| ----------- | ------ | -------- | ---------------------------------- |
+| `default`   | string | Yes      | Name of the default agent          |
+| `available` | object | Yes      | Map of agent name to configuration |
 
 ### Agent Configuration
 
 Each agent in `available` supports:
 
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `cli` | string | Yes | CLI command to execute |
-| `instructionFile` | string | No | Path to instruction file for this agent |
-| `envVars` | array | No | Required environment variables |
-| `installCmd` | string | No | Command to install the CLI tool |
-| `args` | array | No | Additional CLI arguments |
+| Property          | Type   | Required | Description                             |
+| ----------------- | ------ | -------- | --------------------------------------- |
+| `cli`             | string | Yes      | CLI command to execute                  |
+| `instructionFile` | string | No       | Path to instruction file for this agent |
+| `envVars`         | array  | No       | Required environment variables          |
+| `installCmd`      | string | No       | Command to install the CLI tool         |
+| `args`            | array  | No       | Additional CLI arguments                |
 
 ### Example
 
@@ -237,31 +237,22 @@ Each agent in `available` supports:
 
 Context file generation and management.
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `files` | array | `["README.md"]` | Files to include in agent context |
-| `dirs` | array | `["docs/"]` | Directories to include |
-| `exclude` | array | `[]` | Patterns to exclude |
-| `generateAgentFiles` | boolean | `true` | Auto-generate AGENTS.md, CLAUDE.md |
-| `templateDir` | string | - | Custom templates for agent files |
+| Property             | Type    | Default         | Description                        |
+| -------------------- | ------- | --------------- | ---------------------------------- |
+| `files`              | array   | `["README.md"]` | Files to include in agent context  |
+| `dirs`               | array   | `["docs/"]`     | Directories to include             |
+| `exclude`            | array   | `[]`            | Patterns to exclude                |
+| `generateAgentFiles` | boolean | `true`          | Auto-generate AGENTS.md, CLAUDE.md |
+| `templateDir`        | string  | -               | Custom templates for agent files   |
 
 ### Example
 
 ```json
 {
   "context": {
-    "files": [
-      "README.md",
-      "CONTRIBUTING.md",
-      "docs/architecture.md"
-    ],
-    "dirs": [
-      "docs/",
-      "specs/"
-    ],
-    "exclude": [
-      "docs/internal/"
-    ],
+    "files": ["README.md", "CONTRIBUTING.md", "docs/architecture.md"],
+    "dirs": ["docs/", "specs/"],
+    "exclude": ["docs/internal/"],
     "generateAgentFiles": true
   }
 }
@@ -273,10 +264,10 @@ Context file generation and management.
 
 Model Context Protocol server configuration.
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `servers` | object | `{}` | MCP server configurations |
-| `configFile` | string | `".mcp.json"` | Path to MCP config file |
+| Property     | Type   | Default       | Description               |
+| ------------ | ------ | ------------- | ------------------------- |
+| `servers`    | object | `{}`          | MCP server configurations |
+| `configFile` | string | `".mcp.json"` | Path to MCP config file   |
 
 ### Example
 
@@ -307,12 +298,12 @@ Model Context Protocol server configuration.
 
 RAPID supports variable substitution in string values:
 
-| Variable | Description |
-|----------|-------------|
-| `${env:VAR}` | Environment variable from container |
-| `${localEnv:VAR}` | Environment variable from host |
-| `${workspaceFolder}` | Absolute path to project root |
-| `${workspaceFolderBasename}` | Project directory name |
+| Variable                     | Description                         |
+| ---------------------------- | ----------------------------------- |
+| `${env:VAR}`                 | Environment variable from container |
+| `${localEnv:VAR}`            | Environment variable from host      |
+| `${workspaceFolder}`         | Absolute path to project root       |
+| `${workspaceFolderBasename}` | Project directory name              |
 
 ### Example
 

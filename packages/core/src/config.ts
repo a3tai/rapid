@@ -8,12 +8,7 @@ import { dirname, resolve } from 'node:path';
 import type { RapidConfig } from './types.js';
 
 const CONFIG_NAME = 'rapid';
-const CONFIG_FILES = [
-  'rapid.json',
-  'rapid.config.json',
-  '.rapidrc',
-  '.rapidrc.json',
-];
+const CONFIG_FILES = ['rapid.json', 'rapid.config.json', '.rapidrc', '.rapidrc.json'];
 
 export interface LoadedConfig {
   config: RapidConfig;
@@ -36,7 +31,7 @@ export async function loadConfig(cwd?: string): Promise<LoadedConfig | null> {
   });
 
   const result = await explorer.search(cwd);
-  
+
   if (!result || result.isEmpty) {
     return null;
   }
@@ -54,7 +49,7 @@ export async function loadConfig(cwd?: string): Promise<LoadedConfig | null> {
 export async function loadConfigFromFile(filepath: string): Promise<LoadedConfig> {
   const content = await readFile(filepath, 'utf-8');
   const config = JSON.parse(content) as RapidConfig;
-  
+
   return {
     config,
     filepath: resolve(filepath),
@@ -105,7 +100,7 @@ export function getDefaultConfig(): RapidConfig {
  */
 export function mergeWithDefaults(config: Partial<RapidConfig>): RapidConfig {
   const defaults = getDefaultConfig();
-  
+
   return {
     ...defaults,
     ...config,

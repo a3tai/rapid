@@ -1,0 +1,16 @@
+# Cloudflare Pages configuration for RAPID docs
+# https://developers.cloudflare.com/pages/functions/wrangler-configuration/
+
+name = "rapid-docs"
+pages_build_output_dir = "dist"
+
+# Account ID must be set via CLOUDFLARE_ACCOUNT_ID environment variable
+
+# Production: getrapid.dev (main branch)
+# PR Previews: pr-{number}.getrapid.dev (via preview-proxy worker)
+
+[env.production]
+# Production-specific settings can be added here
+
+[env.preview]
+# Preview-specific settings can be added here

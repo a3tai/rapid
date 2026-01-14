@@ -12,45 +12,45 @@
     /* ─────────────────────────────────────────────────────────────────────────
        Color System - Refined violet-blue palette
        ───────────────────────────────────────────────────────────────────────── */
-    
+
     /* Backgrounds */
     --background: 240 10% 4%;
     --foreground: 0 0% 98%;
-    
+
     /* Surfaces */
     --card: 240 10% 6%;
     --card-foreground: 0 0% 98%;
     --popover: 240 10% 6%;
     --popover-foreground: 0 0% 98%;
-    
+
     /* Primary - Refined violet-blue */
     --primary: 245 85% 67%;
     --primary-foreground: 0 0% 100%;
-    
+
     /* Secondary */
     --secondary: 240 6% 10%;
     --secondary-foreground: 0 0% 98%;
-    
+
     /* Muted */
     --muted: 240 5% 13%;
     --muted-foreground: 240 5% 55%;
-    
+
     /* Accent */
     --accent: 240 5% 13%;
     --accent-foreground: 0 0% 98%;
-    
+
     /* Destructive */
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
-    
+
     /* Borders */
     --border: 240 4% 16%;
     --input: 240 4% 16%;
     --ring: 245 85% 67%;
-    
+
     /* Radius */
     --radius: 0.5rem;
-    
+
     /* ─────────────────────────────────────────────────────────────────────────
        Brand Accent
        ───────────────────────────────────────────────────────────────────────── */
@@ -60,14 +60,14 @@
     --brand-subtle: 245 40% 25%;
     --brand-glow: 245 85% 67% / 0.15;
     --brand-glow-strong: 245 85% 67% / 0.3;
-    
+
     /* ─────────────────────────────────────────────────────────────────────────
        Typography
        ───────────────────────────────────────────────────────────────────────── */
-    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 
-      'Helvetica Neue', Arial, sans-serif;
-    --font-mono: 'Berkeley Mono', ui-monospace, 'SF Mono', Menlo, Monaco, 
-      'Cascadia Mono', monospace;
+    --font-sans:
+      -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-mono:
+      'Berkeley Mono', ui-monospace, 'SF Mono', Menlo, Monaco, 'Cascadia Mono', monospace;
   }
 
   /* Force dark mode */
@@ -94,7 +94,12 @@
   }
 
   /* Typography */
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: var(--font-mono);
     font-weight: 400;
     letter-spacing: -0.02em;
@@ -111,7 +116,7 @@
     --sl-color-accent: hsl(245 70% 55%);
     --sl-color-accent-high: hsl(var(--brand));
     --sl-color-text-accent: hsl(var(--brand));
-    
+
     --sl-color-black: hsl(var(--background));
     --sl-color-gray-6: hsl(var(--background));
     --sl-color-gray-5: hsl(var(--card));
@@ -120,17 +125,17 @@
     --sl-color-gray-2: hsl(240 5% 45%);
     --sl-color-gray-1: hsl(240 5% 70%);
     --sl-color-white: hsl(var(--foreground));
-    
+
     --sl-color-bg: hsl(var(--background));
     --sl-color-bg-nav: hsl(240 10% 5% / 0.8);
     --sl-color-bg-sidebar: hsl(var(--background));
-    
+
     --sl-color-hairline: hsl(var(--border));
     --sl-color-hairline-light: hsl(240 5% 18%);
-    
+
     --sl-font-system: var(--font-sans);
     --sl-font-system-mono: var(--font-mono);
-    
+
     --sl-content-width: 52rem;
   }
 }
@@ -160,11 +165,7 @@ starlight-theme-select {
     transform: translateX(-50%);
     width: 150%;
     height: 100%;
-    background: radial-gradient(
-      ellipse 50% 80% at 50% 20%,
-      hsl(var(--brand-glow)),
-      transparent
-    );
+    background: radial-gradient(ellipse 50% 80% at 50% 20%, hsl(var(--brand-glow)), transparent);
     pointer-events: none;
   }
 
@@ -367,16 +368,16 @@ starlight-theme-select {
   }
 
   /* Remove Starlight's colorful card styles */
-  .card:nth-child(4n+1),
-  .card:nth-child(4n+2),
-  .card:nth-child(4n+3),
-  .card:nth-child(4n+4),
-  .card:nth-child(4n+5),
-  article.card:nth-child(4n+1),
-  article.card:nth-child(4n+2),
-  article.card:nth-child(4n+3),
-  article.card:nth-child(4n+4),
-  article.card:nth-child(4n+5) {
+  .card:nth-child(4n + 1),
+  .card:nth-child(4n + 2),
+  .card:nth-child(4n + 3),
+  .card:nth-child(4n + 4),
+  .card:nth-child(4n + 5),
+  article.card:nth-child(4n + 1),
+  article.card:nth-child(4n + 2),
+  article.card:nth-child(4n + 3),
+  article.card:nth-child(4n + 4),
+  article.card:nth-child(4n + 5) {
     --sl-card-border: transparent !important;
     --sl-card-bg: transparent !important;
   }
@@ -430,6 +431,12 @@ starlight-theme-select {
     backdrop-filter: blur(16px) saturate(180%) !important;
     -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
     border-bottom: 1px solid hsl(var(--border) / 0.5) !important;
+    padding: 0.75rem 1rem !important;
+  }
+
+  /* Remove top padding on homepage hero */
+  .content-panel:has(.hero) {
+    padding-top: 0 !important;
   }
 
   /* Center the header content with search in middle */

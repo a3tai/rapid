@@ -3,7 +3,7 @@
  * Uses devcontainer CLI for container lifecycle
  */
 
-import { execa, ExecaError } from 'execa';
+import { execa, type ExecaError } from 'execa';
 import which from 'which';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -65,7 +65,10 @@ export function getDevcontainerPath(rootDir: string, config?: RapidConfig): stri
 /**
  * Load devcontainer.json
  */
-export async function loadDevcontainerConfig(rootDir: string, config?: RapidConfig): Promise<DevcontainerConfig | null> {
+export async function loadDevcontainerConfig(
+  rootDir: string,
+  config?: RapidConfig
+): Promise<DevcontainerConfig | null> {
   try {
     const configPath = getDevcontainerPath(rootDir, config);
     const content = await readFile(configPath, 'utf-8');
@@ -89,13 +92,19 @@ export function getContainerName(rootDir: string, devcontainerConfig?: Devcontai
 /**
  * Check container status using devcontainer labels
  */
-export async function getContainerStatus(rootDir: string, _config?: RapidConfig): Promise<ContainerStatus> {
+export async function getContainerStatus(
+  rootDir: string,
+  _config?: RapidConfig
+): Promise<ContainerStatus> {
   try {
     // Use devcontainer label to find the container (this is how devcontainer CLI tracks containers)
     const result = await execa('docker', [
-      'ps', '-a',
-      '--filter', `label=devcontainer.local_folder=${rootDir}`,
-      '--format', '{{.ID}}\t{{.State}}\t{{.Names}}'
+      'ps',
+      '-a',
+      '--filter',
+      `label=devcontainer.local_folder=${rootDir}`,
+      '--format',
+      '{{.ID}}\t{{.State}}\t{{.Names}}',
     ]);
 
     const lines = result.stdout.trim().split('\n').filter(Boolean);
@@ -103,12 +112,20 @@ export async function getContainerStatus(rootDir: string, _config?: RapidConfig)
       return { exists: false, running: false };
     }
 
-    const [containerId, state, name] = lines[0].split('\t');
+    const parts = lines[0]?.split('\t');
+    const containerId = parts?.[0];
+    const state = parts?.[1];
+    const containerName = parts?.[2];
+
+    if (!containerId || !containerName) {
+      return { exists: false, running: false };
+    }
+
     return {
       exists: true,
       running: state === 'running',
       containerId,
-      containerName: name,
+      containerName,
     };
   } catch {
     return { exists: false, running: false };
@@ -124,7 +141,7 @@ export async function startContainer(
   options: { rebuild?: boolean; quiet?: boolean } = {}
 ): Promise<{ success: boolean; containerId?: string; error?: string }> {
   const hasDevCli = await hasDevcontainerCli();
-  
+
   if (!hasDevCli) {
     return {
       success: false,
@@ -142,7 +159,7 @@ export async function startContainer(
 
   try {
     const args = ['up', '--workspace-folder', rootDir];
-    
+
     if (options.rebuild) {
       args.push('--remove-existing-container');
     }
@@ -183,7 +200,7 @@ export async function stopContainer(
   options: { remove?: boolean } = {}
 ): Promise<{ success: boolean; error?: string }> {
   const status = await getContainerStatus(rootDir, config);
-  
+
   if (!status.exists) {
     return { success: true }; // Nothing to stop
   }
@@ -192,7 +209,7 @@ export async function stopContainer(
     if (status.running) {
       await execa('docker', ['stop', status.containerId!]);
     }
-    
+
     if (options.remove) {
       await execa('docker', ['rm', status.containerId!]);
     }
@@ -218,13 +235,13 @@ export async function execInContainer(
   options: { interactive?: boolean; tty?: boolean; env?: Record<string, string> } = {}
 ): Promise<void> {
   const hasDevCli = await hasDevcontainerCli();
-  
+
   if (!hasDevCli) {
     throw new Error('devcontainer CLI not found. Install with: npm install -g @devcontainers/cli');
   }
 
   const args = ['exec', '--workspace-folder', rootDir];
-  
+
   // Add environment variables
   if (options.env) {
     for (const [key, value] of Object.entries(options.env)) {

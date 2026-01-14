@@ -5,7 +5,6 @@
 import { Command } from 'commander';
 import {
   loadConfig,
-  getDefaultAgent,
   getAgent,
   checkAgentAvailable,
   logger,
@@ -13,6 +12,9 @@ import {
   startContainer,
   execInContainer,
   hasDevcontainerCli,
+  loadSecrets,
+  hasOpCli,
+  isOpAuthenticated,
 } from '@a3t/rapid-core';
 import ora from 'ora';
 
@@ -101,18 +103,46 @@ export const devCommand = new Command('dev')
         spinner.succeed(`Container running (${status.containerName})`);
       }
 
+      // Load secrets from 1Password (if configured)
+      let secrets: Record<string, string> = {};
+      if (config.secrets?.provider === '1password' && config.secrets.items) {
+        spinner.start('Loading secrets from 1Password...');
+
+        const hasOp = await hasOpCli();
+        if (!hasOp) {
+          spinner.warn('1Password CLI not found - secrets will not be loaded');
+          logger.info('Install with: brew install 1password-cli');
+        } else {
+          const authenticated = await isOpAuthenticated();
+          if (!authenticated) {
+            spinner.warn('1Password not authenticated - secrets will not be loaded');
+            logger.info('Run: eval $(op signin)');
+          } else {
+            try {
+              secrets = await loadSecrets(config.secrets);
+              const count = Object.keys(secrets).length;
+              spinner.succeed(`Loaded ${count} secret${count !== 1 ? 's' : ''} from 1Password`);
+            } catch (err) {
+              spinner.warn('Failed to load secrets from 1Password');
+              logger.debug(err instanceof Error ? err.message : String(err));
+            }
+          }
+        }
+      }
+
       // Launch the agent inside the container
       logger.blank();
       logger.info(`Launching ${logger.brand(agentName)} in container...`);
       logger.blank();
 
       const agentArgs = [agent.cli, ...(agent.args || [])];
-      
+
+      // Inject secrets as environment variables
       await execInContainer(rootDir, agentArgs, config, {
         interactive: true,
         tty: true,
+        env: secrets,
       });
-
     } catch (error) {
       logger.error(error instanceof Error ? error.message : String(error));
       process.exit(1);
@@ -146,12 +176,16 @@ async function runLocally(
   });
 }
 
-function listAgents(config: { agents: { default: string; available: Record<string, unknown> } }): void {
+function listAgents(config: {
+  agents: { default: string; available: Record<string, unknown> };
+}): void {
   logger.header('Available Agents');
 
   Object.keys(config.agents.available).forEach((name) => {
     const isDefault = name === config.agents.default;
-    console.log(`  ${isDefault ? logger.brand('*') : ' '} ${name}${isDefault ? logger.dim(' (default)') : ''}`);
+    console.log(
+      `  ${isDefault ? logger.brand('*') : ' '} ${name}${isDefault ? logger.dim(' (default)') : ''}`
+    );
   });
 
   logger.blank();

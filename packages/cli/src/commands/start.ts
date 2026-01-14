@@ -101,7 +101,6 @@ export const startCommand = new Command('start')
       console.log(`  ${logger.dim('•')} Run ${logger.brand('rapid dev')} to start coding`);
       console.log(`  ${logger.dim('•')} Run ${logger.brand('rapid stop')} when done`);
       logger.blank();
-
     } catch (error) {
       spinner.fail('Failed to start environment');
       logger.error(error instanceof Error ? error.message : String(error));

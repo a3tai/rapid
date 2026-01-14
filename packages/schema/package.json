@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "JSON schema and TypeScript types for RAPID configuration",
   "license": "MIT",
-  "author": "A3T <hello@a3t.ai>",
+  "author": "Steve Rude <steve@rude.la>",
   "homepage": "https://getrapid.dev",
   "repository": {
     "type": "git",
@@ -39,10 +39,11 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist",
-    "prepublishOnly": "pnpm build"
+    "test": "echo 'No tests yet'",
+    "clean": "rm -rf dist .turbo"
   },
   "devDependencies": {
-    "typescript": "^5.3.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.0.5"
   }
 }

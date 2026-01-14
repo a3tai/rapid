@@ -1,0 +1,13 @@
+{
+  "name": "@a3t/preview-proxy",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloudflare Worker to proxy preview URLs for RAPID docs",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.59.1"
+  }
+}

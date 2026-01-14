@@ -1,23 +1,26 @@
 {
   "name": "@a3t/rapid-docs",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "pages:deploy": "wrangler pages deploy dist --project-name=rapid-docs",
+    "pages:preview": "wrangler pages deploy dist --project-name=rapid-docs --branch=preview"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.30.0",
-    "@astrojs/starlight-tailwind": "^2.0.0",
-    "@astrojs/tailwind": "^5.1.0",
-    "astro": "^4.16.0",
+    "@astrojs/starlight": "^0.37.2",
+    "@astrojs/starlight-tailwind": "^4.0.2",
+    "@tailwindcss/vite": "^4.1.18",
+    "astro": "^5.16.9",
     "sharp": "^0.33.0",
-    "tailwindcss": "^3.4.0"
+    "tailwindcss": "^4.1.18"
   },
   "devDependencies": {
-    "prettier-plugin-astro": "^0.14.0"
+    "prettier-plugin-astro": "^0.14.0",
+    "wrangler": "^4.59.1"
   }
 }
