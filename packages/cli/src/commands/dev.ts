@@ -1,5 +1,9 @@
 /**
  * rapid dev - Launch AI coding session inside the dev container
+ *
+ * Automatically uses git worktrees for feature branch isolation:
+ * - On main/master: uses current directory
+ * - On feature branches: creates sibling worktree (e.g., ../project-feat-my-feature/)
  */
 
 import { Command } from 'commander';
@@ -25,6 +29,15 @@ import {
   type AgentDefinition,
 } from '@a3t/rapid-core';
 import ora from 'ora';
+import { isGitRepo, getCurrentBranch, getOrCreateWorktreeForBranch } from '../utils/worktree.js';
+import {
+  hasLima,
+  isMacOS,
+  isRunning as isLimaRunning,
+  startInstance as startLimaInstance,
+  execInLima,
+  RAPID_LIMA_INSTANCE,
+} from '../isolation/lima.js';
 
 export const devCommand = new Command('dev')
   .description('Launch AI coding session in the dev container')
@@ -36,6 +49,7 @@ export const devCommand = new Command('dev')
   .option('--list', 'List available agents without launching')
   .option('--local', 'Run locally instead of in container (not recommended)')
   .option('--no-start', 'Do not auto-start container if stopped')
+  .option('--no-worktree', 'Skip automatic worktree creation for feature branches')
   .action(async (options) => {
     try {
       // Load config
@@ -47,13 +61,40 @@ export const devCommand = new Command('dev')
         process.exit(1);
       }
 
-      const { config, rootDir } = loaded;
+      const { config } = loaded;
+      let { rootDir } = loaded;
       spinner.succeed('Configuration loaded');
 
       // List mode
       if (options.list) {
         listAgents(config);
         return;
+      }
+
+      // Auto-worktree for feature branches (unless disabled)
+      if (options.worktree !== false && (await isGitRepo(rootDir))) {
+        const branch = await getCurrentBranch(rootDir);
+
+        if (!branch.isDefault && !branch.detached && branch.name) {
+          spinner.start(`Checking worktree for branch: ${branch.name}...`);
+
+          try {
+            const worktree = await getOrCreateWorktreeForBranch(rootDir);
+
+            if (worktree.created) {
+              spinner.succeed(`Created worktree: ${worktree.path}`);
+              rootDir = worktree.path;
+            } else if (!worktree.isMain) {
+              spinner.succeed(`Using worktree: ${worktree.path}`);
+              rootDir = worktree.path;
+            } else {
+              spinner.info(`Using main directory (branch: ${branch.name})`);
+            }
+          } catch (err) {
+            spinner.warn('Could not create worktree, using main directory');
+            logger.debug(err instanceof Error ? err.message : String(err));
+          }
+        }
       }
 
       // Multi-agent mode
@@ -353,11 +394,19 @@ async function runLocally(
   const mcpEnv = await prepareMcpEnv(rootDir, config.mcp);
   const mergedEnv = { ...secrets, ...(mcpEnv ?? {}) };
 
+  // Build agent args with system prompt injection if supported
+  const builtArgs = buildAgentArgs(agent, { injectSystemPrompt: true });
+
+  // Check if we should use Lima VM on macOS
+  if (isMacOS() && (await hasLima())) {
+    await runInLimaVm(agent, agentName, rootDir, builtArgs, mergedEnv);
+    return;
+  }
+
+  // Fall back to running directly on host
   logger.info(`Launching ${logger.brand(agentName)}...`);
   logger.dim(`Working directory: ${rootDir}`);
 
-  // Build agent args with system prompt injection if supported
-  const builtArgs = buildAgentArgs(agent, { injectSystemPrompt: true });
   if (agentSupportsRuntimeInjection(agent)) {
     logger.dim('Injecting RAPID methodology via CLI args');
   }
@@ -370,6 +419,66 @@ async function runLocally(
       ...process.env,
       ...mergedEnv,
     },
+  });
+}
+
+/**
+ * Run agent inside Lima VM for isolated local development
+ */
+async function runInLimaVm(
+  agent: AgentDefinition,
+  agentName: string,
+  rootDir: string,
+  args: string[],
+  env: Record<string, string>
+): Promise<void> {
+  const spinner = ora();
+
+  // Check if Lima instance is running
+  if (!(await isLimaRunning())) {
+    spinner.start(`Starting Lima VM (${RAPID_LIMA_INSTANCE})...`);
+
+    const result = await startLimaInstance(rootDir, {
+      env,
+      timeout: 600, // 10 minutes for first-time setup
+    });
+
+    if (!result.success) {
+      spinner.fail('Failed to start Lima VM');
+      logger.error(result.error ?? 'Unknown error');
+      logger.blank();
+      logger.info('Falling back to running directly on host...');
+      logger.blank();
+
+      // Fall back to direct execution
+      const { execa } = await import('execa');
+      await execa(agent.cli, args, {
+        cwd: rootDir,
+        stdio: 'inherit',
+        env: {
+          ...process.env,
+          ...env,
+        },
+      });
+      return;
+    }
+
+    spinner.succeed('Lima VM started');
+  } else {
+    logger.info(`Lima VM (${RAPID_LIMA_INSTANCE}) is running`);
+  }
+
+  logger.info(`Launching ${logger.brand(agentName)} in Lima VM...`);
+  logger.dim(`Working directory: ${rootDir}`);
+  logger.dim('SSH agent forwarded for commit signing');
+  logger.blank();
+
+  // Execute the agent inside the Lima VM
+  await execInLima([agent.cli, ...args], {
+    cwd: rootDir,
+    env,
+    interactive: true,
+    tty: true,
   });
 }
 

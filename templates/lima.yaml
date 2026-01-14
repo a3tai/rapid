@@ -1,0 +1,182 @@
+# RAPID Lima VM Template
+#
+# Lightweight Linux VM for isolated local development on macOS.
+# Uses Apple Virtualization.framework for near-native performance.
+#
+# Usage:
+#   limactl start --name=rapid ~/.rapid/lima.yaml
+#   limactl shell rapid
+#
+# Or via RAPID:
+#   rapid dev --local
+#
+
+# VM Type: Use Apple Virtualization.framework (macOS 13+)
+vmType: 'vz'
+
+# Enable Rosetta for running x86_64 binaries on Apple Silicon
+rosetta:
+  enabled: true
+  binfmt: true
+
+# VM Resources (can be overridden via limactl start --cpus/--memory)
+cpus: 4
+memory: '8GiB'
+disk: '50GiB'
+
+# Base Image: Ubuntu 24.04 LTS (Noble)
+images:
+  - location: 'https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-arm64.img'
+    arch: 'aarch64'
+  - location: 'https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img'
+    arch: 'x86_64'
+
+# Mount Type: virtiofs for best performance with vz
+mountType: 'virtiofs'
+
+# Mount the current working directory (set by RAPID)
+# The {{.Dir}} placeholder is replaced by RAPID with the actual project directory
+mounts:
+  - location: '~'
+    writable: true
+  # Project mount will be added dynamically by RAPID
+  # - location: "/path/to/project"
+  #   writable: true
+
+# Enable inotify for file watching (hot reload, etc.)
+mountInotify: true
+
+# SSH Configuration
+ssh:
+  # Forward local SSH agent to the VM for commit signing
+  forwardAgent: true
+  # Use the default SSH port
+  localPort: 0
+
+# Network: Use vzNAT for better performance on vz
+networks:
+  - vzNAT: true
+
+# Containerd: Enable for running containers inside the VM
+containerd:
+  system: true
+  user: false
+
+# Port forwarding rules (can be extended by RAPID)
+portForwards:
+  - guestPort: 3000
+    hostPort: 3000
+  - guestPort: 5173
+    hostPort: 5173
+  - guestPort: 8000
+    hostPort: 8000
+  - guestPort: 8080
+    hostPort: 8080
+
+# Probes to verify the VM is ready
+probes:
+  - description: 'Wait for cloud-init to complete'
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      if ! timeout 300 cloud-init status --wait; then
+        echo "cloud-init failed or timed out"
+        exit 1
+      fi
+    hint: 'See /var/log/cloud-init-output.log for details'
+
+# Provision scripts run after the VM starts
+provision:
+  # System setup
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+
+      # Update package lists
+      apt-get update
+
+      # Install essential development tools
+      apt-get install -y \
+        build-essential \
+        curl \
+        git \
+        jq \
+        unzip \
+        wget \
+        zsh \
+        ripgrep \
+        fd-find \
+        htop \
+        tree
+
+      # Install Node.js 22.x via NodeSource
+      curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+      apt-get install -y nodejs
+
+      # Install pnpm globally
+      npm install -g pnpm
+
+      # Install Python 3.12 and pip
+      apt-get install -y python3.12 python3-pip python3.12-venv
+
+      # Install GitHub CLI
+      curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+      chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+      apt-get update
+      apt-get install -y gh
+
+      # Clean up
+      apt-get clean
+      rm -rf /var/lib/apt/lists/*
+
+  # User setup (runs as the lima user)
+  - mode: user
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+
+      # Install Claude Code
+      npm install -g @anthropic-ai/claude-code || true
+
+      # Install OpenCode
+      curl -fsSL https://opencode.ai/install | bash || true
+
+      # Install Aider
+      pip3 install --user aider-chat || true
+
+      # Configure git defaults
+      git config --global init.defaultBranch main
+      git config --global pull.rebase true
+      git config --global push.autoSetupRemote true
+
+      # Add local bin to PATH
+      echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+      echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc || true
+
+# Environment variables available in the VM
+env:
+  # Pass through common development env vars from host
+  ANTHROPIC_API_KEY: ''
+  OPENAI_API_KEY: ''
+  TAVILY_API_KEY: ''
+  CONTEXT7_API_KEY: ''
+
+# Message shown after VM starts
+message: |
+  RAPID Lima VM is ready!
+
+  To enter the VM:
+    limactl shell rapid
+
+  Or use RAPID:
+    rapid dev --local
+
+  Installed tools:
+    - Node.js 22.x with pnpm
+    - Python 3.12 with pip
+    - Git, GitHub CLI
+    - Claude Code, OpenCode, Aider
+
+  SSH agent is forwarded for commit signing.

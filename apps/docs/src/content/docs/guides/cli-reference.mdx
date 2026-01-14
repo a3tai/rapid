@@ -35,24 +35,40 @@ rapid init [options]
 
 ### Options
 
-| Option              | Default   | Description                |
-| ------------------- | --------- | -------------------------- |
-| `--template <name>` | `default` | Template to use            |
-| `--force`           | `false`   | Overwrite existing files   |
-| `--no-devcontainer` | `false`   | Skip devcontainer creation |
-| `--agent <name>`    | `claude`  | Default agent to configure |
+| Option              | Default           | Description                                |
+| ------------------- | ----------------- | ------------------------------------------ |
+| `--template <name>` | Auto-detected     | Template to use (typescript, python, etc.) |
+| `--force`           | `false`           | Overwrite existing files                   |
+| `--no-devcontainer` | `false`           | Skip devcontainer creation                 |
+| `--prebuilt`        | `false`           | Use pre-built images (faster startup)      |
+| `--agent <name>`    | `claude`          | Default agent to configure                 |
+| `--mcp <servers>`   | `context7,tavily` | MCP servers to enable (comma-separated)    |
+| `--no-mcp`          | `false`           | Skip MCP server configuration              |
+| `--no-detect`       | `false`           | Skip auto-detection of project type        |
 
 ### Examples
 
 ```bash
-# Basic initialization
+# Basic initialization (auto-detects project type)
 rapid init
 
 # Use TypeScript template
 rapid init --template typescript
 
+# Use pre-built images for faster startup
+rapid init --prebuilt
+
 # Initialize with OpenCode as default
 rapid init --agent opencode
+
+# Initialize with specific MCP servers
+rapid init --mcp context7,tavily,playwright
+
+# Skip MCP servers
+rapid init --no-mcp
+
+# Skip devcontainer (use existing)
+rapid init --no-devcontainer
 
 # Force overwrite existing config
 rapid init --force
@@ -63,11 +79,12 @@ rapid init --force
 ```
 project/
 ├── rapid.json              # RAPID configuration
+├── .mcp.json               # MCP server config (for Claude Code)
+├── opencode.json           # MCP server config (for OpenCode)
 ├── AGENTS.md               # Generic agent instructions
 ├── CLAUDE.md               # Claude-specific instructions
-└── .devcontainer/          # (if not present)
-    ├── devcontainer.json
-    └── Dockerfile
+└── .devcontainer/          # (if not skipped)
+    └── devcontainer.json
 ```
 
 ---
@@ -120,7 +137,7 @@ rapid start -d
 
 ## rapid dev
 
-Launch AI coding session.
+Launch AI coding session. Automatically creates git worktrees for feature branch isolation.
 
 ```bash
 rapid dev [options]
@@ -128,12 +145,25 @@ rapid dev [options]
 
 ### Options
 
-| Option            | Default     | Description                |
-| ----------------- | ----------- | -------------------------- |
-| `--agent <name>`  | From config | Agent to use               |
-| `--multi`         | `false`     | Launch all agents in tmux  |
-| `--attach`        | `false`     | Attach to existing session |
-| `--layout <type>` | `tiled`     | Tmux layout (multi mode)   |
+| Option            | Default     | Description                            |
+| ----------------- | ----------- | -------------------------------------- |
+| `--agent <name>`  | From config | Agent to use                           |
+| `--multi`         | `false`     | Launch all agents in tmux              |
+| `--attach`        | `false`     | Attach to existing session             |
+| `--layout <type>` | `tiled`     | Tmux layout (multi mode)               |
+| `--local`         | `false`     | Run locally instead of in container    |
+| `--no-start`      | `false`     | Do not auto-start container if stopped |
+| `--no-worktree`   | `false`     | Skip automatic worktree for branches   |
+
+### Automatic Worktrees
+
+When running on a feature branch (not main/master), `rapid dev` automatically:
+
+1. Creates a sibling worktree directory (e.g., `../project-feat-my-feature/`)
+2. Runs the devcontainer in that worktree
+3. Keeps your main directory clean for quick branch switching
+
+Use `--no-worktree` to disable this behavior.
 
 ### Layout Types (--multi)
 
@@ -583,6 +613,223 @@ rapid mcp enable tavily
 # Remove a server
 rapid mcp remove playwright
 ```
+
+---
+
+## rapid worktree
+
+Manage git worktrees for isolated development.
+
+```bash
+rapid worktree <subcommand> [options]
+```
+
+**Alias:** `rapid wt`
+
+### Subcommands
+
+#### rapid worktree list
+
+List all git worktrees.
+
+```bash
+rapid worktree list [options]
+```
+
+| Option   | Description    |
+| -------- | -------------- |
+| `--json` | Output as JSON |
+
+Output:
+
+```
+Git Worktrees
+
+* main
+    /path/to/project
+    HEAD: abc1234
+
+  feat/my-feature
+    /path/to/project-feat-my-feature
+    HEAD: def5678
+```
+
+#### rapid worktree prune
+
+Remove stale worktree references (directories that no longer exist).
+
+```bash
+rapid worktree prune [options]
+```
+
+| Option      | Description                                |
+| ----------- | ------------------------------------------ |
+| `--dry-run` | Show what would be pruned without removing |
+
+#### rapid worktree remove
+
+Remove a specific worktree.
+
+```bash
+rapid worktree remove <path-or-branch> [options]
+```
+
+| Option          | Description                             |
+| --------------- | --------------------------------------- |
+| `-f`, `--force` | Force removal even if worktree is dirty |
+
+**Alias:** `rapid worktree rm`
+
+#### rapid worktree cleanup
+
+Remove worktrees for branches that have been merged into main/master.
+
+```bash
+rapid worktree cleanup [options]
+```
+
+| Option      | Description                |
+| ----------- | -------------------------- |
+| `--dry-run` | Show what would be removed |
+
+### Examples
+
+```bash
+# List all worktrees
+rapid worktree list
+
+# Prune stale worktrees
+rapid worktree prune
+
+# Remove worktree for a specific branch
+rapid worktree remove feat/old-feature
+
+# Force remove a worktree
+rapid worktree remove feat/wip --force
+
+# Clean up merged branch worktrees
+rapid worktree cleanup
+
+# Preview cleanup without removing
+rapid worktree cleanup --dry-run
+```
+
+---
+
+## rapid lima
+
+Manage Lima VM for isolated local development on macOS.
+
+```bash
+rapid lima <subcommand> [options]
+```
+
+Lima provides lightweight Linux VMs using Apple Virtualization.framework for near-native performance.
+
+### Subcommands
+
+#### rapid lima status
+
+Show Lima VM status.
+
+```bash
+rapid lima status [options]
+```
+
+| Option   | Description    |
+| -------- | -------------- |
+| `--json` | Output as JSON |
+
+#### rapid lima start
+
+Start the Lima VM.
+
+```bash
+rapid lima start [options]
+```
+
+| Option            | Default | Description    |
+| ----------------- | ------- | -------------- |
+| `--cpus <n>`      | `4`     | Number of CPUs |
+| `--memory <size>` | `8GiB`  | Memory size    |
+| `--disk <size>`   | `50GiB` | Disk size      |
+
+#### rapid lima stop
+
+Stop the Lima VM.
+
+```bash
+rapid lima stop [options]
+```
+
+| Option          | Description |
+| --------------- | ----------- |
+| `-f`, `--force` | Force stop  |
+
+#### rapid lima shell
+
+Open a shell in the Lima VM.
+
+```bash
+rapid lima shell [options]
+```
+
+| Option            | Description                                 |
+| ----------------- | ------------------------------------------- |
+| `-c`, `--command` | Command to run instead of interactive shell |
+
+#### rapid lima delete
+
+Delete the Lima VM and all its data.
+
+```bash
+rapid lima delete [options]
+```
+
+| Option          | Description                       |
+| --------------- | --------------------------------- |
+| `-f`, `--force` | Force delete without confirmation |
+
+#### rapid lima list
+
+List all Lima instances.
+
+```bash
+rapid lima list [options]
+```
+
+| Option   | Description    |
+| -------- | -------------- |
+| `--json` | Output as JSON |
+
+### Examples
+
+```bash
+# Check VM status
+rapid lima status
+
+# Start with custom resources
+rapid lima start --cpus 8 --memory 16GiB
+
+# Open a shell
+rapid lima shell
+
+# Run a command in the VM
+rapid lima shell --command "node --version"
+
+# Stop the VM
+rapid lima stop
+
+# Delete the VM (requires --force)
+rapid lima delete --force
+```
+
+### Notes
+
+- Lima is only available on macOS
+- Uses Apple Virtualization.framework (VZ) for best performance on Apple Silicon
+- SSH agent is automatically forwarded for commit signing
+- Install Lima with: `brew install lima`
 
 ---
 

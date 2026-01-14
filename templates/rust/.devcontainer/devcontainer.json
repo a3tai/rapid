@@ -6,13 +6,23 @@
       "version": "22"
     },
     "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/devcontainers-contrib/features/direnv:1": {},
     "ghcr.io/devcontainers-contrib/features/starship:1": {},
-    "ghcr.io/devcontainers-contrib/features/1password-cli:1": {}
+    "ghcr.io/devcontainers-contrib/features/1password-cli:1": {},
+    "ghcr.io/devcontainers-contrib/features/jq:1": {}
   },
   "containerEnv": {
-    "OP_SERVICE_ACCOUNT_TOKEN": "${localEnv:OP_SERVICE_ACCOUNT_TOKEN}"
+    "OP_SERVICE_ACCOUNT_TOKEN": "${localEnv:OP_SERVICE_ACCOUNT_TOKEN}",
+    "SSH_AUTH_SOCK": "/ssh-agent"
   },
+  "mounts": [
+    {
+      "source": "${localEnv:SSH_AUTH_SOCK}",
+      "target": "/ssh-agent",
+      "type": "bind"
+    }
+  ],
   "customizations": {
     "vscode": {
       "extensions": [
