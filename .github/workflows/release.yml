@@ -1,8 +1,13 @@
 name: Release
 
+# To release:
+# Option 1 (CLI): git tag v0.1.10 && git push origin v0.1.10
+# Option 2 (UI): Create release in GitHub UI with a new tag
+# Both methods trigger this workflow via the tag push
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v*'
 
 concurrency:
   group: release
@@ -42,8 +47,13 @@ jobs:
     permissions:
       contents: write
       id-token: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: pnpm/action-setup@v4
 
@@ -57,9 +67,11 @@ jobs:
 
       - run: pnpm build
 
-      - name: Set package versions from release tag
+      - name: Set package versions from tag
+        id: version
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Publishing version: $VERSION"
 
           # Update root package.json
@@ -92,12 +104,17 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      # Note: Version bumps are handled manually before creating the release.
-      # The workflow only sets versions temporarily for npm publish with --no-git-checks.
+      - name: Commit version updates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json packages/*/package.json
+          git commit -m "chore: bump versions to ${{ steps.version.outputs.version }} [skip ci]" || echo "No changes to commit"
+          git push origin HEAD:main || echo "Could not push to main"
 
       - name: Generate release checksums
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${{ steps.version.outputs.version }}"
           mkdir -p release-artifacts
 
           # Create a manifest of published packages with their integrity hashes
@@ -117,16 +134,22 @@ jobs:
 
           cat release-artifacts/checksums.txt
 
-      - name: Upload checksums to release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: release-artifacts/checksums.txt
-          append_body: true
+          generate_release_notes: true
           body: |
+
+            ## Installation
+
+            ```bash
+            npm install -g @a3t/rapid@${{ steps.version.outputs.version }}
+            ```
 
             ## Security
 
-            All packages are published with [npm provenance](https://docs.npmjs.com/generating-provenance-statements) 
+            All packages are published with [npm provenance](https://docs.npmjs.com/generating-provenance-statements)
             using Sigstore, cryptographically linking them to this GitHub Actions workflow.
 
             Verify provenance: `npm audit signatures`

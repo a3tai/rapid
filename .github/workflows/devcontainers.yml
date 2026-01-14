@@ -6,8 +6,9 @@ on:
     paths:
       - 'templates/*/.devcontainer/**'
       - '.github/workflows/devcontainers.yml'
-  release:
-    types: [published]
+  workflow_run:
+    workflows: ['Release']
+    types: [completed]
   workflow_dispatch:
     inputs:
       template:
@@ -35,6 +36,8 @@ jobs:
   build-matrix:
     name: Determine templates to build
     runs-on: ubuntu-latest
+    # Skip if triggered by a failed workflow_run
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     outputs:
       templates: ${{ steps.set-matrix.outputs.templates }}
     steps:

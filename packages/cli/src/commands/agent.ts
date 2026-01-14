@@ -2,6 +2,7 @@
  * rapid agent - Manage AI agents
  */
 
+import { writeFile } from 'node:fs/promises';
 import { Command } from 'commander';
 import { loadConfig, checkAllAgents, logger } from '@a3t/rapid-core';
 
@@ -80,9 +81,10 @@ agentCommand
         process.exit(1);
       }
 
-      // TODO: Write the updated config
-      logger.warn('Setting default agent requires editing rapid.json');
-      logger.info(`Set "agents.default" to "${name}" in your rapid.json`);
+      // Update and save the config
+      config.agents.default = name;
+      await writeFile(loaded.filepath, JSON.stringify(config, null, 2) + '\n');
+      logger.success(`Default agent set to "${name}"`);
     } catch (error) {
       logger.error(error instanceof Error ? error.message : String(error));
       process.exit(1);
