@@ -70,17 +70,27 @@ export function getDefaultConfig(): RapidConfig {
           cli: 'claude',
           instructionFile: 'CLAUDE.md',
           envVars: ['ANTHROPIC_API_KEY'],
+          // Claude supports runtime system prompt injection via --append-system-prompt
+          systemPromptArg: '--append-system-prompt {prompt}',
+          // Claude also reads CLAUDE.md from filesystem, but we prefer runtime injection
+          readsInstructionFiles: true,
         },
         opencode: {
           cli: 'opencode',
           instructionFile: 'AGENTS.md',
           envVars: ['ANTHROPIC_API_KEY'],
+          // OpenCode reads AGENTS.md from filesystem automatically
+          // It also supports instructions in opencode.json
+          readsInstructionFiles: true,
         },
         aider: {
           cli: 'aider',
           instructionFile: 'AGENTS.md',
           envVars: ['ANTHROPIC_API_KEY'],
           args: ['--model', 'claude-3-5-sonnet-20241022'],
+          // Aider supports --read flag to inject context files
+          // and reads from conventions files
+          readsInstructionFiles: true,
         },
       },
     },

@@ -62,11 +62,13 @@ export interface McpServerEntry {
 }
 
 /**
- * OpenCode config format
+ * OpenCode config file format
  */
 export interface OpenCodeConfig {
   $schema?: string;
   mcp?: Record<string, OpenCodeMcpEntry>;
+  /** Instruction files to include in context */
+  instructions?: string[];
 }
 
 /**
@@ -302,8 +304,19 @@ export function generateMcpConfig(config: RapidConfig): GeneratedMcpConfig {
 export function generateOpenCodeConfig(config: RapidConfig): OpenCodeConfig {
   const mcp: Record<string, OpenCodeMcpEntry> = {};
 
+  // Build base config with instructions for RAPID methodology
+  // OpenCode reads AGENTS.md automatically, but we also include it explicitly
+  // to ensure the methodology is always available
+  const openCodeConfig: OpenCodeConfig = {
+    $schema: 'https://opencode.ai/config.json',
+    // Include AGENTS.md which contains RAPID methodology
+    // OpenCode will read this file and include it in context
+    instructions: ['AGENTS.md'],
+  };
+
   if (!config.mcp?.servers) {
-    return { $schema: 'https://opencode.ai/config.json', mcp };
+    openCodeConfig.mcp = mcp;
+    return openCodeConfig;
   }
 
   for (const [name, serverConfig] of Object.entries(config.mcp.servers)) {
@@ -348,7 +361,8 @@ export function generateOpenCodeConfig(config: RapidConfig): OpenCodeConfig {
     mcp[name] = entry;
   }
 
-  return { $schema: 'https://opencode.ai/config.json', mcp };
+  openCodeConfig.mcp = mcp;
+  return openCodeConfig;
 }
 
 /**

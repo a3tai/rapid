@@ -3,7 +3,15 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { checkAgentAvailable, checkAllAgents, getDefaultAgent, getAgent } from './agents.js';
+import {
+  checkAgentAvailable,
+  checkAllAgents,
+  getDefaultAgent,
+  getAgent,
+  buildAgentArgs,
+  agentReadsInstructionFiles,
+  agentSupportsRuntimeInjection,
+} from './agents.js';
 import type { RapidConfig, AgentDefinition } from './types.js';
 
 // Mock which and execa
@@ -202,6 +210,121 @@ describe('agents', () => {
     it('should be case-sensitive', () => {
       const agent = getAgent(testConfig, 'Claude');
       expect(agent).toBeNull();
+    });
+  });
+
+  describe('buildAgentArgs', () => {
+    it('should return base args when no systemPromptArg is defined', () => {
+      const agent: AgentDefinition = {
+        cli: 'opencode',
+        args: ['--model', 'claude-sonnet'],
+      };
+
+      const args = buildAgentArgs(agent);
+      expect(args).toEqual(['--model', 'claude-sonnet']);
+    });
+
+    it('should inject system prompt when systemPromptArg is defined', () => {
+      const agent: AgentDefinition = {
+        cli: 'claude',
+        args: ['--verbose'],
+        systemPromptArg: '--append-system-prompt {prompt}',
+      };
+
+      const args = buildAgentArgs(agent);
+      expect(args).toContain('--verbose');
+      expect(args).toContain('--append-system-prompt');
+      // The last arg should be the system prompt content
+      expect(args.length).toBeGreaterThan(2);
+      expect(args[args.length - 1]).toContain('RAPID');
+    });
+
+    it('should not inject system prompt when injectSystemPrompt is false', () => {
+      const agent: AgentDefinition = {
+        cli: 'claude',
+        args: ['--verbose'],
+        systemPromptArg: '--append-system-prompt {prompt}',
+      };
+
+      const args = buildAgentArgs(agent, { injectSystemPrompt: false });
+      expect(args).toEqual(['--verbose']);
+    });
+
+    it('should use custom prompt when provided', () => {
+      const agent: AgentDefinition = {
+        cli: 'claude',
+        systemPromptArg: '--append-system-prompt {prompt}',
+      };
+
+      const args = buildAgentArgs(agent, { customPrompt: 'Custom instructions here' });
+      expect(args).toContain('--append-system-prompt');
+      expect(args).toContain('Custom instructions here');
+    });
+
+    it('should use compact prompt when requested', () => {
+      const agent: AgentDefinition = {
+        cli: 'claude',
+        systemPromptArg: '--append-system-prompt {prompt}',
+      };
+
+      const fullArgs = buildAgentArgs(agent);
+      const compactArgs = buildAgentArgs(agent, { compactPrompt: true });
+
+      // Compact prompt should be shorter
+      const fullPrompt = fullArgs[fullArgs.length - 1];
+      const compactPrompt = compactArgs[compactArgs.length - 1];
+      expect(compactPrompt.length).toBeLessThan(fullPrompt.length);
+    });
+  });
+
+  describe('agentReadsInstructionFiles', () => {
+    it('should return true when explicitly set', () => {
+      const agent: AgentDefinition = {
+        cli: 'custom-agent',
+        readsInstructionFiles: true,
+      };
+      expect(agentReadsInstructionFiles(agent)).toBe(true);
+    });
+
+    it('should return false when explicitly set', () => {
+      const agent: AgentDefinition = {
+        cli: 'opencode',
+        readsInstructionFiles: false,
+      };
+      expect(agentReadsInstructionFiles(agent)).toBe(false);
+    });
+
+    it('should infer true for known agents like opencode', () => {
+      const agent: AgentDefinition = { cli: 'opencode' };
+      expect(agentReadsInstructionFiles(agent)).toBe(true);
+    });
+
+    it('should infer true when instructionFile is set but no systemPromptArg', () => {
+      const agent: AgentDefinition = {
+        cli: 'custom-agent',
+        instructionFile: 'CUSTOM.md',
+      };
+      expect(agentReadsInstructionFiles(agent)).toBe(true);
+    });
+
+    it('should return false for unknown agent without instructionFile', () => {
+      const agent: AgentDefinition = { cli: 'unknown-agent' };
+      expect(agentReadsInstructionFiles(agent)).toBe(false);
+    });
+  });
+
+  describe('agentSupportsRuntimeInjection', () => {
+    it('should return true when systemPromptArg is defined', () => {
+      const agent: AgentDefinition = {
+        cli: 'claude',
+        systemPromptArg: '--append-system-prompt {prompt}',
+      };
+      expect(agentSupportsRuntimeInjection(agent)).toBe(true);
+    });
+
+    it('should return false when systemPromptArg is not defined', () => {
+      const agent: AgentDefinition = { cli: 'opencode' };
+      expect(agentSupportsRuntimeInjection(agent)).toBe(false);
     });
   });
 });

@@ -19,7 +19,10 @@ import {
   isOpAuthenticated,
   hasVaultCli,
   isVaultAuthenticated,
+  buildAgentArgs,
+  agentSupportsRuntimeInjection,
   type McpConfig,
+  type AgentDefinition,
 } from '@a3t/rapid-core';
 import ora from 'ora';
 
@@ -191,9 +194,15 @@ export const devCommand = new Command('dev')
       // Launch the agent inside the container
       logger.blank();
       logger.info(`Launching ${logger.brand(agentName)} in container...`);
+
+      // Build agent args with system prompt injection if supported
+      const builtArgs = buildAgentArgs(agent, { injectSystemPrompt: true });
+      if (agentSupportsRuntimeInjection(agent)) {
+        logger.dim('Injecting RAPID methodology via CLI args');
+      }
       logger.blank();
 
-      const agentArgs = [agent.cli, ...(agent.args || [])];
+      const agentArgs = [agent.cli, ...builtArgs];
       const mcpEnv = await prepareMcpEnv(rootDir, config.mcp);
       const mergedEnv = { ...secrets, ...(mcpEnv ?? {}) };
 
@@ -249,7 +258,7 @@ async function prepareMcpEnv(
  * Run agent locally (fallback, not recommended)
  */
 async function runLocally(
-  agent: { cli: string; args?: string[] },
+  agent: AgentDefinition,
   agentName: string,
   rootDir: string,
   config: {
@@ -346,9 +355,15 @@ async function runLocally(
 
   logger.info(`Launching ${logger.brand(agentName)}...`);
   logger.dim(`Working directory: ${rootDir}`);
+
+  // Build agent args with system prompt injection if supported
+  const builtArgs = buildAgentArgs(agent, { injectSystemPrompt: true });
+  if (agentSupportsRuntimeInjection(agent)) {
+    logger.dim('Injecting RAPID methodology via CLI args');
+  }
   logger.blank();
 
-  await execa(agent.cli, agent.args || [], {
+  await execa(agent.cli, builtArgs, {
     cwd: rootDir,
     stdio: 'inherit',
     env: {

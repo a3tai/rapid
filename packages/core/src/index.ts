@@ -39,6 +39,9 @@ export {
   getDefaultAgent,
   getAgent,
   launchAgent,
+  buildAgentArgs,
+  agentReadsInstructionFiles,
+  agentSupportsRuntimeInjection,
 } from './agents.js';
 
 // Logger

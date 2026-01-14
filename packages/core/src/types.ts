@@ -67,6 +67,19 @@ export interface AgentDefinition {
   envVars?: string[];
   installCmd?: string;
   args?: string[];
+  /**
+   * CLI argument pattern for injecting system prompts at runtime.
+   * Use {prompt} as placeholder for the prompt content.
+   * Example: "--append-system-prompt {prompt}" for Claude
+   * If not specified, system prompt injection via CLI is not supported.
+   */
+  systemPromptArg?: string;
+  /**
+   * Whether this agent reads instruction files from the filesystem automatically.
+   * If true, RAPID will ensure AGENTS.md exists with methodology.
+   * If false, RAPID will try to inject prompts via CLI args.
+   */
+  readsInstructionFiles?: boolean;
 }
 
 export interface ContextConfig {
