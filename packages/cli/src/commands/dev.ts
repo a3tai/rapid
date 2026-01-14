@@ -78,7 +78,7 @@ export const devCommand = new Command('dev')
         logger.warn('Running locally instead of in container');
         logger.dim('This bypasses the isolated dev environment');
         logger.blank();
-        await runLocally(agent, agentName, rootDir);
+        await runLocally(agent, agentName, rootDir, config);
         return;
       }
 
@@ -251,7 +251,14 @@ async function prepareMcpEnv(
 async function runLocally(
   agent: { cli: string; args?: string[] },
   agentName: string,
-  rootDir: string
+  rootDir: string,
+  config: {
+    secrets?: {
+      provider?: 'env' | '1password' | 'vault';
+      items?: Record<string, unknown>;
+    };
+    mcp?: McpConfig;
+  }
 ): Promise<void> {
   const { execa } = await import('execa');
 
@@ -262,6 +269,81 @@ async function runLocally(
     process.exit(1);
   }
 
+  // Load secrets (1Password, Vault, or env) - same as container mode
+  let secrets: Record<string, string> = {};
+  const secretsConfig = config.secrets;
+
+  if (secretsConfig?.items && Object.keys(secretsConfig.items).length > 0) {
+    const provider = secretsConfig.provider || 'env';
+    const spinner = ora();
+
+    if (provider === '1password') {
+      spinner.start('Loading secrets from 1Password...');
+
+      const hasOp = await hasOpCli();
+      if (!hasOp) {
+        spinner.warn('1Password CLI not found - secrets will not be loaded');
+        logger.info('Install with: brew install 1password-cli');
+      } else {
+        const authenticated = await isOpAuthenticated();
+        if (!authenticated) {
+          spinner.warn('1Password not authenticated - secrets will not be loaded');
+          logger.info('Run: eval $(op signin)');
+        } else {
+          try {
+            secrets = await loadSecrets(secretsConfig as Parameters<typeof loadSecrets>[0]);
+            const count = Object.keys(secrets).length;
+            spinner.succeed(`Loaded ${count} secret${count !== 1 ? 's' : ''} from 1Password`);
+          } catch (err) {
+            spinner.warn('Failed to load secrets from 1Password');
+            logger.debug(err instanceof Error ? err.message : String(err));
+          }
+        }
+      }
+    } else if (provider === 'vault') {
+      spinner.start('Loading secrets from Vault...');
+
+      const hasVault = await hasVaultCli();
+      if (!hasVault) {
+        spinner.warn('Vault CLI not found - secrets will not be loaded');
+        logger.info('Install from: https://developer.hashicorp.com/vault/docs/install');
+      } else {
+        const authenticated = await isVaultAuthenticated();
+        if (!authenticated) {
+          spinner.warn('Vault not authenticated - secrets will not be loaded');
+          logger.info('Run: vault login');
+        } else {
+          try {
+            secrets = await loadSecrets(secretsConfig as Parameters<typeof loadSecrets>[0]);
+            const count = Object.keys(secrets).length;
+            spinner.succeed(`Loaded ${count} secret${count !== 1 ? 's' : ''} from Vault`);
+          } catch (err) {
+            spinner.warn('Failed to load secrets from Vault');
+            logger.debug(err instanceof Error ? err.message : String(err));
+          }
+        }
+      }
+    } else if (provider === 'env') {
+      spinner.start('Loading secrets from environment...');
+      try {
+        secrets = await loadSecrets(secretsConfig as Parameters<typeof loadSecrets>[0]);
+        const count = Object.keys(secrets).length;
+        if (count > 0) {
+          spinner.succeed(`Loaded ${count} secret${count !== 1 ? 's' : ''} from environment`);
+        } else {
+          spinner.warn('No secrets found in environment');
+        }
+      } catch (err) {
+        spinner.warn('Failed to load secrets from environment');
+        logger.debug(err instanceof Error ? err.message : String(err));
+      }
+    }
+  }
+
+  // Prepare MCP environment
+  const mcpEnv = await prepareMcpEnv(rootDir, config.mcp);
+  const mergedEnv = { ...secrets, ...(mcpEnv ?? {}) };
+
   logger.info(`Launching ${logger.brand(agentName)}...`);
   logger.dim(`Working directory: ${rootDir}`);
   logger.blank();
@@ -269,6 +351,10 @@ async function runLocally(
   await execa(agent.cli, agent.args || [], {
     cwd: rootDir,
     stdio: 'inherit',
+    env: {
+      ...process.env,
+      ...mergedEnv,
+    },
   });
 }
 
