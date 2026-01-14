@@ -266,9 +266,12 @@ async function createLimaConfig(
 function getMinimalLimaConfig(): string {
   return `
 vmType: "vz"
-rosetta:
-  enabled: true
-  binfmt: true
+vmOpts:
+  vz:
+    rosetta:
+      enabled: true
+      binfmt: true
+
 cpus: 4
 memory: "8GiB"
 disk: "50GiB"

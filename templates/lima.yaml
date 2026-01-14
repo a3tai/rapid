@@ -15,9 +15,11 @@
 vmType: 'vz'
 
 # Enable Rosetta for running x86_64 binaries on Apple Silicon
-rosetta:
-  enabled: true
-  binfmt: true
+vmOpts:
+  vz:
+    rosetta:
+      enabled: true
+      binfmt: true
 
 # VM Resources (can be overridden via limactl start --cpus/--memory)
 cpus: 4
