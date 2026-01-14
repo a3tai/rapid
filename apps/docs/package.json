@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
+    "copy:schema": "mkdir -p public/schema/v1 && cp ../../packages/schema/src/rapid.schema.json public/schema/v1/rapid.json",
+    "dev": "npm run copy:schema && astro dev",
+    "build": "npm run copy:schema && astro build",
     "preview": "astro preview",
     "astro": "astro",
     "pages:deploy": "wrangler pages deploy dist --project-name=rapid-docs",
