@@ -15,6 +15,12 @@ This file contains instructions for AI coding agents working on this project.
 - Update documentation when making changes
 - Commit changes with clear, descriptive messages
 
+## Release Guidelines
+
+- GitHub release titles should only contain the version number (e.g., `v0.1.5`)
+- Do not include descriptions or feature names in the release title
+- Release notes body should contain the detailed changelog
+
 ## Project Structure
 
 ```
