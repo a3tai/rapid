@@ -96,6 +96,22 @@ export {
   formatAuthStatus,
 } from './external-auth.js';
 
+// System Messages
+export {
+  RAPID_METHODOLOGY,
+  RAPID_METHODOLOGY_COMPACT,
+  RAPID_PHASES,
+  MCP_USAGE_GUIDELINES,
+  GIT_GUIDELINES,
+  CODE_EDITING_GUIDELINES,
+  COMMUNICATION_GUIDELINES,
+  DEBUGGING_GUIDELINES,
+  generateRapidMethodology,
+  getStandardAgentInstructions,
+  generateFullSystemPrompt,
+  type RapidPhase,
+} from './system-messages.js';
+
 // MCP
 export {
   getMcpServers,
