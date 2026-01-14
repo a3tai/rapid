@@ -95,19 +95,39 @@ export async function detectClaudeCodeAuth(): Promise<DetectedCredential | null>
       return null;
     }
 
-    return {
+    const cred: DetectedCredential = {
       source: 'claude-code',
       provider: 'anthropic',
       authType: 'oauth',
       value: oauth.accessToken,
-      expiresAt,
-      accountInfo: {
-        email: config.oauthAccount?.emailAddress,
-        organization: config.oauthAccount?.organizationName,
-        plan: config.oauthAccount?.planType,
-      },
       configPath,
     };
+
+    if (expiresAt) {
+      cred.expiresAt = expiresAt;
+    }
+
+    const accountInfo: {
+      email?: string;
+      organization?: string;
+      plan?: string;
+    } = {};
+
+    if (config.oauthAccount?.emailAddress) {
+      accountInfo.email = config.oauthAccount.emailAddress;
+    }
+    if (config.oauthAccount?.organizationName) {
+      accountInfo.organization = config.oauthAccount.organizationName;
+    }
+    if (config.oauthAccount?.planType) {
+      accountInfo.plan = config.oauthAccount.planType;
+    }
+
+    if (Object.keys(accountInfo).length > 0) {
+      cred.accountInfo = accountInfo;
+    }
+
+    return cred;
   }
 
   // Check for API key in environment (Claude Code also respects ANTHROPIC_API_KEY)
@@ -169,18 +189,36 @@ export async function detectCodexAuth(): Promise<DetectedCredential | null> {
       return null;
     }
 
-    return {
+    const cred: DetectedCredential = {
       source: 'codex',
       provider: 'openai',
       authType: 'oauth',
       value: config.chatgpt.accessToken,
-      expiresAt,
-      accountInfo: {
-        email: config.chatgpt.email,
-        organization: config.chatgpt.workspaceId,
-      },
       configPath,
     };
+
+    if (expiresAt) {
+      cred.expiresAt = expiresAt;
+    }
+
+    const accountInfo: {
+      email?: string;
+      organization?: string;
+      plan?: string;
+    } = {};
+
+    if (config.chatgpt.email) {
+      accountInfo.email = config.chatgpt.email;
+    }
+    if (config.chatgpt.workspaceId) {
+      accountInfo.organization = config.chatgpt.workspaceId;
+    }
+
+    if (Object.keys(accountInfo).length > 0) {
+      cred.accountInfo = accountInfo;
+    }
+
+    return cred;
   }
 
   // Check for API key
@@ -242,18 +280,36 @@ export async function detectGeminiAuth(): Promise<DetectedCredential | null> {
       if (expiresAt && expiresAt < new Date()) {
         logger.debug('Gemini CLI OAuth token expired');
       } else {
-        return {
+        const cred: DetectedCredential = {
           source: 'gemini-cli',
           provider: 'google',
           authType: 'oauth',
-          value: oauth.accessToken,
-          expiresAt,
-          accountInfo: {
-            email: oauth.email,
-            organization: settings.googleCloudProject,
-          },
+          value: oauth.accessToken!,
           configPath: settingsPath,
         };
+
+        if (expiresAt) {
+          cred.expiresAt = expiresAt;
+        }
+
+        const accountInfo: {
+          email?: string;
+          organization?: string;
+          plan?: string;
+        } = {};
+
+        if (oauth.email) {
+          accountInfo.email = oauth.email;
+        }
+        if (settings.googleCloudProject) {
+          accountInfo.organization = settings.googleCloudProject;
+        }
+
+        if (Object.keys(accountInfo).length > 0) {
+          cred.accountInfo = accountInfo;
+        }
+
+        return cred;
       }
     }
   }
@@ -457,12 +513,20 @@ export async function getAuthStatus(
     preferredSource = credentials.find((c) => c.authType === 'oauth') || credentials[0];
   }
 
-  return {
+  const result: AuthStatus = {
     authenticated: credentials.length > 0,
     sources: credentials,
-    preferredSource,
-    warnings: warnings.length > 0 ? warnings : undefined,
   };
+
+  if (preferredSource) {
+    result.preferredSource = preferredSource;
+  }
+
+  if (warnings.length > 0) {
+    result.warnings = warnings;
+  }
+
+  return result;
 }
 
 /**
@@ -480,7 +544,8 @@ export async function getCredentialsForProvider(
   }
 
   // Prefer OAuth over API keys
-  return providerCreds.find((c) => c.authType === 'oauth') || providerCreds[0];
+  const found = providerCreds.find((c) => c.authType === 'oauth');
+  return found || providerCreds[0] || null;
 }
 
 /**
