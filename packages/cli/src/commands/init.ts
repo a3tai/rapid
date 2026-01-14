@@ -442,15 +442,15 @@ function getDevContainerConfig(
     'ghcr.io/devcontainers/features/git:1': {},
     'ghcr.io/devcontainers-contrib/features/direnv:1': {},
     'ghcr.io/devcontainers-contrib/features/starship:1': {},
-    'ghcr.io/devcontainers-contrib/features/1password-cli:1': {},
   };
 
   const containerEnv = {
     OP_SERVICE_ACCOUNT_TOKEN: '${localEnv:OP_SERVICE_ACCOUNT_TOKEN}',
   };
 
-  const postCreateBase =
-    'npm install -g @anthropic-ai/claude-code && curl -fsSL https://opencode.ai/install | bash';
+  const install1PasswordCli =
+    "curl -sS https://downloads.1password.com/linux/keys/1password.asc | sudo gpg --dearmor -o /usr/share/keyrings/1password.gpg && echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/1password.gpg] https://downloads.1password.com/linux/debian/amd64 stable main' | sudo tee /etc/apt/sources.list.d/1password.list && sudo apt-get update -qq && sudo apt-get install -y -qq 1password-cli";
+  const postCreateBase = `${install1PasswordCli} && npm install -g @anthropic-ai/claude-code && curl -fsSL https://opencode.ai/install | bash`;
   const postStartCommand = 'direnv allow 2>/dev/null || true';
 
   const language = detected?.language || 'unknown';

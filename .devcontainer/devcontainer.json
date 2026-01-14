@@ -7,7 +7,7 @@
   "containerEnv": {
     "OP_SERVICE_ACCOUNT_TOKEN": "${localEnv:OP_SERVICE_ACCOUNT_TOKEN}"
   },
-  "postCreateCommand": "CI=true pnpm install",
+  "postCreateCommand": "npm install -g @anthropic-ai/claude-code && CI=true pnpm install",
   "customizations": {
     "vscode": {
       "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode"]

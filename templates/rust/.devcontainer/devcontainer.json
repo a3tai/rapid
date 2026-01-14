@@ -9,7 +9,6 @@
     "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/devcontainers-contrib/features/direnv:1": {},
     "ghcr.io/devcontainers-contrib/features/starship:1": {},
-    "ghcr.io/devcontainers-contrib/features/1password-cli:1": {},
     "ghcr.io/devcontainers-contrib/features/jq:1": {}
   },
   "containerEnv": {
@@ -40,7 +39,7 @@
       }
     }
   },
-  "postCreateCommand": "npm install -g @anthropic-ai/claude-code && curl -fsSL https://opencode.ai/install | bash && rustup component add clippy rustfmt",
+  "postCreateCommand": "curl -sS https://downloads.1password.com/linux/keys/1password.asc | sudo gpg --dearmor -o /usr/share/keyrings/1password.gpg && echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/1password.gpg] https://downloads.1password.com/linux/debian/amd64 stable main' | sudo tee /etc/apt/sources.list.d/1password.list && sudo apt-get update -qq && sudo apt-get install -y -qq 1password-cli && npm install -g @anthropic-ai/claude-code && curl -fsSL https://opencode.ai/install | bash && rustup component add clippy rustfmt",
   "postStartCommand": "direnv allow 2>/dev/null || true",
   "remoteUser": "vscode"
 }
