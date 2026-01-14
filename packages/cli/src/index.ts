@@ -4,6 +4,9 @@
 
 import { Command } from 'commander';
 import { setLogLevel, logger } from '@a3t/rapid-core';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 
 import { initCommand } from './commands/init.js';
 import { devCommand } from './commands/dev.js';
@@ -14,7 +17,10 @@ import { stopCommand } from './commands/stop.js';
 import { secretsCommand } from './commands/secrets.js';
 import { authCommand } from './commands/auth.js';
 
-const VERSION = '0.1.0';
+// Read version from package.json
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf-8'));
+const VERSION = packageJson.version;
 
 export const program = new Command();
 
