@@ -3,8 +3,9 @@
  */
 
 import { Command } from 'commander';
-import { writeFile, access, readFile, readdir } from 'node:fs/promises';
+import { writeFile, access, readFile, readdir, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import { existsSync } from 'node:fs';
 import {
   getDefaultConfig,
   logger,
@@ -301,12 +302,369 @@ async function downloadRemoteTemplate(
   }
 }
 
+/**
+ * DevContainer configuration for a specific language/framework
+ */
+interface DevContainerConfig {
+  name: string;
+  image: string;
+  features?: Record<string, Record<string, unknown> | object>;
+  customizations: {
+    vscode: {
+      extensions: string[];
+      settings?: Record<string, unknown>;
+    };
+  };
+  containerEnv?: Record<string, string>;
+  postCreateCommand?: string;
+  postStartCommand: string;
+  remoteUser: string;
+  mounts?: string[];
+}
+
+/**
+ * Pre-built image registry
+ */
+const PREBUILT_IMAGE_REGISTRY = 'ghcr.io/a3tai/rapid-devcontainer';
+
+/**
+ * Map of language to pre-built image name
+ */
+const PREBUILT_IMAGES: Record<string, string> = {
+  typescript: `${PREBUILT_IMAGE_REGISTRY}-typescript:latest`,
+  javascript: `${PREBUILT_IMAGE_REGISTRY}-typescript:latest`,
+  python: `${PREBUILT_IMAGE_REGISTRY}-python:latest`,
+  rust: `${PREBUILT_IMAGE_REGISTRY}-rust:latest`,
+  go: `${PREBUILT_IMAGE_REGISTRY}-go:latest`,
+  universal: `${PREBUILT_IMAGE_REGISTRY}-universal:latest`,
+  infrastructure: `${PREBUILT_IMAGE_REGISTRY}-infrastructure:latest`,
+};
+
+/**
+ * VSCode customizations for each template (used with pre-built images)
+ */
+const TEMPLATE_CUSTOMIZATIONS: Record<string, DevContainerConfig['customizations']> = {
+  typescript: {
+    vscode: {
+      extensions: [
+        'dbaeumer.vscode-eslint',
+        'esbenp.prettier-vscode',
+        'bradlc.vscode-tailwindcss',
+        'prisma.prisma',
+        'mikestead.dotenv',
+      ],
+      settings: {
+        'editor.formatOnSave': true,
+        'editor.defaultFormatter': 'esbenp.prettier-vscode',
+      },
+    },
+  },
+  python: {
+    vscode: {
+      extensions: [
+        'ms-python.python',
+        'ms-python.vscode-pylance',
+        'charliermarsh.ruff',
+        'ms-toolsai.jupyter',
+      ],
+      settings: {
+        '[python]': {
+          'editor.formatOnSave': true,
+          'editor.defaultFormatter': 'charliermarsh.ruff',
+        },
+      },
+    },
+  },
+  rust: {
+    vscode: {
+      extensions: ['rust-lang.rust-analyzer', 'tamasfe.even-better-toml', 'vadimcn.vscode-lldb'],
+      settings: { '[rust]': { 'editor.formatOnSave': true } },
+    },
+  },
+  go: {
+    vscode: {
+      extensions: ['golang.go', 'zxh404.vscode-proto3'],
+      settings: { '[go]': { 'editor.formatOnSave': true } },
+    },
+  },
+  universal: {
+    vscode: {
+      extensions: [
+        'dbaeumer.vscode-eslint',
+        'esbenp.prettier-vscode',
+        'ms-python.python',
+        'golang.go',
+      ],
+    },
+  },
+  infrastructure: {
+    vscode: {
+      extensions: [
+        'hashicorp.terraform',
+        'ms-kubernetes-tools.vscode-kubernetes-tools',
+        'redhat.vscode-yaml',
+      ],
+    },
+  },
+};
+
+/**
+ * Get configuration for pre-built image (minimal, since features are baked in)
+ */
+function getPrebuiltConfig(
+  templateName: string,
+  containerEnv: Record<string, string>,
+  postStartCommand: string
+): DevContainerConfig {
+  const image = PREBUILT_IMAGES[templateName] ?? PREBUILT_IMAGES.universal!;
+  const customizations =
+    TEMPLATE_CUSTOMIZATIONS[templateName] ?? TEMPLATE_CUSTOMIZATIONS.universal!;
+  const remoteUser = templateName === 'typescript' ? 'node' : 'vscode';
+
+  return {
+    name: `RAPID ${templateName.charAt(0).toUpperCase() + templateName.slice(1)} (Pre-built)`,
+    image,
+    customizations,
+    containerEnv,
+    postStartCommand,
+    remoteUser,
+  };
+}
+
+/**
+ * Get devcontainer configuration based on detected project
+ */
+function getDevContainerConfig(
+  detected?: DetectedProject,
+  usePrebuilt = false
+): DevContainerConfig {
+  const baseFeatures = {
+    'ghcr.io/devcontainers/features/git:1': {},
+    'ghcr.io/devcontainers-contrib/features/direnv:1': {},
+    'ghcr.io/devcontainers-contrib/features/starship:1': {},
+    'ghcr.io/devcontainers-contrib/features/1password-cli:1': {},
+  };
+
+  const containerEnv = {
+    OP_SERVICE_ACCOUNT_TOKEN: '${localEnv:OP_SERVICE_ACCOUNT_TOKEN}',
+  };
+
+  const postCreateBase =
+    'npm install -g @anthropic-ai/claude-code && curl -fsSL https://opencode.ai/install | bash';
+  const postStartCommand = 'direnv allow 2>/dev/null || true';
+
+  const language = detected?.language || 'unknown';
+  const templateName =
+    language === 'javascript' ? 'typescript' : language === 'unknown' ? 'universal' : language;
+
+  // If using pre-built image, return minimal config (features are baked in)
+  if (usePrebuilt && PREBUILT_IMAGES[templateName]) {
+    return getPrebuiltConfig(templateName, containerEnv, postStartCommand);
+  }
+
+  switch (language) {
+    case 'typescript':
+    case 'javascript':
+      return {
+        name: 'RAPID TypeScript',
+        image: 'mcr.microsoft.com/devcontainers/typescript-node:22',
+        features: {
+          ...baseFeatures,
+          'ghcr.io/devcontainers-contrib/features/pnpm:2': {},
+        },
+        customizations: {
+          vscode: {
+            extensions: [
+              'dbaeumer.vscode-eslint',
+              'esbenp.prettier-vscode',
+              'bradlc.vscode-tailwindcss',
+              'prisma.prisma',
+              'mikestead.dotenv',
+            ],
+            settings: {
+              'editor.formatOnSave': true,
+              'editor.defaultFormatter': 'esbenp.prettier-vscode',
+              'editor.codeActionsOnSave': {
+                'source.fixAll.eslint': 'explicit',
+              },
+            },
+          },
+        },
+        containerEnv,
+        postCreateCommand: postCreateBase,
+        postStartCommand,
+        remoteUser: 'node',
+      };
+
+    case 'python':
+      return {
+        name: 'RAPID Python',
+        image: 'mcr.microsoft.com/devcontainers/python:3.12',
+        features: {
+          ...baseFeatures,
+          'ghcr.io/devcontainers/features/node:1': { version: '22' },
+          'ghcr.io/devcontainers-contrib/features/poetry:2': {},
+          'ghcr.io/devcontainers-contrib/features/uv:1': {},
+        },
+        customizations: {
+          vscode: {
+            extensions: [
+              'ms-python.python',
+              'ms-python.vscode-pylance',
+              'ms-python.debugpy',
+              'charliermarsh.ruff',
+              'ms-toolsai.jupyter',
+              'tamasfe.even-better-toml',
+            ],
+            settings: {
+              'python.defaultInterpreterPath': '/usr/local/bin/python',
+              '[python]': {
+                'editor.formatOnSave': true,
+                'editor.defaultFormatter': 'charliermarsh.ruff',
+                'editor.codeActionsOnSave': {
+                  'source.fixAll': 'explicit',
+                  'source.organizeImports': 'explicit',
+                },
+              },
+            },
+          },
+        },
+        containerEnv,
+        postCreateCommand: `${postCreateBase} && pip install aider-chat`,
+        postStartCommand,
+        remoteUser: 'vscode',
+      };
+
+    case 'rust':
+      return {
+        name: 'RAPID Rust',
+        image: 'mcr.microsoft.com/devcontainers/rust:latest',
+        features: {
+          ...baseFeatures,
+          'ghcr.io/devcontainers/features/node:1': { version: '22' },
+        },
+        customizations: {
+          vscode: {
+            extensions: [
+              'rust-lang.rust-analyzer',
+              'tamasfe.even-better-toml',
+              'serayuzgur.crates',
+              'vadimcn.vscode-lldb',
+            ],
+            settings: {
+              'rust-analyzer.checkOnSave.command': 'clippy',
+              '[rust]': {
+                'editor.formatOnSave': true,
+                'editor.defaultFormatter': 'rust-lang.rust-analyzer',
+              },
+            },
+          },
+        },
+        containerEnv,
+        postCreateCommand: `${postCreateBase} && rustup component add clippy rustfmt`,
+        postStartCommand,
+        remoteUser: 'vscode',
+      };
+
+    case 'go':
+      return {
+        name: 'RAPID Go',
+        image: 'mcr.microsoft.com/devcontainers/go:1.23',
+        features: {
+          ...baseFeatures,
+          'ghcr.io/devcontainers/features/node:1': { version: '22' },
+        },
+        customizations: {
+          vscode: {
+            extensions: ['golang.go', 'zxh404.vscode-proto3', 'tamasfe.even-better-toml'],
+            settings: {
+              'go.useLanguageServer': true,
+              'go.lintTool': 'golangci-lint',
+              'go.lintFlags': ['--fast'],
+              '[go]': {
+                'editor.formatOnSave': true,
+                'editor.codeActionsOnSave': {
+                  'source.organizeImports': 'explicit',
+                },
+              },
+            },
+          },
+        },
+        containerEnv,
+        postCreateCommand: `${postCreateBase} && go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest && go install github.com/air-verse/air@latest`,
+        postStartCommand,
+        remoteUser: 'vscode',
+      };
+
+    default:
+      // Universal container with multiple languages
+      return {
+        name: 'RAPID Universal',
+        image: 'mcr.microsoft.com/devcontainers/base:ubuntu',
+        features: {
+          ...baseFeatures,
+          'ghcr.io/devcontainers/features/node:1': { version: '22' },
+          'ghcr.io/devcontainers/features/python:1': { version: '3.12' },
+          'ghcr.io/devcontainers/features/go:1': { version: '1.23' },
+          'ghcr.io/devcontainers/features/docker-in-docker:2': {},
+        },
+        customizations: {
+          vscode: {
+            extensions: [
+              'dbaeumer.vscode-eslint',
+              'esbenp.prettier-vscode',
+              'ms-python.python',
+              'ms-python.vscode-pylance',
+              'golang.go',
+              'tamasfe.even-better-toml',
+              'redhat.vscode-yaml',
+            ],
+          },
+        },
+        containerEnv,
+        postCreateCommand: `${postCreateBase} && pip install aider-chat`,
+        postStartCommand,
+        remoteUser: 'vscode',
+      };
+  }
+}
+
+/**
+ * Create devcontainer configuration files
+ */
+async function createDevContainer(
+  dir: string,
+  detected?: DetectedProject,
+  force = false,
+  usePrebuilt = false
+): Promise<boolean> {
+  const devcontainerDir = join(dir, '.devcontainer');
+  const devcontainerJsonPath = join(devcontainerDir, 'devcontainer.json');
+
+  // Check if devcontainer already exists
+  if (!force && existsSync(devcontainerJsonPath)) {
+    return false; // Skip, already exists
+  }
+
+  // Create .devcontainer directory
+  await mkdir(devcontainerDir, { recursive: true });
+
+  // Get configuration based on detected project
+  const config = getDevContainerConfig(detected, usePrebuilt);
+
+  // Write devcontainer.json
+  await writeFile(devcontainerJsonPath, JSON.stringify(config, null, 2) + '\n');
+
+  return true;
+}
+
 export const initCommand = new Command('init')
   .description('Initialize RAPID in a project')
   .argument('[template]', 'Template: builtin name, github:user/repo, npm:package, or URL')
   .option('--force', 'Overwrite existing files', false)
   .option('--agent <name>', 'Default agent to configure', 'claude')
   .option('--no-devcontainer', 'Skip devcontainer creation')
+  .option('--prebuilt', 'Use pre-built devcontainer images from ghcr.io (faster startup)', false)
   .option('--mcp <servers>', 'MCP servers to enable (comma-separated)', 'context7,tavily')
   .option('--no-mcp', 'Skip MCP server configuration')
   .option('--no-detect', 'Skip auto-detection of project type')
@@ -441,6 +799,21 @@ export const initCommand = new Command('init')
       const agentsMdPath = join(cwd, 'AGENTS.md');
       await writeFile(agentsMdPath, getAgentsMdTemplate(cwd, detectedProject));
 
+      // Create devcontainer if not skipped
+      let devcontainerCreated = false;
+      const usePrebuilt = options.prebuilt === true;
+      if (options.devcontainer !== false) {
+        spinner.text = usePrebuilt
+          ? 'Creating devcontainer configuration (using pre-built image)...'
+          : 'Creating devcontainer configuration...';
+        devcontainerCreated = await createDevContainer(
+          cwd,
+          detectedProject,
+          options.force,
+          usePrebuilt
+        );
+      }
+
       spinner.succeed('RAPID initialized successfully!');
 
       // Show detected info
@@ -463,6 +836,9 @@ export const initCommand = new Command('init')
         console.log(`  ${logger.dim('•')} .mcp.json`);
         console.log(`  ${logger.dim('•')} opencode.json`);
       }
+      if (devcontainerCreated) {
+        console.log(`  ${logger.dim('•')} .devcontainer/devcontainer.json`);
+      }
       console.log(`  ${logger.dim('•')} CLAUDE.md`);
       console.log(`  ${logger.dim('•')} AGENTS.md`);
 
@@ -480,11 +856,21 @@ export const initCommand = new Command('init')
 
       logger.blank();
       logger.info('Next steps:');
-      console.log(`  ${logger.dim('1.')} Run ${logger.brand('rapid dev')} to start coding`);
-      console.log(`  ${logger.dim('2.')} Edit ${logger.dim('rapid.json')} to customize your setup`);
+      let stepNum = 1;
+      console.log(
+        `  ${logger.dim(`${stepNum++}.`)} Run ${logger.brand('rapid dev')} to start coding`
+      );
+      console.log(
+        `  ${logger.dim(`${stepNum++}.`)} Edit ${logger.dim('rapid.json')} to customize your setup`
+      );
       if (mcpServers.length > 0) {
         console.log(
-          `  ${logger.dim('3.')} Add API keys to ${logger.dim('secrets.items')} in rapid.json`
+          `  ${logger.dim(`${stepNum++}.`)} Add API keys to ${logger.dim('secrets.items')} in rapid.json`
+        );
+      }
+      if (devcontainerCreated) {
+        console.log(
+          `  ${logger.dim(`${stepNum++}.`)} Set ${logger.dim('OP_SERVICE_ACCOUNT_TOKEN')} env var for 1Password secrets`
         );
       }
       logger.blank();

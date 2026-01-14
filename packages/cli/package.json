@@ -42,13 +42,20 @@
   },
   "dependencies": {
     "@a3t/rapid-core": "workspace:*",
+    "chalk": "^5.6.2",
     "commander": "^14.0.2",
     "execa": "^9.6.1",
     "giget": "^2.0.0",
-    "ora": "^9.0.0"
+    "ora": "^9.0.0",
+    "prompts": "^2.4.2",
+    "semver": "^7.7.3",
+    "update-notifier": "^7.3.1"
   },
   "devDependencies": {
     "@types/node": "^25.0.8",
+    "@types/prompts": "^2.4.9",
+    "@types/semver": "^7.7.1",
+    "@types/update-notifier": "^6.0.8",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "vitest": "^4.0.17"

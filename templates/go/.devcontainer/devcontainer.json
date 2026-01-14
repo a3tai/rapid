@@ -1,13 +1,17 @@
 {
   "name": "RAPID Go",
-  "image": "mcr.microsoft.com/devcontainers/go:1.22",
+  "image": "mcr.microsoft.com/devcontainers/go:1.23",
   "features": {
     "ghcr.io/devcontainers/features/node:1": {
-      "version": "20"
+      "version": "22"
     },
     "ghcr.io/devcontainers/features/git:1": {},
     "ghcr.io/devcontainers-contrib/features/direnv:1": {},
-    "ghcr.io/devcontainers-contrib/features/starship:1": {}
+    "ghcr.io/devcontainers-contrib/features/starship:1": {},
+    "ghcr.io/devcontainers-contrib/features/1password-cli:1": {}
+  },
+  "containerEnv": {
+    "OP_SERVICE_ACCOUNT_TOKEN": "${localEnv:OP_SERVICE_ACCOUNT_TOKEN}"
   },
   "customizations": {
     "vscode": {
@@ -25,7 +29,7 @@
       }
     }
   },
-  "postCreateCommand": "npm install -g @anthropic-ai/claude-code opencode && go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest && go install github.com/air-verse/air@latest",
+  "postCreateCommand": "npm install -g @anthropic-ai/claude-code && curl -fsSL https://opencode.ai/install | bash && go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest && go install github.com/air-verse/air@latest",
   "postStartCommand": "direnv allow 2>/dev/null || true",
   "remoteUser": "vscode"
 }

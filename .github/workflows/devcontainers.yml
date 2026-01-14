@@ -1,0 +1,168 @@
+name: Build Devcontainers
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'templates/*/.devcontainer/**'
+      - '.github/workflows/devcontainers.yml'
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      template:
+        description: 'Template to build (leave empty for all)'
+        required: false
+        type: choice
+        options:
+          - ''
+          - typescript
+          - python
+          - rust
+          - go
+          - universal
+          - infrastructure
+
+concurrency:
+  group: devcontainers-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/rapid-devcontainer
+
+jobs:
+  build-matrix:
+    name: Determine templates to build
+    runs-on: ubuntu-latest
+    outputs:
+      templates: ${{ steps.set-matrix.outputs.templates }}
+    steps:
+      - name: Set matrix
+        id: set-matrix
+        run: |
+          if [ -n "${{ github.event.inputs.template }}" ]; then
+            echo "templates=[\"${{ github.event.inputs.template }}\"]" >> $GITHUB_OUTPUT
+          else
+            echo 'templates=["typescript","python","rust","go","universal","infrastructure"]' >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    name: Build ${{ matrix.template }}
+    runs-on: ubuntu-latest
+    needs: build-matrix
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        template: ${{ fromJson(needs.build-matrix.outputs.templates) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install devcontainer CLI
+        run: npm install -g @devcontainers/cli
+
+      - name: Determine image tags
+        id: tags
+        run: |
+          IMAGE_NAME="${{ env.IMAGE_PREFIX }}-${{ matrix.template }}"
+
+          # Always tag with latest
+          TAGS="${IMAGE_NAME}:latest"
+
+          # Tag with SHA for traceability
+          TAGS="${TAGS},${IMAGE_NAME}:sha-${GITHUB_SHA::7}"
+
+          # Tag with version on release
+          if [ "${{ github.event_name }}" == "release" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+            TAGS="${TAGS},${IMAGE_NAME}:${VERSION}"
+          fi
+
+          # Tag with date
+          TAGS="${TAGS},${IMAGE_NAME}:$(date +%Y%m%d)"
+
+          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
+          echo "image_name=${IMAGE_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Build devcontainer image
+        run: |
+          devcontainer build \
+            --workspace-folder templates/${{ matrix.template }} \
+            --image-name ${{ steps.tags.outputs.image_name }}:latest \
+            --platform linux/amd64
+
+      - name: Tag and push image
+        run: |
+          IFS=',' read -ra TAG_ARRAY <<< "${{ steps.tags.outputs.tags }}"
+          for tag in "${TAG_ARRAY[@]}"; do
+            docker tag ${{ steps.tags.outputs.image_name }}:latest "$tag"
+            docker push "$tag"
+            echo "Pushed: $tag"
+          done
+
+      - name: Generate image summary
+        run: |
+          echo "## ${{ matrix.template }} Devcontainer" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${{ steps.tags.outputs.image_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Tags:**" >> $GITHUB_STEP_SUMMARY
+          IFS=',' read -ra TAG_ARRAY <<< "${{ steps.tags.outputs.tags }}"
+          for tag in "${TAG_ARRAY[@]}"; do
+            echo "- \`${tag}\`" >> $GITHUB_STEP_SUMMARY
+          done
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Pull command:**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ steps.tags.outputs.image_name }}:latest" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  # Update the devcontainer.json files to reference pre-built images (only on release)
+  update-templates:
+    name: Update template references
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'release'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Update devcontainer.json files
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+
+          for template in typescript python rust go universal infrastructure; do
+            FILE="templates/${template}/.devcontainer/devcontainer.json"
+            if [ -f "$FILE" ]; then
+              # Add a comment about the pre-built image being available
+              echo "Pre-built image available: ghcr.io/${{ github.repository_owner }}/rapid-devcontainer-${template}:${VERSION}"
+            fi
+          done
+
+      - name: Summary
+        run: |
+          echo "## Devcontainer Images Published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Version: **${{ github.ref_name }}**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Template | Image |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          for template in typescript python rust go universal infrastructure; do
+            echo "| ${template} | \`ghcr.io/${{ github.repository_owner }}/rapid-devcontainer-${template}\` |" >> $GITHUB_STEP_SUMMARY
+          done
