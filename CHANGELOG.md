@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] - 2026-01-14
+
+### Added
+
+- **MCP server management** - New `mcpServers` configuration section in `rapid.json` for defining Model Context Protocol servers with command, arguments, and environment variables
+- **RAPID methodology system messages** - New `system-messages.ts` module in `@a3t/rapid-core` providing structured prompts for AI coding agents:
+  - `RAPID_METHODOLOGY` - Full methodology with XML-style sections for Research, Augment, Plan, Integrate, Develop
+  - `RAPID_METHODOLOGY_COMPACT` - Condensed version for space-constrained contexts
+  - `MCP_USAGE_GUIDELINES` - Best practices for using MCP servers
+  - `GIT_GUIDELINES` - Git workflow and commit message standards
+  - `CODE_EDITING_GUIDELINES` - Rules for making code changes
+  - `DEBUGGING_GUIDELINES` - Systematic debugging approach
+  - `COMMUNICATION_GUIDELINES` - Professional communication standards
+  - `generateFullSystemPrompt()` - Generate complete system prompts for projects
+- **Anti-patterns in RAPID phases** - Each phase now includes explicit "what NOT to do" guidelines
+- **Agent file templates now include RAPID methodology** - `rapid init` generates CLAUDE.md and AGENTS.md with full methodology
+
+### Changed
+
+- Updated all dependencies to latest versions
+- Enhanced system prompts based on best practices from industry AI coding tools
+
+### Fixed
+
+- Format `rapid.json` for prettier compliance
+- Fixed release workflow to not push version commits (handled manually)
+
 ## [0.1.0] - 2026-01-14
 
 ### Added

@@ -13,6 +13,9 @@ import {
   getSecretReferences,
   writeMcpConfig,
   writeOpenCodeConfig,
+  RAPID_METHODOLOGY,
+  MCP_USAGE_GUIDELINES,
+  GIT_GUIDELINES,
   type RapidConfig,
 } from '@a3t/rapid-core';
 import ora from 'ora';
@@ -172,12 +175,9 @@ This file contains instructions for Claude Code when working on this project.
 
 <!-- Describe your project here -->
 
-## Development Guidelines
-
-- Follow existing code patterns and conventions
-- Write tests for new functionality
-- Update documentation when making changes
-
+${RAPID_METHODOLOGY}
+${MCP_USAGE_GUIDELINES}
+${GIT_GUIDELINES}
 ## Key Files
 
 - \`rapid.json\` - RAPID configuration
@@ -208,13 +208,9 @@ This file contains instructions for AI coding agents working on this project.
 
 <!-- Describe your project here -->
 
-## Development Guidelines
-
-- Follow existing code patterns and conventions
-- Write tests for new functionality
-- Update documentation when making changes
-- Commit changes with clear, descriptive messages
-
+${RAPID_METHODOLOGY}
+${MCP_USAGE_GUIDELINES}
+${GIT_GUIDELINES}
 ## Project Structure
 
 \`\`\`
@@ -229,6 +225,6 @@ This file contains instructions for AI coding agents working on this project.
 
 1. Review the project structure
 2. Check \`rapid.json\` for configuration
-3. Follow the guidelines above when making changes
+3. Follow the RAPID methodology above when making changes
 `;
 }
