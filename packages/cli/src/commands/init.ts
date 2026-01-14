@@ -5,7 +5,16 @@
 import { Command } from 'commander';
 import { writeFile, access } from 'node:fs/promises';
 import { join } from 'node:path';
-import { getDefaultConfig, logger, type RapidConfig } from '@a3t/rapid-core';
+import {
+  getDefaultConfig,
+  logger,
+  MCP_SERVER_TEMPLATES,
+  addMcpServerFromTemplate,
+  getSecretReferences,
+  writeMcpConfig,
+  writeOpenCodeConfig,
+  type RapidConfig,
+} from '@a3t/rapid-core';
 import ora from 'ora';
 
 export const initCommand = new Command('init')
@@ -14,6 +23,8 @@ export const initCommand = new Command('init')
   .option('--force', 'Overwrite existing files', false)
   .option('--agent <name>', 'Default agent to configure', 'claude')
   .option('--no-devcontainer', 'Skip devcontainer creation')
+  .option('--mcp <servers>', 'MCP servers to enable (comma-separated)', 'context7,tavily')
+  .option('--no-mcp', 'Skip MCP server configuration')
   .action(async (options) => {
     const spinner = ora('Initializing RAPID...').start();
 
@@ -32,11 +43,48 @@ export const initCommand = new Command('init')
         }
       }
 
-      // Create config
-      const config = createConfig(options);
+      // Parse MCP servers option
+      const mcpServers: string[] =
+        options.mcp === false ? [] : options.mcp.split(',').map((s: string) => s.trim());
+
+      // Create config with MCP servers
+      let config = createConfig(options);
+
+      // Add MCP servers
+      if (mcpServers.length > 0) {
+        spinner.text = 'Configuring MCP servers...';
+        for (const serverName of mcpServers) {
+          if (MCP_SERVER_TEMPLATES[serverName]) {
+            config = addMcpServerFromTemplate(config, serverName);
+          } else {
+            logger.warn(`Unknown MCP server template: ${serverName}`);
+          }
+        }
+
+        // Add secret references for MCP servers
+        const secretRefs = getSecretReferences(mcpServers);
+        if (Object.keys(secretRefs).length > 0) {
+          config.secrets = {
+            ...config.secrets,
+            provider: '1password',
+            vault: 'Development',
+            items: {
+              ...config.secrets?.items,
+              ...secretRefs,
+            },
+          };
+        }
+      }
 
       spinner.text = 'Writing rapid.json...';
       await writeFile(configPath, JSON.stringify(config, null, 2) + '\n');
+
+      // Generate MCP config files if MCP servers are configured
+      if (mcpServers.length > 0) {
+        spinner.text = 'Generating MCP configuration files...';
+        await writeMcpConfig(cwd, config);
+        await writeOpenCodeConfig(cwd, config);
+      }
 
       // Create CLAUDE.md if using claude
       if (config.agents.available.claude) {
@@ -55,13 +103,34 @@ export const initCommand = new Command('init')
       logger.blank();
       logger.info('Created files:');
       console.log(`  ${logger.dim('•')} rapid.json`);
+      if (mcpServers.length > 0) {
+        console.log(`  ${logger.dim('•')} .mcp.json`);
+        console.log(`  ${logger.dim('•')} opencode.json`);
+      }
       console.log(`  ${logger.dim('•')} CLAUDE.md`);
       console.log(`  ${logger.dim('•')} AGENTS.md`);
+
+      // Show configured MCP servers
+      if (mcpServers.length > 0) {
+        logger.blank();
+        logger.info('MCP servers configured:');
+        for (const serverName of mcpServers) {
+          const template = MCP_SERVER_TEMPLATES[serverName];
+          if (template) {
+            console.log(`  ${logger.brand('•')} ${serverName} - ${template.description}`);
+          }
+        }
+      }
 
       logger.blank();
       logger.info('Next steps:');
       console.log(`  ${logger.dim('1.')} Run ${logger.brand('rapid dev')} to start coding`);
       console.log(`  ${logger.dim('2.')} Edit ${logger.dim('rapid.json')} to customize your setup`);
+      if (mcpServers.length > 0) {
+        console.log(
+          `  ${logger.dim('3.')} Add API keys to ${logger.dim('secrets.items')} in rapid.json`
+        );
+      }
       logger.blank();
     } catch (error) {
       spinner.fail('Failed to initialize RAPID');

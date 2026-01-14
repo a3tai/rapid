@@ -459,6 +459,133 @@ rapid logs --tail 50
 
 ---
 
+## rapid mcp
+
+Manage MCP (Model Context Protocol) servers.
+
+```bash
+rapid mcp <subcommand> [options]
+```
+
+### Subcommands
+
+#### rapid mcp list
+
+List configured MCP servers.
+
+```bash
+rapid mcp list [options]
+```
+
+| Option        | Description                     |
+| ------------- | ------------------------------- |
+| `--json`      | Output as JSON                  |
+| `--templates` | Show available server templates |
+
+```bash
+# List configured servers
+rapid mcp list
+
+# Show available templates
+rapid mcp list --templates
+```
+
+#### rapid mcp add
+
+Add an MCP server.
+
+```bash
+rapid mcp add <name> [options]
+```
+
+| Option              | Description                          |
+| ------------------- | ------------------------------------ |
+| `--type <type>`     | Server type: `remote` or `stdio`     |
+| `--url <url>`       | URL for remote servers               |
+| `--command <cmd>`   | Command for stdio servers            |
+| `--args <args>`     | Arguments (comma-separated)          |
+| `--header <header>` | HTTP header (name=value), repeatable |
+
+```bash
+# Add from template
+rapid mcp add playwright
+
+# Add custom remote server
+rapid mcp add myapi --type remote --url https://api.example.com/mcp
+
+# Add custom stdio server
+rapid mcp add mytool --type stdio --command npx --args "@example/mcp-server"
+```
+
+#### rapid mcp remove
+
+Remove an MCP server.
+
+```bash
+rapid mcp remove <name>
+```
+
+#### rapid mcp enable
+
+Enable a disabled MCP server.
+
+```bash
+rapid mcp enable <name>
+```
+
+#### rapid mcp disable
+
+Disable an MCP server (without removing).
+
+```bash
+rapid mcp disable <name>
+```
+
+#### rapid mcp status
+
+Show MCP server status.
+
+```bash
+rapid mcp status [options]
+```
+
+| Option   | Description    |
+| -------- | -------------- |
+| `--json` | Output as JSON |
+
+#### rapid mcp sync
+
+Regenerate `.mcp.json` and `opencode.json` from `rapid.json`.
+
+```bash
+rapid mcp sync
+```
+
+### Examples
+
+```bash
+# List available templates
+rapid mcp list --templates
+
+# Add Context7 and Tavily
+rapid mcp add context7
+rapid mcp add tavily
+
+# Check status
+rapid mcp status
+
+# Temporarily disable a server
+rapid mcp disable tavily
+
+# Re-enable it
+rapid mcp enable tavily
+
+# Remove a server
+rapid mcp remove playwright
+```
+
+---
+
 ## Environment Variables
 
 RAPID respects these environment variables:
@@ -469,9 +596,12 @@ RAPID respects these environment variables:
 | `RAPID_LOG_LEVEL` | Log verbosity (debug, info, warn, error) |
 | `RAPID_NO_COLOR`  | Disable colored output                   |
 | `DOCKER_HOST`     | Docker daemon socket                     |
+| `MCP_CONFIG_FILE` | Path to MCP configuration file           |
 
 ---
 
 ## Configuration File
 
 See [rapid.json Specification](/reference/rapid-json-spec) for complete configuration reference.
+
+See [MCP Server Configuration](/guides/mcp-servers) for MCP server setup.

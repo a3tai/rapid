@@ -65,6 +65,7 @@ export default defineConfig({
           items: [
             { label: 'CLI Reference', slug: 'guides/cli-reference' },
             { label: 'Agent Configuration', slug: 'guides/agent-configuration' },
+            { label: 'MCP Servers', slug: 'guides/mcp-servers' },
             { label: 'Secrets Management', slug: 'guides/secrets-management' },
             { label: 'Dev Container Templates', slug: 'guides/devcontainer-templates' },
             { label: 'Agent Files', slug: 'guides/agent-files' },

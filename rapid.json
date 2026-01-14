@@ -26,12 +26,34 @@
     "provider": "1password",
     "vault": "Development",
     "items": {
-      "ANTHROPIC_API_KEY": "op://Development/Anthropic/api-key",
-      "OPENAI_API_KEY": "op://Development/OpenAI/api-key"
+      "ANTHROPIC_API_KEY": "op://A3T/RAPID/ANTHROPIC_API_KEY",
+      "TAVILY_API_KEY": "op://A3T/RAPID/TAVILY_API_KEY",
+      "CONTEXT7_API_KEY": "op://A3T/RAPID/CONTEXT7_API_KEY"
     }
   },
   "context": {
     "files": ["README.md", "CLAUDE.md", "AGENTS.md"],
     "generateAgentFiles": false
+  },
+  "mcp": {
+    "configFile": ".mcp.json",
+    "servers": {
+      "context7": {
+        "enabled": true,
+        "type": "remote",
+        "url": "https://mcp.context7.com/mcp",
+        "headers": {
+          "Context7-API-Key": "${CONTEXT7_API_KEY}"
+        }
+      },
+      "tavily": {
+        "enabled": true,
+        "type": "remote",
+        "url": "https://mcp.tavily.com/mcp",
+        "headers": {
+          "Authorization": "Bearer ${TAVILY_API_KEY}"
+        }
+      }
+    }
   }
 }
