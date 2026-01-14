@@ -17,6 +17,8 @@ import { stopCommand } from './commands/stop.js';
 import { secretsCommand } from './commands/secrets.js';
 import { authCommand } from './commands/auth.js';
 import { mcpCommand } from './commands/mcp.js';
+import { updateCommand } from './commands/update.js';
+import { updateChecker } from './utils/update-checker.js';
 
 // Read version from package.json
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -32,12 +34,25 @@ program
   .option('--verbose', 'Verbose output')
   .option('-q, --quiet', 'Minimal output')
   .option('--config <path>', 'Path to rapid.json')
-  .hook('preAction', (thisCommand) => {
+  .hook('preAction', async (thisCommand) => {
     const opts = thisCommand.opts();
     if (opts.verbose) {
       setLogLevel('debug');
     } else if (opts.quiet) {
       setLogLevel('error');
+    }
+
+    // Skip update check for the update command itself and version command
+    if (thisCommand.name() === 'update' || thisCommand.name() === 'version') {
+      return;
+    }
+
+    // Check for updates in the background
+    try {
+      await updateChecker.checkAndUpdate();
+    } catch (error) {
+      // Silently fail update checks to not interrupt normal CLI usage
+      logger.debug('Update check failed:', error);
     }
   });
 
@@ -51,6 +66,7 @@ program.addCommand(agentCommand);
 program.addCommand(secretsCommand);
 program.addCommand(authCommand);
 program.addCommand(mcpCommand);
+program.addCommand(updateCommand);
 
 // Default action - show help
 program.action(() => {
