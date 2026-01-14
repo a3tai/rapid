@@ -308,7 +308,7 @@ async function downloadRemoteTemplate(
 interface DevContainerConfig {
   name: string;
   image: string;
-  features: Record<string, Record<string, unknown> | object>;
+  features?: Record<string, Record<string, unknown> | object>;
   customizations: {
     vscode: {
       extensions: string[];
@@ -316,16 +316,128 @@ interface DevContainerConfig {
     };
   };
   containerEnv?: Record<string, string>;
-  postCreateCommand: string;
+  postCreateCommand?: string;
   postStartCommand: string;
   remoteUser: string;
   mounts?: string[];
 }
 
 /**
+ * Pre-built image registry
+ */
+const PREBUILT_IMAGE_REGISTRY = 'ghcr.io/a3tai/rapid-devcontainer';
+
+/**
+ * Map of language to pre-built image name
+ */
+const PREBUILT_IMAGES: Record<string, string> = {
+  typescript: `${PREBUILT_IMAGE_REGISTRY}-typescript:latest`,
+  javascript: `${PREBUILT_IMAGE_REGISTRY}-typescript:latest`,
+  python: `${PREBUILT_IMAGE_REGISTRY}-python:latest`,
+  rust: `${PREBUILT_IMAGE_REGISTRY}-rust:latest`,
+  go: `${PREBUILT_IMAGE_REGISTRY}-go:latest`,
+  universal: `${PREBUILT_IMAGE_REGISTRY}-universal:latest`,
+  infrastructure: `${PREBUILT_IMAGE_REGISTRY}-infrastructure:latest`,
+};
+
+/**
+ * VSCode customizations for each template (used with pre-built images)
+ */
+const TEMPLATE_CUSTOMIZATIONS: Record<string, DevContainerConfig['customizations']> = {
+  typescript: {
+    vscode: {
+      extensions: [
+        'dbaeumer.vscode-eslint',
+        'esbenp.prettier-vscode',
+        'bradlc.vscode-tailwindcss',
+        'prisma.prisma',
+        'mikestead.dotenv',
+      ],
+      settings: {
+        'editor.formatOnSave': true,
+        'editor.defaultFormatter': 'esbenp.prettier-vscode',
+      },
+    },
+  },
+  python: {
+    vscode: {
+      extensions: [
+        'ms-python.python',
+        'ms-python.vscode-pylance',
+        'charliermarsh.ruff',
+        'ms-toolsai.jupyter',
+      ],
+      settings: {
+        '[python]': {
+          'editor.formatOnSave': true,
+          'editor.defaultFormatter': 'charliermarsh.ruff',
+        },
+      },
+    },
+  },
+  rust: {
+    vscode: {
+      extensions: ['rust-lang.rust-analyzer', 'tamasfe.even-better-toml', 'vadimcn.vscode-lldb'],
+      settings: { '[rust]': { 'editor.formatOnSave': true } },
+    },
+  },
+  go: {
+    vscode: {
+      extensions: ['golang.go', 'zxh404.vscode-proto3'],
+      settings: { '[go]': { 'editor.formatOnSave': true } },
+    },
+  },
+  universal: {
+    vscode: {
+      extensions: [
+        'dbaeumer.vscode-eslint',
+        'esbenp.prettier-vscode',
+        'ms-python.python',
+        'golang.go',
+      ],
+    },
+  },
+  infrastructure: {
+    vscode: {
+      extensions: [
+        'hashicorp.terraform',
+        'ms-kubernetes-tools.vscode-kubernetes-tools',
+        'redhat.vscode-yaml',
+      ],
+    },
+  },
+};
+
+/**
+ * Get configuration for pre-built image (minimal, since features are baked in)
+ */
+function getPrebuiltConfig(
+  templateName: string,
+  containerEnv: Record<string, string>,
+  postStartCommand: string
+): DevContainerConfig {
+  const image = PREBUILT_IMAGES[templateName] ?? PREBUILT_IMAGES.universal!;
+  const customizations =
+    TEMPLATE_CUSTOMIZATIONS[templateName] ?? TEMPLATE_CUSTOMIZATIONS.universal!;
+  const remoteUser = templateName === 'typescript' ? 'node' : 'vscode';
+
+  return {
+    name: `RAPID ${templateName.charAt(0).toUpperCase() + templateName.slice(1)} (Pre-built)`,
+    image,
+    customizations,
+    containerEnv,
+    postStartCommand,
+    remoteUser,
+  };
+}
+
+/**
  * Get devcontainer configuration based on detected project
  */
-function getDevContainerConfig(detected?: DetectedProject): DevContainerConfig {
+function getDevContainerConfig(
+  detected?: DetectedProject,
+  usePrebuilt = false
+): DevContainerConfig {
   const baseFeatures = {
     'ghcr.io/devcontainers/features/git:1': {},
     'ghcr.io/devcontainers-contrib/features/direnv:1': {},
@@ -342,6 +454,13 @@ function getDevContainerConfig(detected?: DetectedProject): DevContainerConfig {
   const postStartCommand = 'direnv allow 2>/dev/null || true';
 
   const language = detected?.language || 'unknown';
+  const templateName =
+    language === 'javascript' ? 'typescript' : language === 'unknown' ? 'universal' : language;
+
+  // If using pre-built image, return minimal config (features are baked in)
+  if (usePrebuilt && PREBUILT_IMAGES[templateName]) {
+    return getPrebuiltConfig(templateName, containerEnv, postStartCommand);
+  }
 
   switch (language) {
     case 'typescript':
@@ -516,7 +635,8 @@ function getDevContainerConfig(detected?: DetectedProject): DevContainerConfig {
 async function createDevContainer(
   dir: string,
   detected?: DetectedProject,
-  force = false
+  force = false,
+  usePrebuilt = false
 ): Promise<boolean> {
   const devcontainerDir = join(dir, '.devcontainer');
   const devcontainerJsonPath = join(devcontainerDir, 'devcontainer.json');
@@ -530,7 +650,7 @@ async function createDevContainer(
   await mkdir(devcontainerDir, { recursive: true });
 
   // Get configuration based on detected project
-  const config = getDevContainerConfig(detected);
+  const config = getDevContainerConfig(detected, usePrebuilt);
 
   // Write devcontainer.json
   await writeFile(devcontainerJsonPath, JSON.stringify(config, null, 2) + '\n');
@@ -544,6 +664,7 @@ export const initCommand = new Command('init')
   .option('--force', 'Overwrite existing files', false)
   .option('--agent <name>', 'Default agent to configure', 'claude')
   .option('--no-devcontainer', 'Skip devcontainer creation')
+  .option('--prebuilt', 'Use pre-built devcontainer images from ghcr.io (faster startup)', false)
   .option('--mcp <servers>', 'MCP servers to enable (comma-separated)', 'context7,tavily')
   .option('--no-mcp', 'Skip MCP server configuration')
   .option('--no-detect', 'Skip auto-detection of project type')
@@ -680,9 +801,17 @@ export const initCommand = new Command('init')
 
       // Create devcontainer if not skipped
       let devcontainerCreated = false;
+      const usePrebuilt = options.prebuilt === true;
       if (options.devcontainer !== false) {
-        spinner.text = 'Creating devcontainer configuration...';
-        devcontainerCreated = await createDevContainer(cwd, detectedProject, options.force);
+        spinner.text = usePrebuilt
+          ? 'Creating devcontainer configuration (using pre-built image)...'
+          : 'Creating devcontainer configuration...';
+        devcontainerCreated = await createDevContainer(
+          cwd,
+          detectedProject,
+          options.force,
+          usePrebuilt
+        );
       }
 
       spinner.succeed('RAPID initialized successfully!');

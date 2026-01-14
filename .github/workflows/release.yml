@@ -77,23 +77,59 @@ jobs:
           cat packages/core/package.json | grep '"version"'
           cat packages/cli/package.json | grep '"version"'
 
-      - name: Publish @a3t/rapid-schema
-        run: pnpm --filter @a3t/rapid-schema publish --access public --no-git-checks
+      - name: Publish @a3t/rapid-schema (with provenance)
+        run: pnpm --filter @a3t/rapid-schema publish --access public --no-git-checks --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish @a3t/rapid-core
-        run: pnpm --filter @a3t/rapid-core publish --access public --no-git-checks
+      - name: Publish @a3t/rapid-core (with provenance)
+        run: pnpm --filter @a3t/rapid-core publish --access public --no-git-checks --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish @a3t/rapid
-        run: pnpm --filter @a3t/rapid publish --access public --no-git-checks
+      - name: Publish @a3t/rapid (with provenance)
+        run: pnpm --filter @a3t/rapid publish --access public --no-git-checks --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       # Note: Version bumps are handled manually before creating the release.
       # The workflow only sets versions temporarily for npm publish with --no-git-checks.
+
+      - name: Generate release checksums
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p release-artifacts
+
+          # Create a manifest of published packages with their integrity hashes
+          echo "# RAPID Release ${VERSION}" > release-artifacts/checksums.txt
+          echo "# Generated at $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> release-artifacts/checksums.txt
+          echo "# Verify with: npm view @a3t/rapid@${VERSION} dist.integrity" >> release-artifacts/checksums.txt
+          echo "" >> release-artifacts/checksums.txt
+
+          # Get integrity hashes from npm (these are sha512)
+          echo "## Package Integrity Hashes (sha512)" >> release-artifacts/checksums.txt
+          for pkg in @a3t/rapid-schema @a3t/rapid-core @a3t/rapid; do
+            # Wait for npm to index the package
+            sleep 5
+            INTEGRITY=$(npm view ${pkg}@${VERSION} dist.integrity 2>/dev/null || echo "pending")
+            echo "${pkg}@${VERSION}: ${INTEGRITY}" >> release-artifacts/checksums.txt
+          done
+
+          cat release-artifacts/checksums.txt
+
+      - name: Upload checksums to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-artifacts/checksums.txt
+          append_body: true
+          body: |
+
+            ## Security
+
+            All packages are published with [npm provenance](https://docs.npmjs.com/generating-provenance-statements) 
+            using Sigstore, cryptographically linking them to this GitHub Actions workflow.
+
+            Verify provenance: `npm audit signatures`
 
   deploy-docs:
     name: Deploy Docs
