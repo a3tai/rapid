@@ -75,6 +75,7 @@ rapid dev [options]
 **Options:**
 
 - `--agent <name>` - Use specific agent (overrides default)
+- `--multi [agents]` - Launch multiple agents (comma-separated, e.g., `claude,aider`)
 - `--list` - List available agents without launching
 - `--local` - Run locally instead of in container (not recommended)
 - `--no-start` - Do not auto-start container if stopped
@@ -88,7 +89,10 @@ rapid dev
 # Use specific agent
 rapid dev --agent aider
 
-# Run multiple agents in tmux
+# Run multiple agents in tmux panes (requires tmux)
+rapid dev --multi claude,aider
+
+# Show multi-agent instructions
 rapid dev --multi
 
 # List available agents

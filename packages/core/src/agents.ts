@@ -6,6 +6,7 @@ import { execa } from 'execa';
 import which from 'which';
 import type { AgentDefinition, AgentStatus, RapidConfig, ExternalAuthConfig } from './types.js';
 import { getAuthEnvironment } from './external-auth.js';
+import { getStandardAgentInstructions } from './system-messages.js';
 
 /**
  * Check if an agent CLI is available
@@ -67,6 +68,99 @@ export function getDefaultAgent(config: RapidConfig): AgentDefinition | null {
  */
 export function getAgent(config: RapidConfig, name: string): AgentDefinition | null {
   return config.agents.available[name] || null;
+}
+
+/**
+ * Build agent arguments with optional system prompt injection.
+ * For agents that support CLI-based system prompt injection (like Claude),
+ * this appends the RAPID methodology to the args.
+ */
+export function buildAgentArgs(
+  agent: AgentDefinition,
+  options?: {
+    /** Include system prompt injection if agent supports it */
+    injectSystemPrompt?: boolean;
+    /** Use compact methodology (shorter) */
+    compactPrompt?: boolean;
+    /** Custom system prompt to use instead of default RAPID methodology */
+    customPrompt?: string;
+  }
+): string[] {
+  const baseArgs = agent.args ?? [];
+
+  // If agent doesn't support CLI system prompt injection, or injection is disabled
+  if (!agent.systemPromptArg || options?.injectSystemPrompt === false) {
+    return baseArgs;
+  }
+
+  // Get the system prompt content
+  const instructionOptions: Parameters<typeof getStandardAgentInstructions>[0] = {
+    includeRapid: true,
+    includeMcp: true,
+    includeGit: true,
+    includeCodeEditing: true,
+  };
+  if (options?.compactPrompt) {
+    instructionOptions.compact = true;
+  }
+  const promptContent = options?.customPrompt ?? getStandardAgentInstructions(instructionOptions);
+
+  // Parse the systemPromptArg pattern and build the args
+  // Pattern can be like "--append-system-prompt {prompt}" or "--system-prompt-file {prompt}"
+  const pattern = agent.systemPromptArg;
+
+  if (pattern.includes('{prompt}')) {
+    // Replace {prompt} with actual content
+    const parts = pattern.split(/\s+/);
+    const injectedArgs: string[] = [];
+
+    for (const part of parts) {
+      if (part === '{prompt}') {
+        injectedArgs.push(promptContent);
+      } else if (part.includes('{prompt}')) {
+        // Handle cases like "--flag={prompt}"
+        injectedArgs.push(part.replace('{prompt}', promptContent));
+      } else {
+        injectedArgs.push(part);
+      }
+    }
+
+    return [...baseArgs, ...injectedArgs];
+  }
+
+  // Fallback: assume pattern is just a flag and prompt goes after
+  return [...baseArgs, pattern, promptContent];
+}
+
+/**
+ * Check if an agent reads instruction files from the filesystem.
+ * These agents (like OpenCode) read AGENTS.md automatically.
+ */
+export function agentReadsInstructionFiles(agent: AgentDefinition): boolean {
+  // Explicitly set
+  if (agent.readsInstructionFiles !== undefined) {
+    return agent.readsInstructionFiles;
+  }
+
+  // Infer from CLI name for known agents
+  const cli = agent.cli.toLowerCase();
+  if (cli === 'opencode' || cli === 'cursor' || cli === 'codex') {
+    return true;
+  }
+
+  // Default: if no systemPromptArg is defined and has instructionFile, assume it reads files
+  if (!agent.systemPromptArg && agent.instructionFile) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Check if an agent supports runtime system prompt injection via CLI.
+ */
+export function agentSupportsRuntimeInjection(agent: AgentDefinition): boolean {
+  return !!agent.systemPromptArg;
 }
 
 /**

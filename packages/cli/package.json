@@ -37,13 +37,14 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
-    "test": "echo 'No tests yet'",
+    "test": "vitest run",
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
     "@a3t/rapid-core": "workspace:*",
     "commander": "^14.0.2",
     "execa": "^9.6.1",
+    "giget": "^2.0.0",
     "ora": "^9.0.0"
   },
   "devDependencies": {
