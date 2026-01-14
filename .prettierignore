@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+.turbo/
+.astro/
+
+# Coverage
+coverage/
+
+# Lock files
+pnpm-lock.yaml
+
+# Generated files
+*.min.js
+*.min.css

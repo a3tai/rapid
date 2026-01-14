@@ -4,12 +4,12 @@ RAPID integrates with AI coding CLI tools by wrapping them rather than reimpleme
 
 ## Supported Agents
 
-| Agent | CLI Command | Instruction File | Provider |
-|-------|-------------|------------------|----------|
-| Claude Code | `claude` | CLAUDE.md | Anthropic |
-| OpenCode | `opencode` | AGENTS.md | Multi-provider |
-| Aider | `aider` | .aider.conf.yml | OpenAI/Anthropic |
-| GitHub Copilot | `gh copilot` | - | GitHub |
+| Agent          | CLI Command  | Instruction File | Provider         |
+| -------------- | ------------ | ---------------- | ---------------- |
+| Claude Code    | `claude`     | CLAUDE.md        | Anthropic        |
+| OpenCode       | `opencode`   | AGENTS.md        | Multi-provider   |
+| Aider          | `aider`      | .aider.conf.yml  | OpenAI/Anthropic |
+| GitHub Copilot | `gh copilot` | -                | GitHub           |
 
 ## Integration Model
 
@@ -21,29 +21,29 @@ flowchart TB
             secrets["Secrets<br/>(1Password)"]
             context["Context<br/>(AGENTS.md)"]
         end
-        
+
         subgraph setup["Environment Setup"]
             env["Export API keys as env vars"]
             gen["Generate/update instruction files"]
             mcp["Configure MCP servers"]
         end
-        
+
         subgraph launcher["Agent Launcher"]
             install["Install CLI if missing"]
             launch["Launch with configured args"]
             tmux["Manage tmux sessions"]
         end
-        
+
         inputs --> setup --> launcher
     end
-    
+
     subgraph tool["AI CLI Tool"]
         direction LR
         name["claude, opencode, aider, etc."]
         reads["Reads: env vars, instruction files"]
         provides["Provides: chat, code gen, file editing"]
     end
-    
+
     RAPID --> tool
 ```
 
@@ -72,7 +72,7 @@ If the CLI tool is missing, RAPID installs it:
 ```bash
 # From rapid.json agents.available.<name>.installCmd
 npm install -g @anthropic-ai/claude-code  # Claude
-npm install -g opencode                     # OpenCode  
+npm install -g opencode                     # OpenCode
 pip install aider-chat                      # Aider
 ```
 
@@ -107,24 +107,28 @@ Used by Claude Code to understand project context:
 # Project: my-api
 
 ## Overview
+
 Express.js REST API with PostgreSQL database.
 
 ## Code Style
+
 - TypeScript with strict mode
 - Async/await for all async operations
 - Zod for validation
 
 ## Commands
+
 - `npm run dev` - Start development server
 - `npm test` - Run tests
 - `npm run build` - Production build
 
 ## Architecture
+
 src/
-├── routes/      # API endpoints
-├── services/    # Business logic
-├── models/      # Database models
-└── utils/       # Helpers
+├── routes/ # API endpoints
+├── services/ # Business logic
+├── models/ # Database models
+└── utils/ # Helpers
 ```
 
 ### AGENTS.md
@@ -135,17 +139,21 @@ Generic instruction file used by OpenCode and others:
 # Agent Instructions
 
 ## Project Type
+
 TypeScript Node.js application
 
 ## Important Files
+
 - src/index.ts - Entry point
 - src/config.ts - Configuration
 - package.json - Dependencies
 
 ## Testing
+
 Always run `npm test` after changes.
 
 ## Restrictions
+
 - Do not modify files in `dist/`
 - Do not commit `.env` files
 ```
@@ -174,7 +182,7 @@ This creates a tmux session with panes for each configured agent:
 ```mermaid
 block-beta
     columns 2
-    
+
     claude["Claude Code<br/>(Architecture)"]:1
     opencode["OpenCode<br/>(Implementation)"]:1
     aider["Aider<br/>(Quick fixes)"]:2
@@ -182,12 +190,12 @@ block-beta
 
 ### Tmux Controls
 
-| Key | Action |
-|-----|--------|
-| `Ctrl+b` then `o` | Switch panes |
-| `Ctrl+b` then `arrow` | Navigate panes |
-| `Ctrl+b` then `z` | Zoom current pane |
-| `Ctrl+b` then `d` | Detach (keeps running) |
+| Key                   | Action                 |
+| --------------------- | ---------------------- |
+| `Ctrl+b` then `o`     | Switch panes           |
+| `Ctrl+b` then `arrow` | Navigate panes         |
+| `Ctrl+b` then `z`     | Zoom current pane      |
+| `Ctrl+b` then `d`     | Detach (keeps running) |
 
 ## Adding Custom Agents
 

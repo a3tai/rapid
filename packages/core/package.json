@@ -2,35 +2,53 @@
   "name": "@a3t/rapid-core",
   "version": "0.1.0",
   "description": "Core library for RAPID - AI-assisted development with dev containers",
+  "license": "MIT",
+  "author": "Steve Rude <steve@rude.la>",
+  "homepage": "https://getrapid.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/a3tai/rapid.git",
+    "directory": "packages/core"
+  },
+  "keywords": [
+    "rapid",
+    "ai",
+    "devcontainer",
+    "claude",
+    "opencode",
+    "development"
+  ],
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
   },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts --clean",
-    "dev": "tsup src/index.ts --format esm --dts --watch",
-    "typecheck": "tsc --noEmit"
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'No tests yet'",
+    "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "ajv": "^8.17.1",
-    "chalk": "^5.3.0",
+    "chalk": "^5.4.1",
     "cosmiconfig": "^9.0.0",
-    "execa": "^9.5.2",
+    "execa": "^9.6.1",
     "which": "^5.0.0"
   },
   "devDependencies": {
-    "@types/node": "^20.17.12",
+    "@types/node": "^22.13.0",
     "@types/which": "^3.0.4",
-    "tsup": "^8.3.5",
-    "typescript": "^5.7.2"
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^3.0.5"
   },
   "peerDependencies": {
     "@a3t/rapid-schema": "workspace:*"

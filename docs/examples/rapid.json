@@ -60,20 +60,9 @@
   },
 
   "context": {
-    "files": [
-      "README.md",
-      "CONTRIBUTING.md",
-      "docs/architecture.md",
-      "docs/api-reference.md"
-    ],
-    "dirs": [
-      "docs/",
-      "specs/"
-    ],
-    "exclude": [
-      "docs/internal/",
-      "**/*.draft.md"
-    ],
+    "files": ["README.md", "CONTRIBUTING.md", "docs/architecture.md", "docs/api-reference.md"],
+    "dirs": ["docs/", "specs/"],
+    "exclude": ["docs/internal/", "**/*.draft.md"],
     "generateAgentFiles": true
   },
 

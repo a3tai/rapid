@@ -9,31 +9,19 @@ import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 
 Before installing RAPID, ensure you have:
 
-| Requirement | Version | Notes |
-|-------------|---------|-------|
-| Node.js | 20+ | For RAPID CLI |
-| Docker | Latest | Docker Desktop, Podman, or compatible runtime |
-| 1Password CLI | Latest | Recommended for secrets management |
-| direnv | Latest | For automatic environment loading |
+| Requirement   | Version | Notes                                         |
+| ------------- | ------- | --------------------------------------------- |
+| Node.js       | 20+     | For RAPID CLI                                 |
+| Docker        | Latest  | Docker Desktop, Podman, or compatible runtime |
+| 1Password CLI | Latest  | Recommended for secrets management            |
+| direnv        | Latest  | For automatic environment loading             |
 
 ## Install RAPID CLI
 
 <Tabs>
-  <TabItem label="npm">
-    ```bash
-    npm install -g @a3t/rapid-cli
-    ```
-  </TabItem>
-  <TabItem label="pnpm">
-    ```bash
-    pnpm add -g @a3t/rapid-cli
-    ```
-  </TabItem>
-  <TabItem label="yarn">
-    ```bash
-    yarn global add @a3t/rapid-cli
-    ```
-  </TabItem>
+  <TabItem label="npm">```bash npm install -g @a3t/rapid ```</TabItem>
+  <TabItem label="pnpm">```bash pnpm add -g @a3t/rapid ```</TabItem>
+  <TabItem label="yarn">```bash yarn global add @a3t/rapid ```</TabItem>
 </Tabs>
 
 Verify the installation:
@@ -60,6 +48,7 @@ direnv automatically loads environment variables when you enter a project direct
     # Arch
     sudo pacman -S direnv
     ```
+
   </TabItem>
 </Tabs>
 
@@ -105,6 +94,7 @@ Add the hook to your shell:
 
     sudo apt update && sudo apt install 1password-cli
     ```
+
   </TabItem>
 </Tabs>
 
@@ -115,7 +105,8 @@ eval $(op signin)
 ```
 
 <Aside type="tip">
-  If you don't use 1Password, RAPID also supports HashiCorp Vault or plain environment variables. See [Secrets Management](/guides/secrets-management/) for details.
+  If you don't use 1Password, RAPID also supports HashiCorp Vault or plain environment variables.
+  See [Secrets Management](/guides/secrets-management/) for details.
 </Aside>
 
 ## Verify Setup

@@ -4,11 +4,11 @@ Get a RAPID-enabled project running in 5 minutes.
 
 ## Prerequisites
 
-| Requirement | Version | Notes |
-|-------------|---------|-------|
-| Docker Desktop or Podman | Latest | Container runtime |
-| Node.js | 18+ | For RAPID CLI |
-| AI Provider API Key | - | Anthropic, OpenAI, etc. |
+| Requirement              | Version | Notes                   |
+| ------------------------ | ------- | ----------------------- |
+| Docker Desktop or Podman | Latest  | Container runtime       |
+| Node.js                  | 18+     | For RAPID CLI           |
+| AI Provider API Key      | -       | Anthropic, OpenAI, etc. |
 
 ## Installation
 
@@ -97,6 +97,7 @@ rapid start
 ```
 
 This will:
+
 1. Build and start the dev container
 2. Load secrets from your configured provider
 3. Install the AI CLI tool if missing
@@ -152,18 +153,22 @@ Edit `AGENTS.md` or `CLAUDE.md` to provide project-specific context:
 # Project Instructions
 
 ## Overview
+
 This is a TypeScript/Node.js API server using Express.
 
 ## Code Style
+
 - Use async/await, not callbacks
 - Prefer named exports
 - Add JSDoc comments to public functions
 
 ## Testing
+
 - Run tests with `npm test`
 - Maintain >80% coverage
 
 ## Important Patterns
+
 - Error handling: Use custom AppError class
 - Logging: Use the logger from `src/utils/logger.ts`
 ```

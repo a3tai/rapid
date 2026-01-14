@@ -12,7 +12,7 @@ import type { AgentDefinition, AgentStatus, RapidConfig } from './types.js';
 export async function checkAgentAvailable(agent: AgentDefinition): Promise<AgentStatus> {
   try {
     const cliPath = await which(agent.cli);
-    
+
     // Try to get version
     let version: string | undefined;
     try {
@@ -26,7 +26,7 @@ export async function checkAgentAvailable(agent: AgentDefinition): Promise<Agent
       name: agent.cli,
       available: true,
       cliPath,
-      version,
+      ...(version !== undefined && { version }),
     };
   } catch {
     return {
@@ -41,7 +41,7 @@ export async function checkAgentAvailable(agent: AgentDefinition): Promise<Agent
  */
 export async function checkAllAgents(config: RapidConfig): Promise<AgentStatus[]> {
   const results: AgentStatus[] = [];
-  
+
   for (const [name, agent] of Object.entries(config.agents.available)) {
     const status = await checkAgentAvailable(agent);
     results.push({
@@ -49,7 +49,7 @@ export async function checkAllAgents(config: RapidConfig): Promise<AgentStatus[]
       name,
     });
   }
-  
+
   return results;
 }
 
@@ -79,14 +79,15 @@ export async function launchAgent(
     stdio?: 'inherit' | 'pipe';
   } = {}
 ): Promise<void> {
-  const args = agent.args || [];
-  
+  const args = agent.args ?? [];
+  const cwd = options.cwd ?? process.cwd();
+
   await execa(agent.cli, args, {
-    cwd: options.cwd,
+    cwd,
     env: {
       ...process.env,
       ...options.env,
     },
-    stdio: options.stdio || 'inherit',
+    stdio: options.stdio ?? 'inherit',
   });
 }

@@ -11,14 +11,15 @@ RAPID manages dev container lifecycle through simple commands. This document exp
 
 Containers move through these states:
 
-| State | Description |
-|-------|-------------|
-| **Not Created** | No container exists |
-| **Building** | Container image being built |
-| **Running** | Container active and ready |
-| **Stopped** | Container exists but not running |
+| State           | Description                      |
+| --------------- | -------------------------------- |
+| **Not Created** | No container exists              |
+| **Building**    | Container image being built      |
+| **Running**     | Container active and ready       |
+| **Stopped**     | Container exists but not running |
 
 **Transitions:**
+
 - `rapid start` → Building → Running
 - `rapid stop` → Stopped
 - `rapid stop --remove` → Not Created
@@ -35,24 +36,20 @@ rapid start [options]
 
 **Options:**
 
-| Option | Description |
-|--------|-------------|
-| `--rebuild` | Force rebuild the container image |
-| `--no-cache` | Build without Docker cache |
-| `--reinstall-tools` | Reinstall AI CLI tools |
-| `--skip-secrets` | Skip secret loading |
-| `-d, --detach` | Run in background |
+| Option              | Description                       |
+| ------------------- | --------------------------------- |
+| `--rebuild`         | Force rebuild the container image |
+| `--no-cache`        | Build without Docker cache        |
+| `--reinstall-tools` | Reinstall AI CLI tools            |
+| `--skip-secrets`    | Skip secret loading               |
+| `-d, --detach`      | Run in background                 |
 
 **What it does:**
 
 <Steps>
-1. Reads configuration from `rapid.json` and `devcontainer.json`
-2. Builds container image (if needed)
-3. Starts container with `devcontainer up`
-4. Loads secrets from 1Password/Vault
-5. Installs missing AI CLI tools
-6. Generates/updates instruction files
-7. Configures MCP servers
+  1. Reads configuration from `rapid.json` and `devcontainer.json` 2. Builds container image (if
+  needed) 3. Starts container with `devcontainer up` 4. Loads secrets from 1Password/Vault 5.
+  Installs missing AI CLI tools 6. Generates/updates instruction files 7. Configures MCP servers
 </Steps>
 
 ### rapid dev
@@ -65,19 +62,17 @@ rapid dev [options]
 
 **Options:**
 
-| Option | Description |
-|--------|-------------|
+| Option           | Description                            |
+| ---------------- | -------------------------------------- |
 | `--agent <name>` | Use specific agent (overrides default) |
-| `--multi` | Launch all configured agents |
-| `--attach` | Attach to existing session |
+| `--multi`        | Launch all configured agents           |
+| `--attach`       | Attach to existing session             |
 
 **What it does:**
 
 <Steps>
-1. Verifies container is running (starts if `autoStart: true`)
-2. Attaches to container
-3. Launches configured AI CLI
-4. Manages session for multi-agent mode
+  1. Verifies container is running (starts if `autoStart: true`) 2. Attaches to container 3.
+  Launches configured AI CLI 4. Manages session for multi-agent mode
 </Steps>
 
 ### rapid stop
@@ -90,11 +85,11 @@ rapid stop [options]
 
 **Options:**
 
-| Option | Description |
-|--------|-------------|
-| `--remove` | Remove container after stopping |
-| `--volumes` | Also remove volumes |
-| `--force` | Force stop (SIGKILL) |
+| Option      | Description                     |
+| ----------- | ------------------------------- |
+| `--remove`  | Remove container after stopping |
+| `--volumes` | Also remove volumes             |
+| `--force`   | Force stop (SIGKILL)            |
 
 ## Lifecycle Hooks
 
@@ -112,12 +107,12 @@ RAPID integrates with devcontainer lifecycle hooks:
 
 ### Hook Sequence
 
-| Hook | When | Actions |
-|------|------|---------|
+| Hook                | When                  | Actions                            |
+| ------------------- | --------------------- | ---------------------------------- |
 | `initializeCommand` | On host, before build | Validate config, pre-fetch secrets |
-| `onCreateCommand` | First time only | Install system dependencies |
-| `postCreateCommand` | First time only | Install AI tools, generate files |
-| `postStartCommand` | Every start | Load secrets, update files |
+| `onCreateCommand`   | First time only       | Install system dependencies        |
+| `postCreateCommand` | First time only       | Install AI tools, generate files   |
+| `postStartCommand`  | Every start           | Load secrets, update files         |
 
 ## Container Configuration
 
@@ -140,16 +135,16 @@ RAPID integrates with devcontainer lifecycle hooks:
 
 RAPID uses but does not modify `devcontainer.json`:
 
-| Concern | Configured In |
-|---------|---------------|
-| Base image | devcontainer.json |
-| System packages | devcontainer.json |
+| Concern            | Configured In     |
+| ------------------ | ----------------- |
+| Base image         | devcontainer.json |
+| System packages    | devcontainer.json |
 | VS Code extensions | devcontainer.json |
-| Port forwarding | devcontainer.json |
-| AI agents | rapid.json |
-| Secrets | rapid.json |
-| Context files | rapid.json |
-| MCP servers | rapid.json |
+| Port forwarding    | devcontainer.json |
+| AI agents          | rapid.json        |
+| Secrets            | rapid.json        |
+| Context files      | rapid.json        |
+| MCP servers        | rapid.json        |
 
 ## Docker Compose Support
 
@@ -165,6 +160,7 @@ For multi-container setups:
 ```
 
 RAPID will:
+
 1. Start all services in the compose file
 2. Attach to the specified service for AI sessions
 
@@ -187,9 +183,7 @@ For data that should persist across rebuilds:
 
 ```json
 {
-  "mounts": [
-    "source=rapid-cache,target=/home/vscode/.cache,type=volume"
-  ]
+  "mounts": ["source=rapid-cache,target=/home/vscode/.cache,type=volume"]
 }
 ```
 

@@ -7,39 +7,31 @@
       "claude": {
         "cli": "claude",
         "instructionFile": "CLAUDE.md",
-        "envVars": [
-          "ANTHROPIC_API_KEY"
-        ]
+        "envVars": ["ANTHROPIC_API_KEY"]
       },
       "opencode": {
         "cli": "opencode",
         "instructionFile": "AGENTS.md",
-        "envVars": [
-          "ANTHROPIC_API_KEY"
-        ]
+        "envVars": ["ANTHROPIC_API_KEY"]
       },
       "aider": {
         "cli": "aider",
         "instructionFile": "AGENTS.md",
-        "envVars": [
-          "ANTHROPIC_API_KEY"
-        ],
-        "args": [
-          "--model",
-          "claude-3-5-sonnet-20241022"
-        ]
+        "envVars": ["ANTHROPIC_API_KEY"],
+        "args": ["--model", "claude-3-5-sonnet-20241022"]
       }
     }
   },
   "secrets": {
-    "provider": "env"
+    "provider": "1password",
+    "vault": "Development",
+    "items": {
+      "ANTHROPIC_API_KEY": "op://Development/Anthropic/api-key",
+      "OPENAI_API_KEY": "op://Development/OpenAI/api-key"
+    }
   },
   "context": {
-    "files": [
-      "README.md",
-      "CLAUDE.md",
-      "AGENTS.md"
-    ],
+    "files": ["README.md", "CLAUDE.md", "AGENTS.md"],
     "generateAgentFiles": false
   }
 }

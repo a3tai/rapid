@@ -6,12 +6,12 @@ RAPID generates and manages instruction files that AI agents use to understand y
 
 Different AI tools read context from different files:
 
-| Agent | Instruction File | Format |
-|-------|------------------|--------|
-| Claude Code | CLAUDE.md | Markdown |
-| OpenCode | AGENTS.md | Markdown |
-| Aider | .aider.conf.yml | YAML |
-| Generic | AGENTS.md | Markdown |
+| Agent       | Instruction File | Format   |
+| ----------- | ---------------- | -------- |
+| Claude Code | CLAUDE.md        | Markdown |
+| OpenCode    | AGENTS.md        | Markdown |
+| Aider       | .aider.conf.yml  | YAML     |
+| Generic     | AGENTS.md        | Markdown |
 
 ## Generation
 
@@ -39,10 +39,10 @@ Control generation in `rapid.json`:
 
 ### Generated vs Manual
 
-| Setting | Behavior |
-|---------|----------|
-| `generateAgentFiles: true` | Generate templates, preserve user edits |
-| `generateAgentFiles: false` | User creates and maintains files |
+| Setting                     | Behavior                                |
+| --------------------------- | --------------------------------------- |
+| `generateAgentFiles: true`  | Generate templates, preserve user edits |
+| `generateAgentFiles: false` | User creates and maintains files        |
 
 ---
 
@@ -56,22 +56,28 @@ Instruction file for Claude Code.
 # Project: {{project-name}}
 
 ## Overview
+
 {{Generated from README.md}}
 
 ## Code Style
+
 - Language: {{detected-language}}
 - Framework: {{detected-framework}}
 
 ## Commands
 ```
-npm run dev    # Start development
-npm test       # Run tests
-npm run build  # Build project
+
+npm run dev # Start development
+npm test # Run tests
+npm run build # Build project
+
 ```
 
 ## Project Structure
 ```
+
 {{generated-tree}}
+
 ```
 
 ## Guidelines
@@ -89,30 +95,36 @@ npm run build  # Build project
 
 Edit CLAUDE.md to add project-specific instructions:
 
-```markdown
+````markdown
 # Project: my-api
 
 ## Overview
+
 REST API for user management built with Express and TypeScript.
 
 ## Code Style
+
 - Use async/await, never callbacks
 - Prefer named exports
 - Add JSDoc comments to public functions
 - Use Zod for validation
 
 ## Database
+
 - PostgreSQL via Prisma ORM
 - Run migrations: `npx prisma migrate dev`
 - Generate client: `npx prisma generate`
 
 ## Testing
+
 - Jest for unit tests
 - Supertest for API tests
 - Maintain >80% coverage
 
 ## API Patterns
+
 All endpoints follow this pattern:
+
 ```typescript
 router.get('/resource', async (req, res, next) => {
   try {
@@ -123,13 +135,16 @@ router.get('/resource', async (req, res, next) => {
   }
 });
 ```
+````
 
 ## Important Files
+
 - `src/index.ts` - Entry point
 - `src/config.ts` - Configuration
 - `src/middleware/auth.ts` - Authentication
 - `prisma/schema.prisma` - Database schema
-```
+
+````
 
 ---
 
@@ -158,7 +173,7 @@ Generic instruction file used by OpenCode and others.
 
 ## Guidelines
 {{from-contributing-md}}
-```
+````
 
 ### Customization
 
@@ -166,39 +181,46 @@ Generic instruction file used by OpenCode and others.
 # Agent Instructions
 
 ## Project
+
 my-app - Full-stack web application
 
 ## Tech Stack
+
 - Frontend: React, TypeScript, Tailwind
 - Backend: Node.js, Express, Prisma
 - Database: PostgreSQL
 - Testing: Jest, Playwright
 
 ## Key Files
+
 - `apps/web/` - React frontend
 - `apps/api/` - Express backend
 - `packages/shared/` - Shared types
 - `docker-compose.yml` - Local services
 
 ## Commands
+
 - `pnpm dev` - Start all services
 - `pnpm test` - Run all tests
 - `pnpm build` - Build all packages
 - `pnpm db:migrate` - Run migrations
 
 ## Architecture
+
 Monorepo using pnpm workspaces.
 
 Frontend communicates with backend via REST API.
 Backend uses repository pattern for data access.
 
 ## Guidelines
+
 - Keep components small and focused
 - Use custom hooks for shared logic
 - Write integration tests for API endpoints
 - Use transactions for multi-step operations
 
 ## Do Not
+
 - Modify CI/CD files without review
 - Add dependencies without discussion
 - Change database schema without migration
@@ -242,7 +264,7 @@ model: claude-3-5-sonnet-20241022
 auto-commits: true
 gitignore: true
 attribute-commits: true
-attribute-author: "Aider <aider@example.com>"
+attribute-author: 'Aider <aider@example.com>'
 
 # Context window
 map-tokens: 2048
@@ -255,9 +277,9 @@ read:
 
 # Files to never edit
 ignore:
-  - "*.lock"
-  - "dist/**"
-  - "node_modules/**"
+  - '*.lock'
+  - 'dist/**'
+  - 'node_modules/**'
 
 # UI preferences
 dark-mode: true
@@ -277,13 +299,16 @@ Create agent-specific instruction files:
 # OpenCode Instructions
 
 ## Model Preference
+
 Use Claude for complex tasks, GPT-4 for quick edits.
 
 ## Session Settings
+
 - Always ask before making changes
 - Show diffs before applying
 
 ## Project-Specific
+
 ...
 ```
 
@@ -293,10 +318,12 @@ Use Claude for complex tasks, GPT-4 for quick edits.
 # Cursor Instructions
 
 ## Composer Settings
+
 - Use TypeScript strict mode
 - Prefer functional components
 
 ## Project-Specific
+
 ...
 ```
 
@@ -312,12 +339,15 @@ RAPID updates generated sections while preserving your edits:
 # Project: my-app
 
 <!-- RAPID:AUTO-START -->
+
 ## Commands
+
 - npm run dev
 - npm test
 <!-- RAPID:AUTO-END -->
 
 ## My Custom Section
+
 This is preserved during updates.
 ```
 
@@ -340,13 +370,13 @@ Disable auto-updates for a file:
 
 RAPID uses these sources to generate instruction files:
 
-| Source | Used For |
-|--------|----------|
-| `README.md` | Project overview |
-| `CONTRIBUTING.md` | Guidelines, code style |
-| `package.json` | Commands, dependencies |
-| `.gitignore` | Files to ignore |
-| Directory structure | Project layout |
+| Source              | Used For               |
+| ------------------- | ---------------------- |
+| `README.md`         | Project overview       |
+| `CONTRIBUTING.md`   | Guidelines, code style |
+| `package.json`      | Commands, dependencies |
+| `.gitignore`        | Files to ignore        |
+| Directory structure | Project layout         |
 
 ### Custom Context
 
@@ -355,15 +385,8 @@ Add custom files to context:
 ```json
 {
   "context": {
-    "files": [
-      "README.md",
-      "docs/architecture.md",
-      "docs/api-reference.md"
-    ],
-    "dirs": [
-      "docs/",
-      "specs/"
-    ]
+    "files": ["README.md", "docs/architecture.md", "docs/api-reference.md"],
+    "dirs": ["docs/", "specs/"]
   }
 }
 ```
@@ -381,10 +404,10 @@ Add custom files to context:
 
 ### Size Guidelines
 
-| File | Recommended Size |
-|------|------------------|
-| CLAUDE.md | 500-2000 words |
-| AGENTS.md | 300-1000 words |
+| File            | Recommended Size    |
+| --------------- | ------------------- |
+| CLAUDE.md       | 500-2000 words      |
+| AGENTS.md       | 300-1000 words      |
 | .aider.conf.yml | Minimal config only |
 
 ### Version Control

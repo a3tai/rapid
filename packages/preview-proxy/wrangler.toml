@@ -1,0 +1,12 @@
+name = "rapid-docs-preview-proxy"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# Route for preview URLs - catches all subdomains, worker filters for pr-N pattern
+# Uses single-level wildcard covered by free universal SSL
+routes = [
+  { pattern = "*.getrapid.dev/*", zone_name = "getrapid.dev" }
+]
+
+# Disable workers.dev subdomain since we're using custom domain
+workers_dev = false

@@ -11,6 +11,13 @@ import {
   hasDevcontainerCli,
   hasDocker,
   loadDevcontainerConfig,
+  verifySecrets,
+  hasOpCli,
+  hasVaultCli,
+  isOpAuthenticated,
+  isVaultAuthenticated,
+  hasEnvrc,
+  getProviderInfo,
 } from '@a3t/rapid-core';
 import ora from 'ora';
 
@@ -45,23 +52,68 @@ export const statusCommand = new Command('status')
       spinner.text = 'Checking agents...';
       const agentStatuses = await checkAllAgents(config);
 
+      // Check secrets
+      spinner.text = 'Checking secrets...';
+      const secretsConfig = config.secrets;
+      const provider = secretsConfig?.provider || 'env';
+      let secretsStatus: {
+        provider: string;
+        cliInstalled: boolean;
+        authenticated: boolean;
+        envrcExists: boolean;
+        secretsCount: number;
+        allAvailable: boolean;
+      } | null = null;
+
+      if (secretsConfig) {
+        let cliInstalled = true;
+        let authenticated = true;
+
+        if (provider === '1password') {
+          cliInstalled = await hasOpCli();
+          authenticated = cliInstalled && (await isOpAuthenticated());
+        } else if (provider === 'vault') {
+          cliInstalled = await hasVaultCli();
+          authenticated = cliInstalled && (await isVaultAuthenticated());
+        }
+
+        const envrcExists = await hasEnvrc(rootDir, secretsConfig);
+        const verified = await verifySecrets(secretsConfig);
+
+        secretsStatus = {
+          provider,
+          cliInstalled,
+          authenticated,
+          envrcExists,
+          secretsCount: secretsConfig.items ? Object.keys(secretsConfig.items).length : 0,
+          allAvailable: verified.allAvailable,
+        };
+      }
+
       spinner.stop();
 
       if (options.json) {
-        console.log(JSON.stringify({
-          configured: true,
-          configPath: filepath,
-          rootDir,
-          defaultAgent: config.agents.default,
-          container: {
-            configured: !!devcontainerConfig,
-            running: containerStatus.running,
-            name: containerStatus.containerName,
-            devcontainerCli: hasDevCli,
-            docker: dockerRunning,
-          },
-          agents: agentStatuses,
-        }, null, 2));
+        console.log(
+          JSON.stringify(
+            {
+              configured: true,
+              configPath: filepath,
+              rootDir,
+              defaultAgent: config.agents.default,
+              container: {
+                configured: !!devcontainerConfig,
+                running: containerStatus.running,
+                name: containerStatus.containerName,
+                devcontainerCli: hasDevCli,
+                docker: dockerRunning,
+              },
+              agents: agentStatuses,
+              secrets: secretsStatus,
+            },
+            null,
+            2
+          )
+        );
         return;
       }
 
@@ -84,16 +136,22 @@ export const statusCommand = new Command('status')
       } else if (!hasDevCli) {
         console.log(`    ${logger.dim('○')} ${logger.dim('devcontainer CLI not installed')}`);
       } else if (containerStatus.running) {
-        console.log(`    ${logger.brand('●')} Running ${logger.dim(`(${containerStatus.containerName})`)}`);
+        console.log(
+          `    ${logger.brand('●')} Running ${logger.dim(`(${containerStatus.containerName})`)}`
+        );
       } else if (containerStatus.exists) {
-        console.log(`    ${logger.dim('○')} Stopped ${logger.dim(`(${containerStatus.containerName})`)}`);
+        console.log(
+          `    ${logger.dim('○')} Stopped ${logger.dim(`(${containerStatus.containerName})`)}`
+        );
       } else {
         console.log(`    ${logger.dim('○')} Not started`);
       }
       console.log();
 
       // Agent status
-      console.log(`  ${logger.dim('Agents:')}      ${logger.dim(`(default: ${config.agents.default})`)}`);
+      console.log(
+        `  ${logger.dim('Agents:')}      ${logger.dim(`(default: ${config.agents.default})`)}`
+      );
       agentStatuses.forEach((status) => {
         const isDefault = status.name === config.agents.default;
         const icon = status.available ? logger.brand('✓') : logger.dim('○');
@@ -105,6 +163,42 @@ export const statusCommand = new Command('status')
 
       console.log();
 
+      // Secrets status
+      if (secretsStatus) {
+        const providerInfo = getProviderInfo(
+          secretsStatus.provider as '1password' | 'vault' | 'env'
+        );
+        console.log(`  ${logger.dim('Secrets:')}     ${logger.dim(`(${providerInfo.name})`)}`);
+
+        if (providerInfo.cliRequired) {
+          const cliIcon = secretsStatus.cliInstalled ? logger.brand('✓') : logger.dim('○');
+          console.log(
+            `    ${cliIcon} CLI ${secretsStatus.cliInstalled ? 'installed' : 'not installed'}`
+          );
+
+          if (secretsStatus.cliInstalled) {
+            const authIcon = secretsStatus.authenticated ? logger.brand('✓') : logger.dim('○');
+            console.log(
+              `    ${authIcon} ${secretsStatus.authenticated ? 'Authenticated' : 'Not authenticated'}`
+            );
+          }
+        }
+
+        if (secretsStatus.secretsCount > 0) {
+          const allIcon = secretsStatus.allAvailable ? logger.brand('✓') : logger.dim('○');
+          console.log(
+            `    ${allIcon} ${secretsStatus.secretsCount} secret${secretsStatus.secretsCount !== 1 ? 's' : ''} ${secretsStatus.allAvailable ? 'available' : 'configured'}`
+          );
+        }
+
+        const envrcIcon = secretsStatus.envrcExists ? logger.brand('✓') : logger.dim('○');
+        console.log(
+          `    ${envrcIcon} .envrc ${secretsStatus.envrcExists ? 'exists' : 'not generated'}`
+        );
+
+        console.log();
+      }
+
       // Quick actions
       if (!containerStatus.running && devcontainerConfig && dockerRunning && hasDevCli) {
         logger.info('Run `rapid start` to start the container');
@@ -112,7 +206,6 @@ export const statusCommand = new Command('status')
         logger.info('Run `rapid dev` to start coding');
       }
       console.log();
-
     } catch (error) {
       logger.error(error instanceof Error ? error.message : String(error));
       process.exit(1);

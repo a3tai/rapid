@@ -6,33 +6,37 @@ Multi-language development environment with support for TypeScript, Python, Go, 
 
 ## Available Languages
 
-| Language | Version | Package Manager |
-|----------|---------|-----------------|
-| Node.js/TypeScript | 20 LTS | npm, pnpm, yarn |
-| Python | 3.11 | pip, poetry |
-| Go | 1.22 | go modules |
-| Rust | stable | cargo |
+| Language           | Version | Package Manager |
+| ------------------ | ------- | --------------- |
+| Node.js/TypeScript | 20 LTS  | npm, pnpm, yarn |
+| Python             | 3.11    | pip, poetry     |
+| Go                 | 1.22    | go modules      |
+| Rust               | stable  | cargo           |
 
 ## Common Commands
 
 ### Node.js/TypeScript
+
 ```bash
 npm install && npm run dev
 pnpm install && pnpm dev
 ```
 
 ### Python
+
 ```bash
 pip install -e . && python main.py
 poetry install && poetry run python main.py
 ```
 
 ### Go
+
 ```bash
 go mod tidy && go run .
 ```
 
 ### Rust
+
 ```bash
 cargo build && cargo run
 ```

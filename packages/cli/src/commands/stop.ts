@@ -3,12 +3,7 @@
  */
 
 import { Command } from 'commander';
-import {
-  loadConfig,
-  logger,
-  getContainerStatus,
-  stopContainer,
-} from '@a3t/rapid-core';
+import { loadConfig, logger, getContainerStatus, stopContainer } from '@a3t/rapid-core';
 import ora from 'ora';
 
 export const stopCommand = new Command('stop')
@@ -59,7 +54,6 @@ export const stopCommand = new Command('stop')
       }
 
       spinner.succeed(options.remove ? 'Container stopped and removed' : 'Container stopped');
-
     } catch (error) {
       spinner.fail('Failed to stop environment');
       logger.error(error instanceof Error ? error.message : String(error));

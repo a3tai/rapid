@@ -1,41 +1,55 @@
 {
-  "name": "@a3t/rapid-cli",
+  "name": "@a3t/rapid",
   "version": "0.1.0",
   "description": "CLI for RAPID - AI-assisted development with dev containers",
+  "license": "MIT",
+  "author": "Steve Rude <steve@rude.la>",
+  "homepage": "https://getrapid.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/a3tai/rapid.git",
+    "directory": "packages/cli"
+  },
+  "keywords": [
+    "rapid",
+    "cli",
+    "ai",
+    "devcontainer",
+    "claude",
+    "opencode"
+  ],
   "type": "module",
   "bin": {
     "rapid": "./dist/bin.js"
   },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
   },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/bin.ts src/index.ts --format esm --dts --clean",
-    "dev": "tsup src/bin.ts src/index.ts --format esm --dts --watch",
+    "build": "tsup",
+    "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
-    "rapid": "node --loader ts-node/esm src/bin.ts"
+    "test": "echo 'No tests yet'",
+    "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
     "@a3t/rapid-core": "workspace:*",
-    "@a3t/rapid-schema": "workspace:*",
-    "commander": "^12.1.0",
-    "execa": "^9.5.2",
-    "inquirer": "^12.3.0",
-    "ora": "^8.1.1"
+    "commander": "^14.0.0",
+    "execa": "^9.6.1",
+    "ora": "^9.0.0"
   },
   "devDependencies": {
-    "@types/inquirer": "^9.0.7",
-    "@types/node": "^20.17.12",
-    "ts-node": "^10.9.2",
-    "tsup": "^8.3.5",
-    "typescript": "^5.7.2"
+    "@types/node": "^22.13.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^3.0.5"
   }
 }

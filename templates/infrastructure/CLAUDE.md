@@ -120,10 +120,10 @@ pre-commit run --all-files
 ```hcl
 module "vpc" {
   source = "./modules/vpc"
-  
+
   name        = var.environment
   cidr_block  = var.vpc_cidr
-  
+
   tags = local.common_tags
 }
 ```

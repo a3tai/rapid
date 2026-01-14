@@ -1,8 +1,8 @@
 # RAPID Development Container
-FROM mcr.microsoft.com/devcontainers/javascript-node:22
+FROM mcr.microsoft.com/devcontainers/javascript-node:24
 
 # Install pnpm globally
-RUN npm install -g pnpm@9
+RUN npm install -g pnpm@10
 
 # Install opencode for the node user
 USER node

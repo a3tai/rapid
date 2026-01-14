@@ -7,14 +7,14 @@ RAPID provides pre-configured dev container templates optimized for AI-assisted 
 
 ## Available Templates
 
-| Template | Languages/Tools | Use Case |
-|----------|-----------------|----------|
-| [typescript](#typescript) | TypeScript, JavaScript, Node.js | Web apps, APIs, CLI tools |
-| [python](#python) | Python 3.11+ | AI/ML, APIs, scripting |
-| [go](#go) | Go 1.22+ | Cloud native, CLI, systems |
-| [rust](#rust) | Rust | Systems programming, CLI, WebAssembly |
-| [infrastructure](#infrastructure) | Terraform, Kubernetes, Helm | IaC, DevOps, platform engineering |
-| [universal](#universal) | Multiple | Polyglot projects, experimentation |
+| Template                          | Languages/Tools                 | Use Case                              |
+| --------------------------------- | ------------------------------- | ------------------------------------- |
+| [typescript](#typescript)         | TypeScript, JavaScript, Node.js | Web apps, APIs, CLI tools             |
+| [python](#python)                 | Python 3.11+                    | AI/ML, APIs, scripting                |
+| [go](#go)                         | Go 1.22+                        | Cloud native, CLI, systems            |
+| [rust](#rust)                     | Rust                            | Systems programming, CLI, WebAssembly |
+| [infrastructure](#infrastructure) | Terraform, Kubernetes, Helm     | IaC, DevOps, platform engineering     |
+| [universal](#universal)           | Multiple                        | Polyglot projects, experimentation    |
 
 ## Quick Start
 
@@ -163,10 +163,7 @@ rapid init --template go
   },
   "customizations": {
     "vscode": {
-      "extensions": [
-        "golang.go",
-        "zxh404.vscode-proto3"
-      ]
+      "extensions": ["golang.go", "zxh404.vscode-proto3"]
     }
   },
   "postCreateCommand": "npm install -g @anthropic-ai/claude-code opencode && go install github.com/cosmtrek/air@latest",
@@ -285,11 +282,7 @@ rapid init --template rust
   },
   "customizations": {
     "vscode": {
-      "extensions": [
-        "rust-lang.rust-analyzer",
-        "tamasfe.even-better-toml",
-        "serayuzgur.crates"
-      ]
+      "extensions": ["rust-lang.rust-analyzer", "tamasfe.even-better-toml", "serayuzgur.crates"]
     }
   },
   "postCreateCommand": "npm install -g @anthropic-ai/claude-code opencode",
@@ -353,12 +346,12 @@ rapid init --template universal
 
 All templates include these dev container features:
 
-| Feature | Purpose |
-|---------|---------|
-| `node:1` | Required for AI CLI tools (Claude, OpenCode) |
-| `git:1` | Git with credential helpers |
-| `direnv:1` | Automatic `.envrc` loading |
-| `starship:1` | Modern shell prompt |
+| Feature      | Purpose                                      |
+| ------------ | -------------------------------------------- |
+| `node:1`     | Required for AI CLI tools (Claude, OpenCode) |
+| `git:1`      | Git with credential helpers                  |
+| `direnv:1`   | Automatic `.envrc` loading                   |
+| `starship:1` | Modern shell prompt                          |
 
 ## Customizing Templates
 
@@ -384,10 +377,7 @@ Add VS Code extensions:
 {
   "customizations": {
     "vscode": {
-      "extensions": [
-        "github.copilot",
-        "eamodio.gitlens"
-      ]
+      "extensions": ["github.copilot", "eamodio.gitlens"]
     }
   }
 }

@@ -12,13 +12,13 @@ npm install -g @rapid-dev/cli
 
 These options work with all commands:
 
-| Option | Description |
-|--------|-------------|
-| `--help`, `-h` | Show help |
-| `--version`, `-v` | Show version |
+| Option            | Description        |
+| ----------------- | ------------------ |
+| `--help`, `-h`    | Show help          |
+| `--version`, `-v` | Show version       |
 | `--config <path>` | Path to rapid.json |
-| `--verbose` | Verbose output |
-| `--quiet`, `-q` | Minimal output |
+| `--verbose`       | Verbose output     |
+| `--quiet`, `-q`   | Minimal output     |
 
 ---
 
@@ -32,12 +32,12 @@ rapid init [options]
 
 ### Options
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--template <name>` | `default` | Template to use |
-| `--force` | `false` | Overwrite existing files |
-| `--no-devcontainer` | `false` | Skip devcontainer creation |
-| `--agent <name>` | `claude` | Default agent to configure |
+| Option              | Default   | Description                |
+| ------------------- | --------- | -------------------------- |
+| `--template <name>` | `default` | Template to use            |
+| `--force`           | `false`   | Overwrite existing files   |
+| `--no-devcontainer` | `false`   | Skip devcontainer creation |
+| `--agent <name>`    | `claude`  | Default agent to configure |
 
 ### Examples
 
@@ -79,13 +79,13 @@ rapid start [options]
 
 ### Options
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--rebuild` | `false` | Force rebuild container |
-| `--no-cache` | `false` | Build without Docker cache |
-| `--reinstall-tools` | `false` | Reinstall AI CLI tools |
-| `--skip-secrets` | `false` | Skip secret loading |
-| `--detach`, `-d` | `false` | Run in background |
+| Option              | Default | Description                |
+| ------------------- | ------- | -------------------------- |
+| `--rebuild`         | `false` | Force rebuild container    |
+| `--no-cache`        | `false` | Build without Docker cache |
+| `--reinstall-tools` | `false` | Reinstall AI CLI tools     |
+| `--skip-secrets`    | `false` | Skip secret loading        |
+| `--detach`, `-d`    | `false` | Run in background          |
 
 ### Examples
 
@@ -105,13 +105,13 @@ rapid start -d
 
 ### Exit Codes
 
-| Code | Meaning |
-|------|---------|
-| 0 | Success |
-| 1 | Configuration error |
-| 2 | Docker not available |
-| 3 | Build failed |
-| 4 | Secret loading failed |
+| Code | Meaning               |
+| ---- | --------------------- |
+| 0    | Success               |
+| 1    | Configuration error   |
+| 2    | Docker not available  |
+| 3    | Build failed          |
+| 4    | Secret loading failed |
 
 ---
 
@@ -125,20 +125,20 @@ rapid dev [options]
 
 ### Options
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--agent <name>` | From config | Agent to use |
-| `--multi` | `false` | Launch all agents in tmux |
-| `--attach` | `false` | Attach to existing session |
-| `--layout <type>` | `tiled` | Tmux layout (multi mode) |
+| Option            | Default     | Description                |
+| ----------------- | ----------- | -------------------------- |
+| `--agent <name>`  | From config | Agent to use               |
+| `--multi`         | `false`     | Launch all agents in tmux  |
+| `--attach`        | `false`     | Attach to existing session |
+| `--layout <type>` | `tiled`     | Tmux layout (multi mode)   |
 
 ### Layout Types (--multi)
 
-| Layout | Description |
-|--------|-------------|
-| `tiled` | Equal size panes |
-| `horizontal` | Stacked horizontally |
-| `vertical` | Stacked vertically |
+| Layout          | Description             |
+| --------------- | ----------------------- |
+| `tiled`         | Equal size panes        |
+| `horizontal`    | Stacked horizontally    |
+| `vertical`      | Stacked vertically      |
 | `main-vertical` | One large, others small |
 
 ### Examples
@@ -172,11 +172,11 @@ rapid stop [options]
 
 ### Options
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--remove` | `false` | Remove container after stop |
-| `--volumes` | `false` | Also remove volumes |
-| `--force` | `false` | Force stop (SIGKILL) |
+| Option      | Default | Description                 |
+| ----------- | ------- | --------------------------- |
+| `--remove`  | `false` | Remove container after stop |
+| `--volumes` | `false` | Also remove volumes         |
+| `--force`   | `false` | Force stop (SIGKILL)        |
 
 ### Examples
 
@@ -215,6 +215,7 @@ rapid agent list
 ```
 
 Output:
+
 ```
 Available agents:
   * claude (default)
@@ -230,11 +231,11 @@ Add a new agent.
 rapid agent add <name> [options]
 ```
 
-| Option | Description |
-|--------|-------------|
-| `--cli <command>` | CLI command |
+| Option                      | Description           |
+| --------------------------- | --------------------- |
+| `--cli <command>`           | CLI command           |
 | `--instruction-file <path>` | Instruction file path |
-| `--install-cmd <command>` | Installation command |
+| `--install-cmd <command>`   | Installation command  |
 
 ```bash
 # Add with prompts
@@ -403,8 +404,8 @@ rapid status [options]
 
 ### Options
 
-| Option | Description |
-|--------|-------------|
+| Option   | Description    |
+| -------- | -------------- |
 | `--json` | Output as JSON |
 
 ### Output
@@ -431,11 +432,11 @@ rapid logs [options]
 
 ### Options
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--follow`, `-f` | `false` | Follow log output |
-| `--tail <n>` | `100` | Number of lines |
-| `--container` | `false` | Show container logs |
+| Option           | Default | Description         |
+| ---------------- | ------- | ------------------- |
+| `--follow`, `-f` | `false` | Follow log output   |
+| `--tail <n>`     | `100`   | Number of lines     |
+| `--container`    | `false` | Show container logs |
 
 ### Examples
 
@@ -459,12 +460,12 @@ rapid logs --tail 50
 
 RAPID respects these environment variables:
 
-| Variable | Description |
-|----------|-------------|
-| `RAPID_CONFIG` | Path to rapid.json |
+| Variable          | Description                              |
+| ----------------- | ---------------------------------------- |
+| `RAPID_CONFIG`    | Path to rapid.json                       |
 | `RAPID_LOG_LEVEL` | Log verbosity (debug, info, warn, error) |
-| `RAPID_NO_COLOR` | Disable colored output |
-| `DOCKER_HOST` | Docker daemon socket |
+| `RAPID_NO_COLOR`  | Disable colored output                   |
+| `DOCKER_HOST`     | Docker daemon socket                     |
 
 ---
 

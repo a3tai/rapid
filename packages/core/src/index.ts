@@ -38,12 +38,7 @@ export {
 } from './agents.js';
 
 // Logger
-export {
-  logger,
-  setLogLevel,
-  getLogLevel,
-  type LogLevel,
-} from './logger.js';
+export { logger, setLogLevel, getLogLevel, type LogLevel } from './logger.js';
 
 // Container
 export {
@@ -59,3 +54,26 @@ export {
   type ContainerStatus,
   type DevcontainerConfig,
 } from './container.js';
+
+// Secrets
+export {
+  hasOpCli,
+  isOpAuthenticated,
+  hasOpServiceAccountToken,
+  getOpAuthStatus,
+  hasVaultCli,
+  isVaultAuthenticated,
+  readOpSecret,
+  readVaultSecret,
+  verifySecret,
+  verifySecrets,
+  loadSecrets,
+  generateEnvrc,
+  writeEnvrc,
+  hasEnvrc,
+  readEnvrc,
+  getProviderInfo,
+  type SecretStatus,
+  type SecretsStatus,
+  type OpAuthStatus,
+} from './secrets.js';

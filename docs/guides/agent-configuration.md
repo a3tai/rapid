@@ -23,13 +23,13 @@ RAPID supports multiple AI coding agents. Each agent is configured in `rapid.jso
 
 Each agent configuration supports:
 
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `cli` | string | Yes | Command to execute |
-| `instructionFile` | string | No | Path to instruction file |
-| `envVars` | array | No | Required environment variables |
-| `installCmd` | string | No | Installation command |
-| `args` | array | No | Additional CLI arguments |
+| Property          | Type   | Required | Description                    |
+| ----------------- | ------ | -------- | ------------------------------ |
+| `cli`             | string | Yes      | Command to execute             |
+| `instructionFile` | string | No       | Path to instruction file       |
+| `envVars`         | array  | No       | Required environment variables |
+| `installCmd`      | string | No       | Installation command           |
+| `args`            | array  | No       | Additional CLI arguments       |
 
 ---
 
@@ -78,22 +78,27 @@ npm install -g @anthropic-ai/claude-code
 # Project: my-project
 
 ## Overview
+
 Brief description of the project.
 
 ## Code Style
+
 - Language: TypeScript
 - Style guide: Airbnb
 - Formatting: Prettier
 
 ## Important Commands
+
 - `npm run dev` - Start dev server
 - `npm test` - Run tests
 - `npm run build` - Build for production
 
 ## Architecture
+
 Description of project structure.
 
 ## Restrictions
+
 - Do not modify config files without asking
 - Always run tests after changes
 ```
@@ -146,19 +151,23 @@ npm install -g opencode
 # Agent Instructions
 
 ## Project Type
+
 Node.js/TypeScript REST API
 
 ## Key Files
+
 - `src/index.ts` - Entry point
 - `src/routes/` - API routes
 - `src/services/` - Business logic
 
 ## Commands
+
 - Test: `npm test`
 - Lint: `npm run lint`
 - Build: `npm run build`
 
 ## Guidelines
+
 - Use async/await for async operations
 - Add JSDoc comments to exported functions
 - Write tests for new features
@@ -404,7 +413,7 @@ Check the agent's `args` in `rapid.json`:
 ```json
 {
   "aider": {
-    "args": ["--model", "gpt-4o"]  // Verify model name
+    "args": ["--model", "gpt-4o"] // Verify model name
   }
 }
 ```
