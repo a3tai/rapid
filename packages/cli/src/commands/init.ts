@@ -3,8 +3,9 @@
  */
 
 import { Command } from 'commander';
-import { writeFile, access, readFile, readdir } from 'node:fs/promises';
+import { writeFile, access, readFile, readdir, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import { existsSync } from 'node:fs';
 import {
   getDefaultConfig,
   logger,
@@ -301,6 +302,242 @@ async function downloadRemoteTemplate(
   }
 }
 
+/**
+ * DevContainer configuration for a specific language/framework
+ */
+interface DevContainerConfig {
+  name: string;
+  image: string;
+  features: Record<string, Record<string, unknown> | object>;
+  customizations: {
+    vscode: {
+      extensions: string[];
+      settings?: Record<string, unknown>;
+    };
+  };
+  containerEnv?: Record<string, string>;
+  postCreateCommand: string;
+  postStartCommand: string;
+  remoteUser: string;
+  mounts?: string[];
+}
+
+/**
+ * Get devcontainer configuration based on detected project
+ */
+function getDevContainerConfig(detected?: DetectedProject): DevContainerConfig {
+  const baseFeatures = {
+    'ghcr.io/devcontainers/features/git:1': {},
+    'ghcr.io/devcontainers-contrib/features/direnv:1': {},
+    'ghcr.io/devcontainers-contrib/features/starship:1': {},
+    'ghcr.io/devcontainers-contrib/features/1password-cli:1': {},
+  };
+
+  const containerEnv = {
+    OP_SERVICE_ACCOUNT_TOKEN: '${localEnv:OP_SERVICE_ACCOUNT_TOKEN}',
+  };
+
+  const postCreateBase =
+    'npm install -g @anthropic-ai/claude-code && curl -fsSL https://opencode.ai/install | bash';
+  const postStartCommand = 'direnv allow 2>/dev/null || true';
+
+  const language = detected?.language || 'unknown';
+
+  switch (language) {
+    case 'typescript':
+    case 'javascript':
+      return {
+        name: 'RAPID TypeScript',
+        image: 'mcr.microsoft.com/devcontainers/typescript-node:22',
+        features: {
+          ...baseFeatures,
+          'ghcr.io/devcontainers-contrib/features/pnpm:2': {},
+        },
+        customizations: {
+          vscode: {
+            extensions: [
+              'dbaeumer.vscode-eslint',
+              'esbenp.prettier-vscode',
+              'bradlc.vscode-tailwindcss',
+              'prisma.prisma',
+              'mikestead.dotenv',
+            ],
+            settings: {
+              'editor.formatOnSave': true,
+              'editor.defaultFormatter': 'esbenp.prettier-vscode',
+              'editor.codeActionsOnSave': {
+                'source.fixAll.eslint': 'explicit',
+              },
+            },
+          },
+        },
+        containerEnv,
+        postCreateCommand: postCreateBase,
+        postStartCommand,
+        remoteUser: 'node',
+      };
+
+    case 'python':
+      return {
+        name: 'RAPID Python',
+        image: 'mcr.microsoft.com/devcontainers/python:3.12',
+        features: {
+          ...baseFeatures,
+          'ghcr.io/devcontainers/features/node:1': { version: '22' },
+          'ghcr.io/devcontainers-contrib/features/poetry:2': {},
+          'ghcr.io/devcontainers-contrib/features/uv:1': {},
+        },
+        customizations: {
+          vscode: {
+            extensions: [
+              'ms-python.python',
+              'ms-python.vscode-pylance',
+              'ms-python.debugpy',
+              'charliermarsh.ruff',
+              'ms-toolsai.jupyter',
+              'tamasfe.even-better-toml',
+            ],
+            settings: {
+              'python.defaultInterpreterPath': '/usr/local/bin/python',
+              '[python]': {
+                'editor.formatOnSave': true,
+                'editor.defaultFormatter': 'charliermarsh.ruff',
+                'editor.codeActionsOnSave': {
+                  'source.fixAll': 'explicit',
+                  'source.organizeImports': 'explicit',
+                },
+              },
+            },
+          },
+        },
+        containerEnv,
+        postCreateCommand: `${postCreateBase} && pip install aider-chat`,
+        postStartCommand,
+        remoteUser: 'vscode',
+      };
+
+    case 'rust':
+      return {
+        name: 'RAPID Rust',
+        image: 'mcr.microsoft.com/devcontainers/rust:latest',
+        features: {
+          ...baseFeatures,
+          'ghcr.io/devcontainers/features/node:1': { version: '22' },
+        },
+        customizations: {
+          vscode: {
+            extensions: [
+              'rust-lang.rust-analyzer',
+              'tamasfe.even-better-toml',
+              'serayuzgur.crates',
+              'vadimcn.vscode-lldb',
+            ],
+            settings: {
+              'rust-analyzer.checkOnSave.command': 'clippy',
+              '[rust]': {
+                'editor.formatOnSave': true,
+                'editor.defaultFormatter': 'rust-lang.rust-analyzer',
+              },
+            },
+          },
+        },
+        containerEnv,
+        postCreateCommand: `${postCreateBase} && rustup component add clippy rustfmt`,
+        postStartCommand,
+        remoteUser: 'vscode',
+      };
+
+    case 'go':
+      return {
+        name: 'RAPID Go',
+        image: 'mcr.microsoft.com/devcontainers/go:1.23',
+        features: {
+          ...baseFeatures,
+          'ghcr.io/devcontainers/features/node:1': { version: '22' },
+        },
+        customizations: {
+          vscode: {
+            extensions: ['golang.go', 'zxh404.vscode-proto3', 'tamasfe.even-better-toml'],
+            settings: {
+              'go.useLanguageServer': true,
+              'go.lintTool': 'golangci-lint',
+              'go.lintFlags': ['--fast'],
+              '[go]': {
+                'editor.formatOnSave': true,
+                'editor.codeActionsOnSave': {
+                  'source.organizeImports': 'explicit',
+                },
+              },
+            },
+          },
+        },
+        containerEnv,
+        postCreateCommand: `${postCreateBase} && go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest && go install github.com/air-verse/air@latest`,
+        postStartCommand,
+        remoteUser: 'vscode',
+      };
+
+    default:
+      // Universal container with multiple languages
+      return {
+        name: 'RAPID Universal',
+        image: 'mcr.microsoft.com/devcontainers/base:ubuntu',
+        features: {
+          ...baseFeatures,
+          'ghcr.io/devcontainers/features/node:1': { version: '22' },
+          'ghcr.io/devcontainers/features/python:1': { version: '3.12' },
+          'ghcr.io/devcontainers/features/go:1': { version: '1.23' },
+          'ghcr.io/devcontainers/features/docker-in-docker:2': {},
+        },
+        customizations: {
+          vscode: {
+            extensions: [
+              'dbaeumer.vscode-eslint',
+              'esbenp.prettier-vscode',
+              'ms-python.python',
+              'ms-python.vscode-pylance',
+              'golang.go',
+              'tamasfe.even-better-toml',
+              'redhat.vscode-yaml',
+            ],
+          },
+        },
+        containerEnv,
+        postCreateCommand: `${postCreateBase} && pip install aider-chat`,
+        postStartCommand,
+        remoteUser: 'vscode',
+      };
+  }
+}
+
+/**
+ * Create devcontainer configuration files
+ */
+async function createDevContainer(
+  dir: string,
+  detected?: DetectedProject,
+  force = false
+): Promise<boolean> {
+  const devcontainerDir = join(dir, '.devcontainer');
+  const devcontainerJsonPath = join(devcontainerDir, 'devcontainer.json');
+
+  // Check if devcontainer already exists
+  if (!force && existsSync(devcontainerJsonPath)) {
+    return false; // Skip, already exists
+  }
+
+  // Create .devcontainer directory
+  await mkdir(devcontainerDir, { recursive: true });
+
+  // Get configuration based on detected project
+  const config = getDevContainerConfig(detected);
+
+  // Write devcontainer.json
+  await writeFile(devcontainerJsonPath, JSON.stringify(config, null, 2) + '\n');
+
+  return true;
+}
+
 export const initCommand = new Command('init')
   .description('Initialize RAPID in a project')
   .argument('[template]', 'Template: builtin name, github:user/repo, npm:package, or URL')
@@ -441,6 +678,13 @@ export const initCommand = new Command('init')
       const agentsMdPath = join(cwd, 'AGENTS.md');
       await writeFile(agentsMdPath, getAgentsMdTemplate(cwd, detectedProject));
 
+      // Create devcontainer if not skipped
+      let devcontainerCreated = false;
+      if (options.devcontainer !== false) {
+        spinner.text = 'Creating devcontainer configuration...';
+        devcontainerCreated = await createDevContainer(cwd, detectedProject, options.force);
+      }
+
       spinner.succeed('RAPID initialized successfully!');
 
       // Show detected info
@@ -463,6 +707,9 @@ export const initCommand = new Command('init')
         console.log(`  ${logger.dim('•')} .mcp.json`);
         console.log(`  ${logger.dim('•')} opencode.json`);
       }
+      if (devcontainerCreated) {
+        console.log(`  ${logger.dim('•')} .devcontainer/devcontainer.json`);
+      }
       console.log(`  ${logger.dim('•')} CLAUDE.md`);
       console.log(`  ${logger.dim('•')} AGENTS.md`);
 
@@ -480,11 +727,21 @@ export const initCommand = new Command('init')
 
       logger.blank();
       logger.info('Next steps:');
-      console.log(`  ${logger.dim('1.')} Run ${logger.brand('rapid dev')} to start coding`);
-      console.log(`  ${logger.dim('2.')} Edit ${logger.dim('rapid.json')} to customize your setup`);
+      let stepNum = 1;
+      console.log(
+        `  ${logger.dim(`${stepNum++}.`)} Run ${logger.brand('rapid dev')} to start coding`
+      );
+      console.log(
+        `  ${logger.dim(`${stepNum++}.`)} Edit ${logger.dim('rapid.json')} to customize your setup`
+      );
       if (mcpServers.length > 0) {
         console.log(
-          `  ${logger.dim('3.')} Add API keys to ${logger.dim('secrets.items')} in rapid.json`
+          `  ${logger.dim(`${stepNum++}.`)} Add API keys to ${logger.dim('secrets.items')} in rapid.json`
+        );
+      }
+      if (devcontainerCreated) {
+        console.log(
+          `  ${logger.dim(`${stepNum++}.`)} Set ${logger.dim('OP_SERVICE_ACCOUNT_TOKEN')} env var for 1Password secrets`
         );
       }
       logger.blank();

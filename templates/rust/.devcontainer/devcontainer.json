@@ -3,11 +3,15 @@
   "image": "mcr.microsoft.com/devcontainers/rust:latest",
   "features": {
     "ghcr.io/devcontainers/features/node:1": {
-      "version": "20"
+      "version": "22"
     },
     "ghcr.io/devcontainers/features/git:1": {},
     "ghcr.io/devcontainers-contrib/features/direnv:1": {},
-    "ghcr.io/devcontainers-contrib/features/starship:1": {}
+    "ghcr.io/devcontainers-contrib/features/starship:1": {},
+    "ghcr.io/devcontainers-contrib/features/1password-cli:1": {}
+  },
+  "containerEnv": {
+    "OP_SERVICE_ACCOUNT_TOKEN": "${localEnv:OP_SERVICE_ACCOUNT_TOKEN}"
   },
   "customizations": {
     "vscode": {
@@ -26,7 +30,7 @@
       }
     }
   },
-  "postCreateCommand": "npm install -g @anthropic-ai/claude-code opencode && rustup component add clippy rustfmt",
+  "postCreateCommand": "npm install -g @anthropic-ai/claude-code && curl -fsSL https://opencode.ai/install | bash && rustup component add clippy rustfmt",
   "postStartCommand": "direnv allow 2>/dev/null || true",
   "remoteUser": "vscode"
 }

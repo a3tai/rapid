@@ -1,11 +1,15 @@
 {
   "name": "RAPID TypeScript",
-  "image": "mcr.microsoft.com/devcontainers/typescript-node:20",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:22",
   "features": {
     "ghcr.io/devcontainers/features/git:1": {},
     "ghcr.io/devcontainers-contrib/features/direnv:1": {},
     "ghcr.io/devcontainers-contrib/features/starship:1": {},
-    "ghcr.io/devcontainers-contrib/features/pnpm:2": {}
+    "ghcr.io/devcontainers-contrib/features/pnpm:2": {},
+    "ghcr.io/devcontainers-contrib/features/1password-cli:1": {}
+  },
+  "containerEnv": {
+    "OP_SERVICE_ACCOUNT_TOKEN": "${localEnv:OP_SERVICE_ACCOUNT_TOKEN}"
   },
   "customizations": {
     "vscode": {
@@ -14,8 +18,7 @@
         "esbenp.prettier-vscode",
         "bradlc.vscode-tailwindcss",
         "prisma.prisma",
-        "mikestead.dotenv",
-        "orta.vscode-jest"
+        "mikestead.dotenv"
       ],
       "settings": {
         "editor.formatOnSave": true,
@@ -26,7 +29,7 @@
       }
     }
   },
-  "postCreateCommand": "npm install -g @anthropic-ai/claude-code opencode",
+  "postCreateCommand": "npm install -g @anthropic-ai/claude-code && curl -fsSL https://opencode.ai/install | bash",
   "postStartCommand": "direnv allow 2>/dev/null || true",
   "remoteUser": "node"
 }

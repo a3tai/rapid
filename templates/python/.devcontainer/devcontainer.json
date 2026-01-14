@@ -1,14 +1,19 @@
 {
   "name": "RAPID Python",
-  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
   "features": {
     "ghcr.io/devcontainers/features/node:1": {
-      "version": "20"
+      "version": "22"
     },
     "ghcr.io/devcontainers/features/git:1": {},
     "ghcr.io/devcontainers-contrib/features/direnv:1": {},
     "ghcr.io/devcontainers-contrib/features/poetry:2": {},
-    "ghcr.io/devcontainers-contrib/features/starship:1": {}
+    "ghcr.io/devcontainers-contrib/features/uv:1": {},
+    "ghcr.io/devcontainers-contrib/features/starship:1": {},
+    "ghcr.io/devcontainers-contrib/features/1password-cli:1": {}
+  },
+  "containerEnv": {
+    "OP_SERVICE_ACCOUNT_TOKEN": "${localEnv:OP_SERVICE_ACCOUNT_TOKEN}"
   },
   "customizations": {
     "vscode": {
@@ -22,7 +27,6 @@
       ],
       "settings": {
         "python.defaultInterpreterPath": "/usr/local/bin/python",
-        "python.formatting.provider": "none",
         "[python]": {
           "editor.formatOnSave": true,
           "editor.defaultFormatter": "charliermarsh.ruff",
@@ -34,7 +38,7 @@
       }
     }
   },
-  "postCreateCommand": "npm install -g @anthropic-ai/claude-code opencode && pip install aider-chat",
+  "postCreateCommand": "npm install -g @anthropic-ai/claude-code && curl -fsSL https://opencode.ai/install | bash && pip install aider-chat",
   "postStartCommand": "direnv allow 2>/dev/null || true",
   "remoteUser": "vscode"
 }

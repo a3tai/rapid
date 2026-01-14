@@ -7,13 +7,29 @@ import semver from 'semver';
 import { execa } from 'execa';
 import { logger } from '@a3t/rapid-core';
 import chalk from 'chalk';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import prompts from 'prompts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const packageJson = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8'));
+
+// Try multiple paths to find package.json (handles both bundled dist and source tests)
+function loadPackageJson() {
+  const paths = [
+    join(__dirname, '../package.json'), // bundled: dist/ -> package root
+    join(__dirname, '../../package.json'), // source: src/utils/ -> package root
+  ];
+  for (const p of paths) {
+    if (existsSync(p)) {
+      return JSON.parse(readFileSync(p, 'utf-8'));
+    }
+  }
+  // Fallback with default values if package.json not found
+  return { name: '@a3t/rapid', version: '0.0.0' };
+}
+
+const packageJson = loadPackageJson();
 
 interface UpdateInfo {
   current: string;
