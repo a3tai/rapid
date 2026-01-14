@@ -195,6 +195,19 @@ export async function isRunning(name: string = RAPID_LIMA_INSTANCE): Promise<boo
 }
 
 /**
+ * Insert a project mount into a Lima config string.
+ */
+export function insertProjectMount(config: string, projectDir: string): string {
+  const projectMount = `  - location: "${projectDir}"
+    writable: true
+`;
+  const homeMountRegex = /mounts:\s*\n(\s*- location: ['"]~['"]\n(?:\s{2,}[^-][^\n]*\n)*)/;
+  return config.replace(homeMountRegex, (_match, homeMount) => {
+    return `mounts:\n${homeMount}${projectMount}`;
+  });
+}
+
+/**
  * Create the Lima configuration with project-specific settings
  */
 async function createLimaConfig(
@@ -220,16 +233,7 @@ async function createLimaConfig(
   // Customize config with project settings
   let config = template;
 
-  // Add project mount
-  const projectMount = `
-  - location: "${projectDir}"
-    writable: true`;
-
-  // Insert project mount after the home directory mount
-  config = config.replace(
-    /mounts:\s*\n\s*- location: "~"/,
-    `mounts:\n  - location: "~"${projectMount}`
-  );
+  config = insertProjectMount(config, projectDir);
 
   // Override CPU/memory if specified
   if (options.cpus) {
@@ -262,9 +266,12 @@ async function createLimaConfig(
 function getMinimalLimaConfig(): string {
   return `
 vmType: "vz"
-rosetta:
-  enabled: true
-  binfmt: true
+vmOpts:
+  vz:
+    rosetta:
+      enabled: true
+      binfmt: true
+
 cpus: 4
 memory: "8GiB"
 disk: "50GiB"
