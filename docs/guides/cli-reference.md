@@ -345,6 +345,102 @@ rapid config get secrets.provider
 
 ---
 
+## rapid mcp
+
+Manage MCP (Model Context Protocol) servers.
+
+```bash
+rapid mcp <subcommand> [options]
+```
+
+### Subcommands
+
+#### rapid mcp list
+
+List configured MCP servers.
+
+```bash
+rapid mcp list [--json] [--templates]
+```
+
+| Option        | Description                     |
+| ------------- | ------------------------------- |
+| `--json`      | Output as JSON                  |
+| `--templates` | Show available server templates |
+
+#### rapid mcp add
+
+Add an MCP server.
+
+```bash
+rapid mcp add <name> [options]
+```
+
+| Option              | Description                      |
+| ------------------- | -------------------------------- |
+| `--type <type>`     | Server type: `remote` or `stdio` |
+| `--url <url>`       | URL for remote servers           |
+| `--command <cmd>`   | Command for stdio servers        |
+| `--args <args>`     | Arguments (comma-separated)      |
+| `--header <header>` | HTTP header (name=value)         |
+
+#### rapid mcp remove
+
+Remove an MCP server.
+
+```bash
+rapid mcp remove <name>
+```
+
+#### rapid mcp enable / disable
+
+Enable or disable an MCP server.
+
+```bash
+rapid mcp enable <name>
+rapid mcp disable <name>
+```
+
+#### rapid mcp status
+
+Show MCP server status.
+
+```bash
+rapid mcp status [--json]
+```
+
+#### rapid mcp sync
+
+Regenerate `.mcp.json` and `opencode.json` from `rapid.json`.
+
+```bash
+rapid mcp sync
+```
+
+### Examples
+
+```bash
+# List available templates
+rapid mcp list --templates
+
+# Add from template
+rapid mcp add playwright
+
+# Add custom server
+rapid mcp add myapi --type remote --url https://api.example.com/mcp
+
+# Check status
+rapid mcp status
+
+# Disable a server
+rapid mcp disable tavily
+
+# Remove a server
+rapid mcp remove playwright
+```
+
+---
+
 ## rapid secrets
 
 Manage secrets.

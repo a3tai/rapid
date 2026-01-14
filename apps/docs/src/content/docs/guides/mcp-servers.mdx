@@ -1,0 +1,302 @@
+---
+title: MCP Server Configuration
+description: Configure Model Context Protocol servers to extend AI agent capabilities
+---
+
+RAPID supports MCP (Model Context Protocol) servers to extend AI agent capabilities with external tools, data sources, and services.
+
+## Overview
+
+MCP servers provide AI agents with access to:
+
+- **Documentation context** - Library and framework documentation
+- **Web search** - Real-time information retrieval
+- **Browser automation** - Web scraping and testing
+- **Database access** - Query and manage databases
+- **File system** - Read and write files
+- **Memory** - Persistent knowledge graphs
+
+## Quick Start
+
+### Initialize with MCP Servers
+
+When initializing a new RAPID project, you can specify which MCP servers to enable:
+
+```bash
+# Default setup (context7 + tavily)
+rapid init
+
+# Specify servers
+rapid init --mcp context7,tavily,playwright
+
+# Skip MCP configuration
+rapid init --no-mcp
+```
+
+### Managing MCP Servers
+
+Use the `rapid mcp` command to manage servers:
+
+```bash
+# List configured servers
+rapid mcp list
+
+# Show available templates
+rapid mcp list --templates
+
+# Add a server from template
+rapid mcp add playwright
+
+# Add a custom server
+rapid mcp add myserver --type remote --url https://api.example.com/mcp
+
+# Enable/disable servers
+rapid mcp disable tavily
+rapid mcp enable tavily
+
+# Remove a server
+rapid mcp remove playwright
+
+# Show server status
+rapid mcp status
+
+# Regenerate config files
+rapid mcp sync
+```
+
+## Available Server Templates
+
+RAPID includes built-in templates for popular MCP servers:
+
+| Server       | Type   | Description                         | Required Secrets   |
+| ------------ | ------ | ----------------------------------- | ------------------ |
+| `context7`   | Remote | Documentation context for libraries | `CONTEXT7_API_KEY` |
+| `tavily`     | Remote | Web search and data extraction      | `TAVILY_API_KEY`   |
+| `playwright` | Stdio  | Browser automation and web scraping | None               |
+| `github`     | Stdio  | GitHub operations (PRs, issues)     | `GITHUB_TOKEN`     |
+| `filesystem` | Stdio  | File system access                  | None               |
+| `memory`     | Stdio  | Persistent knowledge graph          | None               |
+| `postgres`   | Stdio  | PostgreSQL database access          | `DATABASE_URL`     |
+| `slack`      | Stdio  | Slack messaging                     | `SLACK_TOKEN`      |
+| `fetch`      | Stdio  | HTTP content retrieval              | None               |
+| `sqlite`     | Stdio  | SQLite database access              | None               |
+
+## Configuration
+
+### In rapid.json
+
+MCP servers are configured in the `mcp` section:
+
+```json
+{
+  "mcp": {
+    "configFile": ".mcp.json",
+    "servers": {
+      "context7": {
+        "enabled": true,
+        "type": "remote",
+        "url": "https://mcp.context7.com/mcp",
+        "headers": {
+          "Context7-API-Key": "${CONTEXT7_API_KEY}"
+        }
+      },
+      "tavily": {
+        "enabled": true,
+        "type": "remote",
+        "url": "https://mcp.tavily.com/mcp",
+        "headers": {
+          "Authorization": "Bearer ${TAVILY_API_KEY}"
+        }
+      },
+      "playwright": {
+        "enabled": true,
+        "type": "stdio",
+        "command": "npx",
+        "args": ["@playwright/mcp@latest"]
+      }
+    }
+  }
+}
+```
+
+### Server Types
+
+#### Remote (HTTP) Servers
+
+Remote servers communicate over HTTP:
+
+```json
+{
+  "myserver": {
+    "type": "remote",
+    "url": "https://api.example.com/mcp",
+    "headers": {
+      "Authorization": "Bearer ${API_KEY}"
+    }
+  }
+}
+```
+
+#### Stdio Servers
+
+Stdio servers run as local processes:
+
+```json
+{
+  "myserver": {
+    "type": "stdio",
+    "command": "npx",
+    "args": ["@example/mcp-server"],
+    "env": {
+      "API_KEY": "${API_KEY}"
+    }
+  }
+}
+```
+
+### Variable Substitution
+
+Server configurations support variable substitution:
+
+| Syntax            | Description                         |
+| ----------------- | ----------------------------------- |
+| `${VAR}`          | Environment variable                |
+| `${env:VAR}`      | Environment variable from container |
+| `${localEnv:VAR}` | Environment variable from host      |
+
+## Generated Config Files
+
+RAPID generates two config files from your `rapid.json`:
+
+### .mcp.json
+
+Used by Claude Code and other MCP-compatible tools:
+
+```json
+{
+  "mcpServers": {
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "Context7-API-Key": "${CONTEXT7_API_KEY}"
+      }
+    }
+  }
+}
+```
+
+### opencode.json
+
+Used by OpenCode with its specific format:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "Context7-API-Key": "{env:CONTEXT7_API_KEY}"
+      }
+    }
+  }
+}
+```
+
+## Secrets for MCP Servers
+
+Most MCP servers require API keys or tokens. Configure these in the `secrets.items` section:
+
+```json
+{
+  "secrets": {
+    "provider": "1password",
+    "vault": "Development",
+    "items": {
+      "CONTEXT7_API_KEY": "op://Development/Context7/api-key",
+      "TAVILY_API_KEY": "op://Development/Tavily/api-key",
+      "GITHUB_TOKEN": "op://Development/GitHub/pat"
+    }
+  }
+}
+```
+
+### Getting API Keys
+
+| Server   | Where to Get Key                                                 |
+| -------- | ---------------------------------------------------------------- |
+| Context7 | [context7.com](https://context7.com)                             |
+| Tavily   | [tavily.com](https://tavily.com)                                 |
+| GitHub   | [github.com/settings/tokens](https://github.com/settings/tokens) |
+| Slack    | [api.slack.com/apps](https://api.slack.com/apps)                 |
+
+## Using MCP Servers
+
+Once configured, MCP servers are automatically available to your AI agents during `rapid dev`:
+
+1. RAPID loads secrets from your secret provider
+2. Generates `.mcp.json` and `opencode.json` with resolved references
+3. Sets `MCP_CONFIG_FILE` environment variable
+4. Launches the agent with MCP servers available
+
+### Example Workflow
+
+```bash
+# 1. Initialize project with MCP
+rapid init --mcp context7,tavily
+
+# 2. Add your API keys to secrets
+# Edit rapid.json secrets.items
+
+# 3. Verify secrets are accessible
+rapid secrets verify
+
+# 4. Start development with MCP servers
+rapid dev
+```
+
+## Adding Custom MCP Servers
+
+You can add any MCP-compatible server:
+
+```bash
+# Add a custom remote server
+rapid mcp add myapi \
+  --type remote \
+  --url https://api.example.com/mcp \
+  --header "Authorization=Bearer ${API_KEY}"
+
+# Add a custom stdio server
+rapid mcp add mytool \
+  --type stdio \
+  --command npx \
+  --args "@example/mcp-server,--config,./config.json"
+```
+
+## Troubleshooting
+
+### Server Not Appearing
+
+If a server doesn't appear in agent tools:
+
+1. Check it's enabled: `rapid mcp status`
+2. Verify secrets: `rapid secrets verify`
+3. Regenerate configs: `rapid mcp sync`
+
+### Authentication Errors
+
+If you get authentication errors:
+
+1. Verify the API key is correct
+2. Check the header format matches the server's requirements
+3. Ensure secrets are loaded: `rapid secrets list`
+
+### Stdio Server Fails to Start
+
+If a stdio server won't start:
+
+1. Check the command is installed: `which npx`
+2. Verify the package exists
+3. Check for error messages in agent output

@@ -179,6 +179,24 @@ export interface McpServerConfig {
   /** Enable this MCP server (default: true) */
   enabled?: boolean;
 
+  /** Server type: remote HTTP or local stdio */
+  type?: 'remote' | 'stdio';
+
+  /** URL for remote servers */
+  url?: string;
+
+  /** HTTP headers for remote servers */
+  headers?: Record<string, string>;
+
+  /** Command for stdio servers */
+  command?: string;
+
+  /** Arguments for stdio command */
+  args?: string[];
+
+  /** Environment variables for stdio servers */
+  env?: Record<string, string>;
+
   /** Additional server-specific configuration */
   [key: string]: unknown;
 }

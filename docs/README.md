@@ -31,6 +31,8 @@ rapid dev
 | `rapid dev --multi`  | Launch multiple agents concurrently                |
 | `rapid stop`         | Stop container and cleanup                         |
 | `rapid agent <name>` | Switch or add AI agent                             |
+| `rapid mcp`          | Manage MCP servers (add/remove/list/status)        |
+| `rapid secrets`      | Manage project secrets                             |
 | `rapid config`       | View/edit configuration                            |
 
 ## Supported AI Tools
@@ -54,6 +56,32 @@ RAPID is both a tool and a methodology for effective AI-assisted development:
 | **Plan**      | Structure work before execution - task breakdown, acceptance criteria  |
 | **Integrate** | Ensure environment readiness - containers, secrets, tooling            |
 | **Develop**   | Execute with AI assistance - generate, test, iterate, review           |
+
+## MCP Servers
+
+RAPID supports Model Context Protocol (MCP) servers to extend AI agent capabilities:
+
+```bash
+# List available MCP server templates
+rapid mcp list --templates
+
+# Add servers
+rapid mcp add context7
+rapid mcp add tavily
+rapid mcp add playwright
+
+# Check status
+rapid mcp status
+```
+
+Built-in templates include:
+
+- **context7** - Documentation context for libraries
+- **tavily** - Web search and data extraction
+- **playwright** - Browser automation
+- **github** - GitHub operations
+- **filesystem** - File system access
+- **memory** - Persistent knowledge graph
 
 ## Configuration
 

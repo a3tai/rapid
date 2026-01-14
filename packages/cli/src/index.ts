@@ -16,6 +16,7 @@ import { startCommand } from './commands/start.js';
 import { stopCommand } from './commands/stop.js';
 import { secretsCommand } from './commands/secrets.js';
 import { authCommand } from './commands/auth.js';
+import { mcpCommand } from './commands/mcp.js';
 
 // Read version from package.json
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -49,6 +50,7 @@ program.addCommand(statusCommand);
 program.addCommand(agentCommand);
 program.addCommand(secretsCommand);
 program.addCommand(authCommand);
+program.addCommand(mcpCommand);
 
 // Default action - show help
 program.action(() => {

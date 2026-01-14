@@ -267,35 +267,97 @@ Context file generation and management.
 
 ## mcp
 
-Model Context Protocol server configuration.
+Model Context Protocol server configuration. See [MCP Server Configuration](/guides/mcp-servers) for detailed setup guide.
 
 | Property     | Type   | Default       | Description               |
 | ------------ | ------ | ------------- | ------------------------- |
-| `servers`    | object | `{}`          | MCP server configurations |
 | `configFile` | string | `".mcp.json"` | Path to MCP config file   |
+| `servers`    | object | `{}`          | MCP server configurations |
 
-### Example
+### Server Configuration
+
+Each server in `servers` supports:
+
+| Property  | Type    | Required | Description                           |
+| --------- | ------- | -------- | ------------------------------------- |
+| `enabled` | boolean | No       | Enable/disable server (default: true) |
+| `type`    | string  | No       | `"remote"` or `"stdio"`               |
+| `url`     | string  | No       | URL for remote servers                |
+| `headers` | object  | No       | HTTP headers for remote servers       |
+| `command` | string  | No       | Command for stdio servers             |
+| `args`    | array   | No       | Arguments for stdio command           |
+| `env`     | object  | No       | Environment variables for stdio       |
+
+### Remote Server Example
 
 ```json
 {
   "mcp": {
     "configFile": ".mcp.json",
     "servers": {
-      "filesystem": {
-        "enabled": true
-      },
-      "github": {
+      "context7": {
         "enabled": true,
-        "repo": "${GITHUB_REPOSITORY}"
+        "type": "remote",
+        "url": "https://mcp.context7.com/mcp",
+        "headers": {
+          "Context7-API-Key": "${CONTEXT7_API_KEY}"
+        }
       },
-      "postgres": {
-        "enabled": false,
-        "connectionString": "${DATABASE_URL}"
+      "tavily": {
+        "enabled": true,
+        "type": "remote",
+        "url": "https://mcp.tavily.com/mcp",
+        "headers": {
+          "Authorization": "Bearer ${TAVILY_API_KEY}"
+        }
       }
     }
   }
 }
 ```
+
+### Stdio Server Example
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "playwright": {
+        "enabled": true,
+        "type": "stdio",
+        "command": "npx",
+        "args": ["@playwright/mcp@latest"]
+      },
+      "github": {
+        "enabled": true,
+        "type": "stdio",
+        "command": "npx",
+        "args": ["@modelcontextprotocol/server-github"],
+        "env": {
+          "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+        }
+      }
+    }
+  }
+}
+```
+
+### Built-in Templates
+
+RAPID includes templates for common servers. Use `rapid mcp list --templates` to see all available templates.
+
+| Template     | Type   | Description           |
+| ------------ | ------ | --------------------- |
+| `context7`   | Remote | Documentation context |
+| `tavily`     | Remote | Web search            |
+| `playwright` | Stdio  | Browser automation    |
+| `github`     | Stdio  | GitHub operations     |
+| `filesystem` | Stdio  | File system access    |
+| `memory`     | Stdio  | Persistent memory     |
+| `postgres`   | Stdio  | PostgreSQL access     |
+| `slack`      | Stdio  | Slack messaging       |
+| `fetch`      | Stdio  | HTTP fetch            |
+| `sqlite`     | Stdio  | SQLite access         |
 
 ---
 
