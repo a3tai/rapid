@@ -18,6 +18,26 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
+ * Get error message from execa error
+ */
+function getErrorMessage(err: ExecaError): string {
+  if (typeof err.stderr === 'string' && err.stderr) {
+    return err.stderr;
+  }
+  return err.message;
+}
+
+/**
+ * Get string value from execa output (stdout/stderr can be various types)
+ */
+function getOutputString(output: unknown): string | undefined {
+  if (typeof output === 'string') {
+    return output;
+  }
+  return undefined;
+}
+
+/**
  * Lima VM instance status
  */
 export type LimaStatus = 'Running' | 'Stopped' | 'Starting' | 'Stopping' | 'Unknown';
@@ -344,7 +364,7 @@ export async function startInstance(
     const error = err as ExecaError;
     return {
       success: false,
-      error: error.stderr || error.message,
+      error: getErrorMessage(error),
     };
   }
 }
@@ -369,7 +389,7 @@ export async function stopInstance(
     const error = err as ExecaError;
     return {
       success: false,
-      error: error.stderr || error.message,
+      error: getErrorMessage(error),
     };
   }
 }
@@ -394,7 +414,7 @@ export async function deleteInstance(
     const error = err as ExecaError;
     return {
       success: false,
-      error: error.stderr || error.message,
+      error: getErrorMessage(error),
     };
   }
 }
@@ -431,31 +451,33 @@ export async function execInLima(
       fullCommand = `${exports} && ${fullCommand}`;
     }
 
-    const execaOptions: Parameters<typeof execa>[2] = {};
-
-    if (options.interactive || options.tty) {
-      execaOptions.stdio = 'inherit';
-    }
+    const useInheritStdio = options.interactive || options.tty;
 
     const result = await execa(
       'limactl',
       ['shell', name, '--', 'bash', '-c', fullCommand],
-      execaOptions
+      useInheritStdio ? { stdio: 'inherit' } : {}
     );
 
-    return {
+    const successResult: { success: boolean; stdout?: string; stderr?: string; error?: string } = {
       success: true,
-      stdout: result.stdout,
-      stderr: result.stderr,
     };
+    const stdout = getOutputString(result.stdout);
+    const stderr = getOutputString(result.stderr);
+    if (stdout) successResult.stdout = stdout;
+    if (stderr) successResult.stderr = stderr;
+    return successResult;
   } catch (err) {
     const error = err as ExecaError;
-    return {
+    const errorResult: { success: boolean; stdout?: string; stderr?: string; error?: string } = {
       success: false,
-      stdout: error.stdout,
-      stderr: error.stderr,
       error: error.message,
     };
+    const stdout = getOutputString(error.stdout);
+    const stderr = getOutputString(error.stderr);
+    if (stdout) errorResult.stdout = stdout;
+    if (stderr) errorResult.stderr = stderr;
+    return errorResult;
   }
 }
 

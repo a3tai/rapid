@@ -11,6 +11,16 @@ import { access } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 
 /**
+ * Get error message from execa error
+ */
+function getErrorMessage(err: ExecaError): string {
+  if (typeof err.stderr === 'string' && err.stderr) {
+    return err.stderr;
+  }
+  return err.message;
+}
+
+/**
  * Information about a git worktree
  */
 export interface WorktreeInfo {
@@ -270,7 +280,7 @@ export async function createWorktree(
     return {
       success: false,
       path: worktreePath,
-      error: error.stderr || error.message,
+      error: getErrorMessage(error),
     };
   }
 }
@@ -296,7 +306,7 @@ export async function removeWorktree(
     const error = err as ExecaError;
     return {
       success: false,
-      error: error.stderr || error.message,
+      error: getErrorMessage(error),
     };
   }
 }
@@ -323,7 +333,7 @@ export async function pruneWorktrees(repoRoot: string): Promise<{
     return {
       success: false,
       pruned: [],
-      error: error.stderr || error.message,
+      error: getErrorMessage(error),
     };
   }
 }
@@ -347,7 +357,7 @@ export async function lockWorktree(
     return { success: true };
   } catch (err) {
     const error = err as ExecaError;
-    return { success: false, error: error.stderr || error.message };
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 
@@ -363,7 +373,7 @@ export async function unlockWorktree(
     return { success: true };
   } catch (err) {
     const error = err as ExecaError;
-    return { success: false, error: error.stderr || error.message };
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 

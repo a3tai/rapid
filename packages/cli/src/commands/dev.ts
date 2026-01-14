@@ -61,7 +61,8 @@ export const devCommand = new Command('dev')
         process.exit(1);
       }
 
-      let { config, rootDir } = loaded;
+      const { config } = loaded;
+      let { rootDir } = loaded;
       spinner.succeed('Configuration loaded');
 
       // List mode
