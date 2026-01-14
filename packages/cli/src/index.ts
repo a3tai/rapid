@@ -18,6 +18,7 @@ import { secretsCommand } from './commands/secrets.js';
 import { authCommand } from './commands/auth.js';
 import { mcpCommand } from './commands/mcp.js';
 import { updateCommand } from './commands/update.js';
+import { worktreeCommand } from './commands/worktree.js';
 import { updateChecker } from './utils/update-checker.js';
 
 // Read version from package.json
@@ -67,6 +68,7 @@ program.addCommand(secretsCommand);
 program.addCommand(authCommand);
 program.addCommand(mcpCommand);
 program.addCommand(updateCommand);
+program.addCommand(worktreeCommand);
 
 // Default action - show help
 program.action(() => {
