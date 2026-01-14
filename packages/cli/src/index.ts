@@ -12,6 +12,7 @@ import { agentCommand } from './commands/agent.js';
 import { startCommand } from './commands/start.js';
 import { stopCommand } from './commands/stop.js';
 import { secretsCommand } from './commands/secrets.js';
+import { authCommand } from './commands/auth.js';
 
 const VERSION = '0.1.0';
 
@@ -41,6 +42,7 @@ program.addCommand(stopCommand);
 program.addCommand(statusCommand);
 program.addCommand(agentCommand);
 program.addCommand(secretsCommand);
+program.addCommand(authCommand);
 
 // Default action - show help
 program.action(() => {

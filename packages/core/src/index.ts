@@ -17,6 +17,10 @@ export type {
   McpServerConfig,
   AgentStatus,
   EnvironmentStatus,
+  ExternalAuthSource,
+  DetectedCredential,
+  ExternalAuthConfig,
+  AuthStatus,
 } from './types.js';
 
 // Config
@@ -77,3 +81,17 @@ export {
   type SecretsStatus,
   type OpAuthStatus,
 } from './secrets.js';
+
+// External Auth
+export {
+  detectClaudeCodeAuth,
+  detectCodexAuth,
+  detectGeminiAuth,
+  detectAiderAuth,
+  detectEnvAuth,
+  detectAllCredentials,
+  getAuthStatus,
+  getCredentialsForProvider,
+  getAuthEnvironment,
+  formatAuthStatus,
+} from './external-auth.js';

@@ -18,6 +18,8 @@ import {
   isVaultAuthenticated,
   hasEnvrc,
   getProviderInfo,
+  getAuthStatus,
+  type DetectedCredential,
 } from '@a3t/rapid-core';
 import ora from 'ora';
 
@@ -90,6 +92,10 @@ export const statusCommand = new Command('status')
         };
       }
 
+      // Check auth
+      spinner.text = 'Checking authentication...';
+      const authStatus = await getAuthStatus();
+
       spinner.stop();
 
       if (options.json) {
@@ -109,6 +115,15 @@ export const statusCommand = new Command('status')
               },
               agents: agentStatuses,
               secrets: secretsStatus,
+              auth: {
+                authenticated: authStatus.authenticated,
+                sources: authStatus.sources.map((s: DetectedCredential) => ({
+                  source: s.source,
+                  provider: s.provider,
+                  authType: s.authType,
+                  hasValue: !!s.value,
+                })),
+              },
             },
             null,
             2
@@ -199,6 +214,24 @@ export const statusCommand = new Command('status')
         console.log();
       }
 
+      // Auth status
+      console.log(`  ${logger.dim('Auth:')}`);
+      if (!authStatus.authenticated) {
+        console.log(`    ${logger.dim('○')} ${logger.dim('No authentication detected')}`);
+        console.log(`    ${logger.dim('  Run `rapid auth` for options')}`);
+      } else {
+        for (const cred of authStatus.sources) {
+          const icon = cred.authType === 'oauth' ? logger.brand('●') : logger.dim('○');
+          const authType = cred.authType === 'oauth' ? 'OAuth' : 'API Key';
+          let info = `${cred.source} (${cred.provider}, ${authType})`;
+          if (cred.accountInfo?.email) {
+            info += ` - ${cred.accountInfo.email}`;
+          }
+          console.log(`    ${icon} ${info}`);
+        }
+      }
+
+      console.log();
       // Quick actions
       if (!containerStatus.running && devcontainerConfig && dockerRunning && hasDevCli) {
         logger.info('Run `rapid start` to start the container');

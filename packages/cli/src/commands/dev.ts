@@ -3,6 +3,8 @@
  */
 
 import { Command } from 'commander';
+import { writeFile } from 'node:fs/promises';
+import { isAbsolute, join } from 'node:path';
 import {
   loadConfig,
   getAgent,
@@ -15,6 +17,7 @@ import {
   loadSecrets,
   hasOpCli,
   isOpAuthenticated,
+  type McpConfig,
 } from '@a3t/rapid-core';
 import ora from 'ora';
 
@@ -136,18 +139,56 @@ export const devCommand = new Command('dev')
       logger.blank();
 
       const agentArgs = [agent.cli, ...(agent.args || [])];
+      const mcpEnv = await prepareMcpEnv(rootDir, config.mcp);
+      const mergedEnv = { ...secrets, ...(mcpEnv ?? {}) };
 
-      // Inject secrets as environment variables
+      // Inject secrets and MCP config as environment variables
       await execInContainer(rootDir, agentArgs, config, {
         interactive: true,
         tty: true,
-        env: secrets,
+        env: mergedEnv,
       });
     } catch (error) {
       logger.error(error instanceof Error ? error.message : String(error));
       process.exit(1);
     }
   });
+
+async function prepareMcpEnv(
+  rootDir: string,
+  mcp?: McpConfig
+): Promise<Record<string, string> | undefined> {
+  if (!mcp?.servers || Object.keys(mcp.servers).length === 0) {
+    return undefined;
+  }
+
+  const configFile = mcp.configFile ?? '.mcp.json';
+  const configPath = isAbsolute(configFile) ? configFile : join(rootDir, configFile);
+
+  const servers: Record<string, unknown> = {};
+  for (const [name, serverConfig] of Object.entries(mcp.servers)) {
+    if (!serverConfig || typeof serverConfig !== 'object') {
+      continue;
+    }
+
+    const { enabled, ...rest } = serverConfig as Record<string, unknown>;
+    if (enabled === false) {
+      continue;
+    }
+
+    servers[name] = rest;
+  }
+
+  if (Object.keys(servers).length === 0) {
+    return undefined;
+  }
+
+  await writeFile(configPath, `${JSON.stringify({ servers }, null, 2)}\n`, 'utf-8');
+
+  return {
+    MCP_CONFIG_FILE: configFile,
+  };
+}
 
 /**
  * Run agent locally (fallback, not recommended)
