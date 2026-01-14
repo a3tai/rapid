@@ -716,6 +716,123 @@ rapid worktree cleanup --dry-run
 
 ---
 
+## rapid lima
+
+Manage Lima VM for isolated local development on macOS.
+
+```bash
+rapid lima <subcommand> [options]
+```
+
+Lima provides lightweight Linux VMs using Apple Virtualization.framework for near-native performance.
+
+### Subcommands
+
+#### rapid lima status
+
+Show Lima VM status.
+
+```bash
+rapid lima status [options]
+```
+
+| Option   | Description    |
+| -------- | -------------- |
+| `--json` | Output as JSON |
+
+#### rapid lima start
+
+Start the Lima VM.
+
+```bash
+rapid lima start [options]
+```
+
+| Option            | Default | Description    |
+| ----------------- | ------- | -------------- |
+| `--cpus <n>`      | `4`     | Number of CPUs |
+| `--memory <size>` | `8GiB`  | Memory size    |
+| `--disk <size>`   | `50GiB` | Disk size      |
+
+#### rapid lima stop
+
+Stop the Lima VM.
+
+```bash
+rapid lima stop [options]
+```
+
+| Option          | Description |
+| --------------- | ----------- |
+| `-f`, `--force` | Force stop  |
+
+#### rapid lima shell
+
+Open a shell in the Lima VM.
+
+```bash
+rapid lima shell [options]
+```
+
+| Option            | Description                                 |
+| ----------------- | ------------------------------------------- |
+| `-c`, `--command` | Command to run instead of interactive shell |
+
+#### rapid lima delete
+
+Delete the Lima VM and all its data.
+
+```bash
+rapid lima delete [options]
+```
+
+| Option          | Description                       |
+| --------------- | --------------------------------- |
+| `-f`, `--force` | Force delete without confirmation |
+
+#### rapid lima list
+
+List all Lima instances.
+
+```bash
+rapid lima list [options]
+```
+
+| Option   | Description    |
+| -------- | -------------- |
+| `--json` | Output as JSON |
+
+### Examples
+
+```bash
+# Check VM status
+rapid lima status
+
+# Start with custom resources
+rapid lima start --cpus 8 --memory 16GiB
+
+# Open a shell
+rapid lima shell
+
+# Run a command in the VM
+rapid lima shell --command "node --version"
+
+# Stop the VM
+rapid lima stop
+
+# Delete the VM (requires --force)
+rapid lima delete --force
+```
+
+### Notes
+
+- Lima is only available on macOS
+- Uses Apple Virtualization.framework (VZ) for best performance on Apple Silicon
+- SSH agent is automatically forwarded for commit signing
+- Install Lima with: `brew install lima`
+
+---
+
 ## Environment Variables
 
 RAPID respects these environment variables:
