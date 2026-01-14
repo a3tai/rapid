@@ -7,7 +7,7 @@ on:
       - 'templates/*/.devcontainer/**'
       - '.github/workflows/devcontainers.yml'
   workflow_run:
-    workflows: ["Release"]
+    workflows: ['Release']
     types: [completed]
   workflow_dispatch:
     inputs:
