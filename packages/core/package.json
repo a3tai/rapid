@@ -1,6 +1,6 @@
 {
   "name": "@a3t/rapid-core",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "description": "Core library for RAPID - AI-assisted development with dev containers",
   "license": "MIT",
   "author": "Steve Rude <steve@rude.la>",
