@@ -136,9 +136,11 @@ jobs:
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
+        continue-on-error: true
         with:
           files: release-artifacts/checksums.txt
           generate_release_notes: true
+          make_latest: true
           body: |
 
             ## Installation
