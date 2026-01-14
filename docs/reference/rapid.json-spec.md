@@ -269,6 +269,8 @@ Model Context Protocol server configuration.
 | `servers`    | object | `{}`          | MCP server configurations |
 | `configFile` | string | `".mcp.json"` | Path to MCP config file   |
 
+When running `rapid dev`, RAPID writes the enabled MCP servers to `configFile` and sets `MCP_CONFIG_FILE` inside the dev container so agents can locate the generated config.
+
 ### Example
 
 ```json

@@ -4,7 +4,8 @@
 
 import { execa } from 'execa';
 import which from 'which';
-import type { AgentDefinition, AgentStatus, RapidConfig } from './types.js';
+import type { AgentDefinition, AgentStatus, RapidConfig, ExternalAuthConfig } from './types.js';
+import { getAuthEnvironment } from './external-auth.js';
 
 /**
  * Check if an agent CLI is available
@@ -77,16 +78,25 @@ export async function launchAgent(
     cwd?: string;
     env?: Record<string, string>;
     stdio?: 'inherit' | 'pipe';
+    useExternalAuth?: boolean;
+    externalAuthConfig?: ExternalAuthConfig;
   } = {}
 ): Promise<void> {
   const args = agent.args ?? [];
   const cwd = options.cwd ?? process.cwd();
 
+  // Get external auth environment if enabled
+  let authEnv: Record<string, string> = {};
+  if (options.useExternalAuth !== false) {
+    authEnv = await getAuthEnvironment(options.externalAuthConfig);
+  }
+
   await execa(agent.cli, args, {
     cwd,
     env: {
       ...process.env,
-      ...options.env,
+      ...authEnv,
+      ...options.env, // User-provided env takes precedence
     },
     stdio: options.stdio ?? 'inherit',
   });

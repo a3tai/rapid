@@ -20,6 +20,20 @@ export interface ContainerConfig {
   buildArgs?: Record<string, string>;
 }
 
+/**
+ * External auth source types
+ */
+export type ExternalAuthSource = 'claude-code' | 'codex' | 'gemini-cli' | 'aider' | 'env';
+
+/**
+ * External auth configuration
+ */
+export interface ExternalAuthConfig {
+  enabled?: boolean;
+  sources?: ExternalAuthSource[];
+  preferSource?: ExternalAuthSource;
+}
+
 export interface SecretsConfig {
   provider?: 'env' | '1password' | 'vault';
   vault?: string;
@@ -27,6 +41,7 @@ export interface SecretsConfig {
   items?: Record<string, string>;
   envrc?: EnvrcConfig;
   dotenv?: DotenvConfig;
+  externalAuth?: ExternalAuthConfig;
 }
 
 export interface EnvrcConfig {
@@ -92,4 +107,32 @@ export interface EnvironmentStatus {
   agents: AgentStatus[];
   secretsLoaded: boolean;
   containerRunning: boolean;
+}
+
+/**
+ * Detected credential from an external tool
+ */
+export interface DetectedCredential {
+  source: ExternalAuthSource;
+  provider: 'anthropic' | 'openai' | 'google' | 'unknown';
+  authType: 'api-key' | 'oauth' | 'service-account';
+  envVar?: string;
+  value?: string;
+  expiresAt?: Date;
+  accountInfo?: {
+    email?: string;
+    organization?: string;
+    plan?: string;
+  };
+  configPath?: string;
+}
+
+/**
+ * Auth status summary
+ */
+export interface AuthStatus {
+  authenticated: boolean;
+  sources: DetectedCredential[];
+  preferredSource?: DetectedCredential;
+  warnings?: string[];
 }
