@@ -13,7 +13,7 @@ import { dirname, join } from 'node:path';
 import prompts from 'prompts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf-8'));
+const packageJson = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8'));
 
 interface UpdateInfo {
   current: string;
@@ -131,7 +131,7 @@ export class UpdateChecker {
           logger.info('Skipping major version update.');
           logger.info('You can update later with "rapid update --force"');
         }
-      } catch (error) {
+      } catch {
         // If prompt fails (non-interactive), show manual instructions
         logger.info(
           'Run "rapid update" to update manually, or use "rapid update --force" to update automatically.'
