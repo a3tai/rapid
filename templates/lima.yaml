@@ -129,6 +129,18 @@ provision:
       apt-get update
       apt-get install -y gh
 
+      # Install 1Password CLI
+      curl -sS https://downloads.1password.com/linux/keys/1password.asc | gpg --dearmor -o /usr/share/keyrings/1password.gpg
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/1password.gpg] https://downloads.1password.com/linux/debian/$(dpkg --print-architecture) stable main" | tee /etc/apt/sources.list.d/1password.list > /dev/null
+      apt-get update
+      apt-get install -y 1password-cli
+
+      # Install direnv
+      apt-get install -y direnv
+
+      # Install Starship prompt
+      curl -sS https://starship.rs/install.sh | sh -s -- -y
+
       # Clean up
       apt-get clean
       rm -rf /var/lib/apt/lists/*
@@ -157,6 +169,14 @@ provision:
       echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
       echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc || true
 
+      # Configure direnv hook
+      echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
+      echo 'eval "$(direnv hook zsh)"' >> ~/.zshrc || true
+
+      # Configure Starship prompt
+      echo 'eval "$(starship init bash)"' >> ~/.bashrc
+      echo 'eval "$(starship init zsh)"' >> ~/.zshrc || true
+
 # Environment variables available in the VM
 env:
   # Pass through common development env vars from host
@@ -164,6 +184,8 @@ env:
   OPENAI_API_KEY: ''
   TAVILY_API_KEY: ''
   CONTEXT7_API_KEY: ''
+  # 1Password service account token for secrets management
+  OP_SERVICE_ACCOUNT_TOKEN: ''
 
 # Message shown after VM starts
 message: |
@@ -180,5 +202,9 @@ message: |
     - Python 3.12 with pip
     - Git, GitHub CLI
     - Claude Code, OpenCode, Aider
+    - 1Password CLI
+    - direnv (auto-loads .envrc files)
+    - Starship prompt
 
   SSH agent is forwarded for commit signing.
+  Set OP_SERVICE_ACCOUNT_TOKEN for 1Password secrets.

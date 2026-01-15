@@ -5,7 +5,8 @@
     "context": ".."
   },
   "containerEnv": {
-    "OP_SERVICE_ACCOUNT_TOKEN": "${localEnv:OP_SERVICE_ACCOUNT_TOKEN}"
+    "OP_SERVICE_ACCOUNT_TOKEN": "${localEnv:OP_SERVICE_ACCOUNT_TOKEN}",
+    "SSH_AUTH_SOCK": "/run/host-services/ssh-auth.sock"
   },
   "postCreateCommand": "npm install -g @anthropic-ai/claude-code && CI=true pnpm install",
   "customizations": {

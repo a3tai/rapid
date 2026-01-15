@@ -270,25 +270,27 @@ async function prepareMcpEnv(
   const configFile = mcp.configFile ?? '.mcp.json';
   const configPath = isAbsolute(configFile) ? configFile : join(rootDir, configFile);
 
-  const servers: Record<string, unknown> = {};
+  const mcpServers: Record<string, unknown> = {};
   for (const [name, serverConfig] of Object.entries(mcp.servers)) {
     if (!serverConfig || typeof serverConfig !== 'object') {
       continue;
     }
 
-    const { enabled, ...rest } = serverConfig as Record<string, unknown>;
+    const { enabled, type, ...rest } = serverConfig as Record<string, unknown>;
     if (enabled === false) {
       continue;
     }
 
-    servers[name] = rest;
+    // Transform 'remote' to 'http' for Claude MCP config format
+    const outputType = type === 'remote' ? 'http' : type;
+    mcpServers[name] = { type: outputType, ...rest };
   }
 
-  if (Object.keys(servers).length === 0) {
+  if (Object.keys(mcpServers).length === 0) {
     return undefined;
   }
 
-  await writeFile(configPath, `${JSON.stringify({ servers }, null, 2)}\n`, 'utf-8');
+  await writeFile(configPath, `${JSON.stringify({ mcpServers }, null, 2)}\n`, 'utf-8');
 
   return {
     MCP_CONFIG_FILE: configFile,

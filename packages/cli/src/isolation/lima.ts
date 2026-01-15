@@ -12,7 +12,7 @@
  */
 
 import { execa, type ExecaError } from 'execa';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
 import { homedir, platform } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -183,7 +183,27 @@ export async function getInstance(
  */
 export async function instanceExists(name: string = RAPID_LIMA_INSTANCE): Promise<boolean> {
   const instance = await getInstance(name);
-  return instance !== null;
+  if (instance !== null) {
+    return true;
+  }
+
+  // Fallback: check if the instance directory exists
+  // This handles cases where limactl list --json fails or returns unexpected output
+  return instanceDirExists(name);
+}
+
+/**
+ * Check if the Lima instance directory exists at ~/.lima/<name>
+ * This is a fallback check when limactl list doesn't work properly
+ */
+async function instanceDirExists(name: string = RAPID_LIMA_INSTANCE): Promise<boolean> {
+  const instanceDir = join(homedir(), '.lima', name);
+  try {
+    await access(instanceDir);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -355,6 +375,7 @@ export async function startInstance(
       // Start existing instance
       await execa('limactl', ['start', name], {
         timeout: (options.timeout ?? 300) * 1000,
+        stdio: 'inherit', // Show progress
       });
     } else {
       // Create config and start new instance
