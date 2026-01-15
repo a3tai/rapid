@@ -569,7 +569,7 @@ export async function getSshInfo(name: string = RAPID_LIMA_INSTANCE): Promise<{
  * Known agent CLI install commands
  */
 const AGENT_INSTALL_COMMANDS: Record<string, string[]> = {
-  claude: ['npm', 'install', '-g', '@anthropic-ai/claude-code'],
+  claude: ['sudo', 'npm', 'install', '-g', '@anthropic-ai/claude-code'],
   opencode: ['bash', '-c', 'curl -fsSL https://opencode.ai/install | bash'],
   aider: ['pip3', 'install', '--user', 'aider-chat'],
 };
