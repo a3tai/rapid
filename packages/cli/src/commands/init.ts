@@ -440,17 +440,17 @@ function getDevContainerConfig(
 ): DevContainerConfig {
   const baseFeatures = {
     'ghcr.io/devcontainers/features/git:1': {},
-    'ghcr.io/devcontainers-contrib/features/direnv:1': {},
-    'ghcr.io/devcontainers-contrib/features/starship:1': {},
+    'ghcr.io/devcontainers/features/github-cli:1': {},
   };
 
   const containerEnv = {
     OP_SERVICE_ACCOUNT_TOKEN: '${localEnv:OP_SERVICE_ACCOUNT_TOKEN}',
   };
 
-  const install1PasswordCli =
-    "curl -sS https://downloads.1password.com/linux/keys/1password.asc | sudo gpg --dearmor -o /usr/share/keyrings/1password.gpg && echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/1password.gpg] https://downloads.1password.com/linux/debian/amd64 stable main' | sudo tee /etc/apt/sources.list.d/1password.list && sudo apt-get update -qq && sudo apt-get install -y -qq 1password-cli";
-  const postCreateBase = `${install1PasswordCli} && npm install -g @anthropic-ai/claude-code && curl -fsSL https://opencode.ai/install | bash`;
+  // Install tools via apt/curl instead of unreliable devcontainers-contrib features
+  const installTools =
+    "sudo apt-get update -qq && sudo apt-get install -y -qq jq direnv && curl -sS https://downloads.1password.com/linux/keys/1password.asc | sudo gpg --dearmor -o /usr/share/keyrings/1password.gpg && echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/1password.gpg] https://downloads.1password.com/linux/debian/amd64 stable main' | sudo tee /etc/apt/sources.list.d/1password.list && sudo apt-get update -qq && sudo apt-get install -y -qq 1password-cli && curl -fsSL https://starship.rs/install.sh | sh -s -- -y";
+  const postCreateBase = `${installTools} && npm install -g @anthropic-ai/claude-code && curl -fsSL https://opencode.ai/install | bash`;
   const postStartCommand = 'direnv allow 2>/dev/null || true';
 
   const language = detected?.language || 'unknown';
@@ -470,7 +470,6 @@ function getDevContainerConfig(
         image: 'mcr.microsoft.com/devcontainers/typescript-node:22',
         features: {
           ...baseFeatures,
-          'ghcr.io/devcontainers-contrib/features/pnpm:2': {},
         },
         customizations: {
           vscode: {
@@ -503,8 +502,6 @@ function getDevContainerConfig(
         features: {
           ...baseFeatures,
           'ghcr.io/devcontainers/features/node:1': { version: '22' },
-          'ghcr.io/devcontainers-contrib/features/poetry:2': {},
-          'ghcr.io/devcontainers-contrib/features/uv:1': {},
         },
         customizations: {
           vscode: {
@@ -530,7 +527,7 @@ function getDevContainerConfig(
           },
         },
         containerEnv,
-        postCreateCommand: `${postCreateBase} && pip install aider-chat`,
+        postCreateCommand: `${postCreateBase} && pip install poetry uv aider-chat`,
         postStartCommand,
         remoteUser: 'vscode',
       };
