@@ -90,3 +90,55 @@ agentCommand
       process.exit(1);
     }
   });
+
+// rapid agent yolo
+agentCommand
+  .command('yolo [name]')
+  .description('Enable YOLO mode (skip all permission prompts) for an agent')
+  .option('--off', 'Disable YOLO mode')
+  .action(async (name, options) => {
+    try {
+      const loaded = await loadConfig();
+
+      if (!loaded) {
+        logger.error('No rapid.json found. Run `rapid init` first.');
+        process.exit(1);
+      }
+
+      const { config } = loaded;
+      const agentName = name || config.agents.default;
+
+      // Check if agent exists
+      if (!config.agents.available[agentName]) {
+        logger.error(`Agent "${agentName}" not found in configuration`);
+        logger.info('Available agents:');
+        Object.keys(config.agents.available).forEach((n) => {
+          console.log(`  - ${n}`);
+        });
+        process.exit(1);
+      }
+
+      const agent = config.agents.available[agentName];
+      const enabling = !options.off;
+
+      // Check if agent supports yolo mode
+      if (enabling && agent.cli !== 'claude') {
+        logger.warn(`YOLO mode is only supported for Claude (${agentName} uses ${agent.cli})`);
+        logger.info('Continuing anyway...');
+      }
+
+      // Update and save the config
+      agent.yolo = enabling;
+      await writeFile(loaded.filepath, JSON.stringify(config, null, 2) + '\n');
+
+      if (enabling) {
+        logger.success(`YOLO mode enabled for "${agentName}"`);
+        logger.dim('Permission prompts will be skipped (--dangerously-skip-permissions)');
+      } else {
+        logger.success(`YOLO mode disabled for "${agentName}"`);
+      }
+    } catch (error) {
+      logger.error(error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });

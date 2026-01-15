@@ -189,6 +189,11 @@
             "type": "string"
           },
           "description": "Additional CLI arguments"
+        },
+        "yolo": {
+          "type": "boolean",
+          "default": false,
+          "description": "YOLO mode: Skip all permission prompts (adds --dangerously-skip-permissions for Claude). Only use in trusted environments."
         }
       }
     },

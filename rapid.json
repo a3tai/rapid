@@ -7,7 +7,8 @@
       "claude": {
         "cli": "claude",
         "instructionFile": "CLAUDE.md",
-        "envVars": ["ANTHROPIC_API_KEY"]
+        "envVars": ["ANTHROPIC_API_KEY"],
+        "yolo": true
       },
       "opencode": {
         "cli": "opencode",

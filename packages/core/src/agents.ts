@@ -86,7 +86,12 @@ export function buildAgentArgs(
     customPrompt?: string;
   }
 ): string[] {
-  const baseArgs = agent.args ?? [];
+  const baseArgs = [...(agent.args ?? [])];
+
+  // YOLO mode: add --dangerously-skip-permissions for Claude
+  if (agent.yolo && agent.cli === 'claude') {
+    baseArgs.push('--dangerously-skip-permissions');
+  }
 
   // If agent doesn't support CLI system prompt injection, or injection is disabled
   if (!agent.systemPromptArg || options?.injectSystemPrompt === false) {

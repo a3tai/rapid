@@ -80,6 +80,12 @@ export interface AgentDefinition {
    * If false, RAPID will try to inject prompts via CLI args.
    */
   readsInstructionFiles?: boolean;
+  /**
+   * YOLO mode: Skip all permission prompts when launching the agent.
+   * For Claude, this adds the --dangerously-skip-permissions flag.
+   * WARNING: Only use in trusted environments (dev containers, CI, etc.)
+   */
+  yolo?: boolean;
 }
 
 export interface ContextConfig {
