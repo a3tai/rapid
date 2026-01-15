@@ -21,7 +21,7 @@ export type {
   DetectedCredential,
   ExternalAuthConfig,
   AuthStatus,
-} from './types.js';
+} from "./types.js";
 
 // Config
 export {
@@ -30,7 +30,7 @@ export {
   getDefaultConfig,
   mergeWithDefaults,
   type LoadedConfig,
-} from './config.js';
+} from "./config.js";
 
 // Agents
 export {
@@ -42,10 +42,10 @@ export {
   buildAgentArgs,
   agentReadsInstructionFiles,
   agentSupportsRuntimeInjection,
-} from './agents.js';
+} from "./agents.js";
 
 // Logger
-export { logger, setLogLevel, getLogLevel, type LogLevel } from './logger.js';
+export { logger, setLogLevel, getLogLevel, type LogLevel } from "./logger.js";
 
 // Container
 export {
@@ -60,7 +60,7 @@ export {
   execInContainer,
   type ContainerStatus,
   type DevcontainerConfig,
-} from './container.js';
+} from "./container.js";
 
 // Secrets
 export {
@@ -83,7 +83,7 @@ export {
   type SecretStatus,
   type SecretsStatus,
   type OpAuthStatus,
-} from './secrets.js';
+} from "./secrets.js";
 
 // External Auth
 export {
@@ -97,7 +97,7 @@ export {
   getCredentialsForProvider,
   getAuthEnvironment,
   formatAuthStatus,
-} from './external-auth.js';
+} from "./external-auth.js";
 
 // System Messages
 export {
@@ -113,7 +113,7 @@ export {
   getStandardAgentInstructions,
   generateFullSystemPrompt,
   type RapidPhase,
-} from './system-messages.js';
+} from "./system-messages.js";
 
 // MCP
 export {
@@ -145,4 +145,7 @@ export {
   type OpenCodeConfig,
   type OpenCodeMcpEntry,
   type McpServerTemplate,
-} from './mcp.js';
+} from "./mcp.js";
+
+// Formatting
+export { formatJson, formatJsonSync } from "./format.js";
