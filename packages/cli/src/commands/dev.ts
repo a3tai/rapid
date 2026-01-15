@@ -6,9 +6,9 @@
  * - On feature branches: creates sibling worktree (e.g., ../project-feat-my-feature/)
  */
 
-import { Command } from "commander";
-import { writeFile } from "node:fs/promises";
-import { isAbsolute, join } from "node:path";
+import { Command } from 'commander';
+import { writeFile } from 'node:fs/promises';
+import { isAbsolute, join } from 'node:path';
 import {
   loadConfig,
   getAgent,
@@ -28,13 +28,9 @@ import {
   formatJson,
   type McpConfig,
   type AgentDefinition,
-} from "@a3t/rapid-core";
-import ora from "ora";
-import {
-  isGitRepo,
-  getCurrentBranch,
-  getOrCreateWorktreeForBranch,
-} from "../utils/worktree.js";
+} from '@a3t/rapid-core';
+import ora from 'ora';
+import { isGitRepo, getCurrentBranch, getOrCreateWorktreeForBranch } from '../utils/worktree.js';
 import {
   hasLima,
   isMacOS,
@@ -43,36 +39,33 @@ import {
   execInLima,
   ensureAgentInstalled,
   RAPID_LIMA_INSTANCE,
-} from "../isolation/lima.js";
+} from '../isolation/lima.js';
 
-export const devCommand = new Command("dev")
-  .description("Launch AI coding session in the dev container")
-  .option("-a, --agent <name>", "Agent to use")
+export const devCommand = new Command('dev')
+  .description('Launch AI coding session in the dev container')
+  .option('-a, --agent <name>', 'Agent to use')
   .option(
-    "--multi [agents]",
-    "Launch multiple agents (comma-separated, or interactive if no value)",
+    '--multi [agents]',
+    'Launch multiple agents (comma-separated, or interactive if no value)'
   )
-  .option("--list", "List available agents without launching")
-  .option("--local", "Run locally instead of in container (not recommended)")
-  .option("--no-start", "Do not auto-start container if stopped")
-  .option(
-    "--no-worktree",
-    "Skip automatic worktree creation for feature branches",
-  )
+  .option('--list', 'List available agents without launching')
+  .option('--local', 'Run locally instead of in container (not recommended)')
+  .option('--no-start', 'Do not auto-start container if stopped')
+  .option('--no-worktree', 'Skip automatic worktree creation for feature branches')
   .action(async (options) => {
     try {
       // Load config
-      const spinner = ora("Loading configuration...").start();
+      const spinner = ora('Loading configuration...').start();
       const loaded = await loadConfig();
 
       if (!loaded) {
-        spinner.fail("No rapid.json found. Run `rapid init` first.");
+        spinner.fail('No rapid.json found. Run `rapid init` first.');
         process.exit(1);
       }
 
       const { config } = loaded;
       let { rootDir } = loaded;
-      spinner.succeed("Configuration loaded");
+      spinner.succeed('Configuration loaded');
 
       // List mode
       if (options.list) {
@@ -100,7 +93,7 @@ export const devCommand = new Command("dev")
               spinner.info(`Using main directory (branch: ${branch.name})`);
             }
           } catch (err) {
-            spinner.warn("Could not create worktree, using main directory");
+            spinner.warn('Could not create worktree, using main directory');
             logger.debug(err instanceof Error ? err.message : String(err));
           }
         }
@@ -118,20 +111,18 @@ export const devCommand = new Command("dev")
 
       if (!agent) {
         logger.error(`Agent "${agentName}" not found in configuration`);
-        logger.info("Available agents:");
+        logger.info('Available agents:');
         Object.keys(config.agents.available).forEach((name) => {
           const isDefault = name === config.agents.default;
-          console.log(
-            `  ${isDefault ? "* " : "  "}${name}${isDefault ? " (default)" : ""}`,
-          );
+          console.log(`  ${isDefault ? '* ' : '  '}${name}${isDefault ? ' (default)' : ''}`);
         });
         process.exit(1);
       }
 
       // Check if running locally (not recommended)
       if (options.local) {
-        logger.warn("Running locally instead of in container");
-        logger.dim("This bypasses the isolated dev environment");
+        logger.warn('Running locally instead of in container');
+        logger.dim('This bypasses the isolated dev environment');
         logger.blank();
         await runLocally(agent, agentName, rootDir, config);
         return;
@@ -140,34 +131,32 @@ export const devCommand = new Command("dev")
       // Check for devcontainer CLI
       const hasDevCli = await hasDevcontainerCli();
       if (!hasDevCli) {
-        logger.error("devcontainer CLI not found");
-        logger.info("Install with: npm install -g @devcontainers/cli");
+        logger.error('devcontainer CLI not found');
+        logger.info('Install with: npm install -g @devcontainers/cli');
         logger.blank();
-        logger.info(
-          "Or use --local to run without container (not recommended)",
-        );
+        logger.info('Or use --local to run without container (not recommended)');
         process.exit(1);
       }
 
       // Check container status
-      spinner.start("Checking container status...");
+      spinner.start('Checking container status...');
       const status = await getContainerStatus(rootDir, config);
 
       if (!status.running) {
         if (options.start === false) {
-          spinner.fail("Container not running. Use `rapid start` first.");
+          spinner.fail('Container not running. Use `rapid start` first.');
           process.exit(1);
         }
 
         // Auto-start the container
-        spinner.text = "Starting container...";
-        spinner.stopAndPersist({ symbol: "🐳", text: "Starting container..." });
+        spinner.text = 'Starting container...';
+        spinner.stopAndPersist({ symbol: '🐳', text: 'Starting container...' });
 
         const result = await startContainer(rootDir, config, { quiet: false });
         if (!result.success) {
           logger.blank();
-          logger.error("Failed to start container");
-          logger.error(result.error || "Unknown error");
+          logger.error('Failed to start container');
+          logger.error(result.error || 'Unknown error');
           process.exit(1);
         }
         logger.blank();
@@ -180,80 +169,66 @@ export const devCommand = new Command("dev")
       const secretsConfig = config.secrets;
 
       if (secretsConfig?.items && Object.keys(secretsConfig.items).length > 0) {
-        const provider = secretsConfig.provider || "env";
+        const provider = secretsConfig.provider || 'env';
 
-        if (provider === "1password") {
-          spinner.start("Loading secrets from 1Password...");
+        if (provider === '1password') {
+          spinner.start('Loading secrets from 1Password...');
 
           const hasOp = await hasOpCli();
           if (!hasOp) {
-            spinner.warn(
-              "1Password CLI not found - secrets will not be loaded",
-            );
-            logger.info("Install with: brew install 1password-cli");
+            spinner.warn('1Password CLI not found - secrets will not be loaded');
+            logger.info('Install with: brew install 1password-cli');
           } else {
             const authenticated = await isOpAuthenticated();
             if (!authenticated) {
-              spinner.warn(
-                "1Password not authenticated - secrets will not be loaded",
-              );
-              logger.info("Run: eval $(op signin)");
+              spinner.warn('1Password not authenticated - secrets will not be loaded');
+              logger.info('Run: eval $(op signin)');
             } else {
               try {
                 secrets = await loadSecrets(secretsConfig);
                 const count = Object.keys(secrets).length;
-                spinner.succeed(
-                  `Loaded ${count} secret${count !== 1 ? "s" : ""} from 1Password`,
-                );
+                spinner.succeed(`Loaded ${count} secret${count !== 1 ? 's' : ''} from 1Password`);
               } catch (err) {
-                spinner.warn("Failed to load secrets from 1Password");
+                spinner.warn('Failed to load secrets from 1Password');
                 logger.debug(err instanceof Error ? err.message : String(err));
               }
             }
           }
-        } else if (provider === "vault") {
-          spinner.start("Loading secrets from Vault...");
+        } else if (provider === 'vault') {
+          spinner.start('Loading secrets from Vault...');
 
           const hasVault = await hasVaultCli();
           if (!hasVault) {
-            spinner.warn("Vault CLI not found - secrets will not be loaded");
-            logger.info(
-              "Install from: https://developer.hashicorp.com/vault/docs/install",
-            );
+            spinner.warn('Vault CLI not found - secrets will not be loaded');
+            logger.info('Install from: https://developer.hashicorp.com/vault/docs/install');
           } else {
             const authenticated = await isVaultAuthenticated();
             if (!authenticated) {
-              spinner.warn(
-                "Vault not authenticated - secrets will not be loaded",
-              );
-              logger.info("Run: vault login");
+              spinner.warn('Vault not authenticated - secrets will not be loaded');
+              logger.info('Run: vault login');
             } else {
               try {
                 secrets = await loadSecrets(secretsConfig);
                 const count = Object.keys(secrets).length;
-                spinner.succeed(
-                  `Loaded ${count} secret${count !== 1 ? "s" : ""} from Vault`,
-                );
+                spinner.succeed(`Loaded ${count} secret${count !== 1 ? 's' : ''} from Vault`);
               } catch (err) {
-                spinner.warn("Failed to load secrets from Vault");
+                spinner.warn('Failed to load secrets from Vault');
                 logger.debug(err instanceof Error ? err.message : String(err));
               }
             }
           }
-        } else if (provider === "env") {
-          spinner.start("Loading secrets from environment...");
+        } else if (provider === 'env') {
+          spinner.start('Loading secrets from environment...');
           try {
             secrets = await loadSecrets(secretsConfig);
             const count = Object.keys(secrets).length;
             if (count > 0) {
-              spinner.succeed(
-                `Loaded ${count} secret${count !== 1 ? "s" : ""} from environment`,
-              );
+              spinner.succeed(`Loaded ${count} secret${count !== 1 ? 's' : ''} from environment`);
             } else {
-              spinner.warn("No secrets found in environment");
+              spinner.warn('No secrets found in environment');
             }
           } catch (err) {
-            spinner.warn("Failed to load secrets from environment");
+            spinner.warn('Failed to load secrets from environment');
             logger.debug(err instanceof Error ? err.message : String(err));
           }
         }
@@ -266,7 +241,7 @@ export const devCommand = new Command("dev")
       // Build agent args with system prompt injection if supported
       const builtArgs = buildAgentArgs(agent, { injectSystemPrompt: true });
       if (agentSupportsRuntimeInjection(agent)) {
-        logger.dim("Injecting RAPID methodology via CLI args");
+        logger.dim('Injecting RAPID methodology via CLI args');
       }
       logger.blank();
 
@@ -288,20 +263,18 @@ export const devCommand = new Command("dev")
 
 async function prepareMcpEnv(
   rootDir: string,
-  mcp?: McpConfig,
+  mcp?: McpConfig
 ): Promise<Record<string, string> | undefined> {
   if (!mcp?.servers || Object.keys(mcp.servers).length === 0) {
     return undefined;
   }
 
-  const configFile = mcp.configFile ?? ".mcp.json";
-  const configPath = isAbsolute(configFile)
-    ? configFile
-    : join(rootDir, configFile);
+  const configFile = mcp.configFile ?? '.mcp.json';
+  const configPath = isAbsolute(configFile) ? configFile : join(rootDir, configFile);
 
   const mcpServers: Record<string, unknown> = {};
   for (const [name, serverConfig] of Object.entries(mcp.servers)) {
-    if (!serverConfig || typeof serverConfig !== "object") {
+    if (!serverConfig || typeof serverConfig !== 'object') {
       continue;
     }
 
@@ -311,7 +284,7 @@ async function prepareMcpEnv(
     }
 
     // Transform 'remote' to 'http' for Claude MCP config format
-    const outputType = type === "remote" ? "http" : type;
+    const outputType = type === 'remote' ? 'http' : type;
     mcpServers[name] = { type: outputType, ...rest };
   }
 
@@ -319,7 +292,7 @@ async function prepareMcpEnv(
     return undefined;
   }
 
-  await writeFile(configPath, await formatJson({ mcpServers }), "utf-8");
+  await writeFile(configPath, await formatJson({ mcpServers }), 'utf-8');
 
   return {
     MCP_CONFIG_FILE: configFile,
@@ -335,14 +308,14 @@ async function runLocally(
   rootDir: string,
   config: {
     secrets?: {
-      provider?: "env" | "1password" | "vault";
+      provider?: 'env' | '1password' | 'vault';
       items?: Record<string, unknown>;
     };
     mcp?: McpConfig;
     lima?: { installGh?: boolean };
-  },
+  }
 ): Promise<void> {
-  const { execa } = await import("execa");
+  const { execa } = await import('execa');
 
   // Check if agent CLI is available locally
   const status = await checkAgentAvailable(agent);
@@ -356,83 +329,67 @@ async function runLocally(
   const secretsConfig = config.secrets;
 
   if (secretsConfig?.items && Object.keys(secretsConfig.items).length > 0) {
-    const provider = secretsConfig.provider || "env";
+    const provider = secretsConfig.provider || 'env';
     const spinner = ora();
 
-    if (provider === "1password") {
-      spinner.start("Loading secrets from 1Password...");
+    if (provider === '1password') {
+      spinner.start('Loading secrets from 1Password...');
 
       const hasOp = await hasOpCli();
       if (!hasOp) {
-        spinner.warn("1Password CLI not found - secrets will not be loaded");
-        logger.info("Install with: brew install 1password-cli");
+        spinner.warn('1Password CLI not found - secrets will not be loaded');
+        logger.info('Install with: brew install 1password-cli');
       } else {
         const authenticated = await isOpAuthenticated();
         if (!authenticated) {
-          spinner.warn(
-            "1Password not authenticated - secrets will not be loaded",
-          );
-          logger.info("Run: eval $(op signin)");
+          spinner.warn('1Password not authenticated - secrets will not be loaded');
+          logger.info('Run: eval $(op signin)');
         } else {
           try {
-            secrets = await loadSecrets(
-              secretsConfig as Parameters<typeof loadSecrets>[0],
-            );
+            secrets = await loadSecrets(secretsConfig as Parameters<typeof loadSecrets>[0]);
             const count = Object.keys(secrets).length;
-            spinner.succeed(
-              `Loaded ${count} secret${count !== 1 ? "s" : ""} from 1Password`,
-            );
+            spinner.succeed(`Loaded ${count} secret${count !== 1 ? 's' : ''} from 1Password`);
           } catch (err) {
-            spinner.warn("Failed to load secrets from 1Password");
+            spinner.warn('Failed to load secrets from 1Password');
             logger.debug(err instanceof Error ? err.message : String(err));
           }
         }
       }
-    } else if (provider === "vault") {
-      spinner.start("Loading secrets from Vault...");
+    } else if (provider === 'vault') {
+      spinner.start('Loading secrets from Vault...');
 
       const hasVault = await hasVaultCli();
       if (!hasVault) {
-        spinner.warn("Vault CLI not found - secrets will not be loaded");
-        logger.info(
-          "Install from: https://developer.hashicorp.com/vault/docs/install",
-        );
+        spinner.warn('Vault CLI not found - secrets will not be loaded');
+        logger.info('Install from: https://developer.hashicorp.com/vault/docs/install');
       } else {
         const authenticated = await isVaultAuthenticated();
         if (!authenticated) {
-          spinner.warn("Vault not authenticated - secrets will not be loaded");
-          logger.info("Run: vault login");
+          spinner.warn('Vault not authenticated - secrets will not be loaded');
+          logger.info('Run: vault login');
         } else {
           try {
-            secrets = await loadSecrets(
-              secretsConfig as Parameters<typeof loadSecrets>[0],
-            );
+            secrets = await loadSecrets(secretsConfig as Parameters<typeof loadSecrets>[0]);
             const count = Object.keys(secrets).length;
-            spinner.succeed(
-              `Loaded ${count} secret${count !== 1 ? "s" : ""} from Vault`,
-            );
+            spinner.succeed(`Loaded ${count} secret${count !== 1 ? 's' : ''} from Vault`);
           } catch (err) {
-            spinner.warn("Failed to load secrets from Vault");
+            spinner.warn('Failed to load secrets from Vault');
             logger.debug(err instanceof Error ? err.message : String(err));
           }
         }
       }
-    } else if (provider === "env") {
-      spinner.start("Loading secrets from environment...");
+    } else if (provider === 'env') {
+      spinner.start('Loading secrets from environment...');
       try {
-        secrets = await loadSecrets(
-          secretsConfig as Parameters<typeof loadSecrets>[0],
-        );
+        secrets = await loadSecrets(secretsConfig as Parameters<typeof loadSecrets>[0]);
         const count = Object.keys(secrets).length;
         if (count > 0) {
-          spinner.succeed(
-            `Loaded ${count} secret${count !== 1 ? "s" : ""} from environment`,
-          );
+          spinner.succeed(`Loaded ${count} secret${count !== 1 ? 's' : ''} from environment`);
         } else {
-          spinner.warn("No secrets found in environment");
+          spinner.warn('No secrets found in environment');
         }
       } catch (err) {
-        spinner.warn("Failed to load secrets from environment");
+        spinner.warn('Failed to load secrets from environment');
         logger.debug(err instanceof Error ? err.message : String(err));
       }
     }
@@ -456,13 +413,13 @@ async function runLocally(
   logger.dim(`Working directory: ${rootDir}`);
 
   if (agentSupportsRuntimeInjection(agent)) {
-    logger.dim("Injecting RAPID methodology via CLI args");
+    logger.dim('Injecting RAPID methodology via CLI args');
   }
   logger.blank();
 
   await execa(agent.cli, builtArgs, {
     cwd: rootDir,
-    stdio: "inherit",
+    stdio: 'inherit',
     env: {
       ...process.env,
       ...mergedEnv,
@@ -479,7 +436,7 @@ async function runInLimaVm(
   rootDir: string,
   args: string[],
   env: Record<string, string>,
-  limaConfig?: { installGh?: boolean },
+  limaConfig?: { installGh?: boolean }
 ): Promise<void> {
   const spinner = ora();
 
@@ -494,17 +451,17 @@ async function runInLimaVm(
     });
 
     if (!result.success) {
-      spinner.fail("Failed to start Lima VM");
-      logger.error(result.error ?? "Unknown error");
+      spinner.fail('Failed to start Lima VM');
+      logger.error(result.error ?? 'Unknown error');
       logger.blank();
-      logger.info("Falling back to running directly on host...");
+      logger.info('Falling back to running directly on host...');
       logger.blank();
 
       // Fall back to direct execution
-      const { execa } = await import("execa");
+      const { execa } = await import('execa');
       await execa(agent.cli, args, {
         cwd: rootDir,
-        stdio: "inherit",
+        stdio: 'inherit',
         env: {
           ...process.env,
           ...env,
@@ -513,7 +470,7 @@ async function runInLimaVm(
       return;
     }
 
-    spinner.succeed("Lima VM started");
+    spinner.succeed('Lima VM started');
   } else {
     logger.info(`Lima VM (${RAPID_LIMA_INSTANCE}) is running`);
   }
@@ -524,16 +481,16 @@ async function runInLimaVm(
 
   if (!installResult.success) {
     spinner.fail(`Failed to install ${agentName} in Lima VM`);
-    logger.error(installResult.error ?? "Unknown error");
+    logger.error(installResult.error ?? 'Unknown error');
     logger.blank();
-    logger.info("Falling back to running directly on host...");
+    logger.info('Falling back to running directly on host...');
     logger.blank();
 
     // Fall back to direct execution
-    const { execa } = await import("execa");
+    const { execa } = await import('execa');
     await execa(agent.cli, args, {
       cwd: rootDir,
-      stdio: "inherit",
+      stdio: 'inherit',
       env: {
         ...process.env,
         ...env,
@@ -546,7 +503,7 @@ async function runInLimaVm(
 
   logger.info(`Launching ${logger.brand(agentName)} in Lima VM...`);
   logger.dim(`Working directory: ${rootDir}`);
-  logger.dim("SSH agent forwarded for commit signing");
+  logger.dim('SSH agent forwarded for commit signing');
   logger.blank();
 
   // Execute the agent inside the Lima VM
@@ -561,17 +518,17 @@ async function runInLimaVm(
 function listAgents(config: {
   agents: { default: string; available: Record<string, unknown> };
 }): void {
-  logger.header("Available Agents");
+  logger.header('Available Agents');
 
   Object.keys(config.agents.available).forEach((name) => {
     const isDefault = name === config.agents.default;
     console.log(
-      `  ${isDefault ? logger.brand("*") : " "} ${name}${isDefault ? logger.dim(" (default)") : ""}`,
+      `  ${isDefault ? logger.brand('*') : ' '} ${name}${isDefault ? logger.dim(' (default)') : ''}`
     );
   });
 
   logger.blank();
-  logger.dim("Use --agent <name> to select a specific agent");
+  logger.dim('Use --agent <name> to select a specific agent');
 }
 
 /**
@@ -585,21 +542,21 @@ async function runMultiAgent(
     };
   },
   rootDir: string,
-  options: { multi?: string | boolean; local?: boolean },
+  options: { multi?: string | boolean; local?: boolean }
 ): Promise<void> {
   const availableAgents = Object.keys(config.agents.available);
 
   if (availableAgents.length === 0) {
-    logger.error("No agents configured");
+    logger.error('No agents configured');
     process.exit(1);
   }
 
   let selectedAgents: string[];
 
-  if (typeof options.multi === "string") {
+  if (typeof options.multi === 'string') {
     // Parse comma-separated agent list
     selectedAgents = options.multi
-      .split(",")
+      .split(',')
       .map((a) => a.trim())
       .filter(Boolean);
 
@@ -607,65 +564,61 @@ async function runMultiAgent(
     for (const name of selectedAgents) {
       if (!config.agents.available[name]) {
         logger.error(`Agent "${name}" not found in configuration`);
-        logger.info("Available agents: " + availableAgents.join(", "));
+        logger.info('Available agents: ' + availableAgents.join(', '));
         process.exit(1);
       }
     }
   } else {
     // Show available agents and instructions
-    logger.header("Multi-Agent Mode");
+    logger.header('Multi-Agent Mode');
     console.log();
-    console.log("  Available agents:");
+    console.log('  Available agents:');
     for (const name of availableAgents) {
       const isDefault = name === config.agents.default;
-      console.log(
-        `    ${logger.brand("•")} ${name}${isDefault ? logger.dim(" (default)") : ""}`,
-      );
+      console.log(`    ${logger.brand('•')} ${name}${isDefault ? logger.dim(' (default)') : ''}`);
     }
     console.log();
-    logger.info("To run multiple agents, specify them with:");
-    console.log(`  ${logger.brand("rapid dev --multi claude,aider")}`);
+    logger.info('To run multiple agents, specify them with:');
+    console.log(`  ${logger.brand('rapid dev --multi claude,aider')}`);
     console.log();
-    logger.info("Or run agents in separate terminals:");
+    logger.info('Or run agents in separate terminals:');
     for (const name of availableAgents) {
-      console.log(`  ${logger.dim("$")} rapid dev --agent ${name}`);
+      console.log(`  ${logger.dim('$')} rapid dev --agent ${name}`);
     }
     console.log();
-    logger.warn(
-      "Note: Running multiple agents simultaneously requires separate terminal windows.",
-    );
-    logger.info("Each agent maintains its own session and context.");
+    logger.warn('Note: Running multiple agents simultaneously requires separate terminal windows.');
+    logger.info('Each agent maintains its own session and context.');
     console.log();
     return;
   }
 
   if (selectedAgents.length === 0) {
-    logger.error("No agents specified");
+    logger.error('No agents specified');
     process.exit(1);
   }
 
   if (selectedAgents.length === 1) {
     logger.info(
-      `Only one agent specified. Use ${logger.brand("rapid dev --agent " + selectedAgents[0])} instead.`,
+      `Only one agent specified. Use ${logger.brand('rapid dev --agent ' + selectedAgents[0])} instead.`
     );
     process.exit(0);
   }
 
   // Show what we're about to do
-  logger.header("Multi-Agent Session");
+  logger.header('Multi-Agent Session');
   console.log();
-  console.log("  Selected agents:");
+  console.log('  Selected agents:');
   for (const name of selectedAgents) {
-    console.log(`    ${logger.brand("•")} ${name}`);
+    console.log(`    ${logger.brand('•')} ${name}`);
   }
   console.log();
 
   // Check for tmux
-  const { execa } = await import("execa");
+  const { execa } = await import('execa');
   let hasTmux = false;
 
   try {
-    await execa("tmux", ["-V"]);
+    await execa('tmux', ['-V']);
     hasTmux = true;
   } catch {
     hasTmux = false;
@@ -673,7 +626,7 @@ async function runMultiAgent(
 
   if (hasTmux) {
     // Use tmux for multi-agent
-    logger.info("Launching agents in tmux panes...");
+    logger.info('Launching agents in tmux panes...');
     console.log();
 
     const sessionName = `rapid-${Date.now()}`;
@@ -684,13 +637,9 @@ async function runMultiAgent(
       ? `rapid dev --agent ${firstAgent} --local`
       : `rapid dev --agent ${firstAgent}`;
 
-    await execa(
-      "tmux",
-      ["new-session", "-d", "-s", sessionName, "-n", "rapid", firstCmd],
-      {
-        cwd: rootDir,
-      },
-    );
+    await execa('tmux', ['new-session', '-d', '-s', sessionName, '-n', 'rapid', firstCmd], {
+      cwd: rootDir,
+    });
 
     // Split panes for remaining agents
     for (let i = 1; i < selectedAgents.length; i++) {
@@ -699,48 +648,40 @@ async function runMultiAgent(
         ? `rapid dev --agent ${agentName} --local`
         : `rapid dev --agent ${agentName}`;
 
-      await execa("tmux", ["split-window", "-t", sessionName, "-h", cmd], {
+      await execa('tmux', ['split-window', '-t', sessionName, '-h', cmd], {
         cwd: rootDir,
       });
 
       // Rebalance panes
-      await execa("tmux", ["select-layout", "-t", sessionName, "tiled"]);
+      await execa('tmux', ['select-layout', '-t', sessionName, 'tiled']);
     }
 
     // Attach to the session
-    logger.success(
-      `Started ${selectedAgents.length} agents in tmux session: ${sessionName}`,
-    );
+    logger.success(`Started ${selectedAgents.length} agents in tmux session: ${sessionName}`);
     console.log();
-    logger.info("Attaching to tmux session...");
-    logger.dim(
-      "Press Ctrl+B then D to detach, or Ctrl+B then arrow keys to switch panes",
-    );
+    logger.info('Attaching to tmux session...');
+    logger.dim('Press Ctrl+B then D to detach, or Ctrl+B then arrow keys to switch panes');
     console.log();
 
-    await execa("tmux", ["attach-session", "-t", sessionName], {
-      stdio: "inherit",
+    await execa('tmux', ['attach-session', '-t', sessionName], {
+      stdio: 'inherit',
     });
   } else {
     // No tmux - show instructions for manual setup
-    logger.warn(
-      "tmux not found. Multi-agent mode works best with tmux installed.",
-    );
+    logger.warn('tmux not found. Multi-agent mode works best with tmux installed.');
     console.log();
-    logger.info(
-      "To run multiple agents, open separate terminal windows and run:",
-    );
+    logger.info('To run multiple agents, open separate terminal windows and run:');
     console.log();
     for (const name of selectedAgents) {
-      const cmd = options.local ? `--local` : "";
+      const cmd = options.local ? `--local` : '';
       console.log(
-        `  ${logger.dim("Terminal " + (selectedAgents.indexOf(name) + 1) + ":")} rapid dev --agent ${name} ${cmd}`.trim(),
+        `  ${logger.dim('Terminal ' + (selectedAgents.indexOf(name) + 1) + ':')} rapid dev --agent ${name} ${cmd}`.trim()
       );
     }
     console.log();
-    logger.info("Install tmux for integrated multi-pane support:");
-    console.log(`  ${logger.dim("macOS:")}  brew install tmux`);
-    console.log(`  ${logger.dim("Ubuntu:")} sudo apt install tmux`);
+    logger.info('Install tmux for integrated multi-pane support:');
+    console.log(`  ${logger.dim('macOS:')}  brew install tmux`);
+    console.log(`  ${logger.dim('Ubuntu:')} sudo apt install tmux`);
     console.log();
   }
 }

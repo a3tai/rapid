@@ -4,18 +4,18 @@
  * Functions for managing Model Context Protocol servers in RAPID configuration.
  */
 
-import { writeFile, readFile, access } from "node:fs/promises";
-import { join, isAbsolute } from "node:path";
-import type { RapidConfig, McpServerConfig } from "./types.js";
-import { getMcpTemplate } from "./mcp-templates.js";
-import { formatJson } from "./format.js";
+import { writeFile, readFile, access } from 'node:fs/promises';
+import { join, isAbsolute } from 'node:path';
+import type { RapidConfig, McpServerConfig } from './types.js';
+import { getMcpTemplate } from './mcp-templates.js';
+import { formatJson } from './format.js';
 
 /**
  * Extended MCP server configuration with type-safe properties
  */
 export interface McpServerDefinition extends McpServerConfig {
   enabled?: boolean;
-  type?: "remote" | "stdio";
+  type?: 'remote' | 'stdio';
   url?: string;
   headers?: Record<string, string>;
   command?: string;
@@ -29,7 +29,7 @@ export interface McpServerDefinition extends McpServerConfig {
 export interface McpServerInfo {
   name: string;
   enabled: boolean;
-  type: "remote" | "stdio";
+  type: 'remote' | 'stdio';
   url?: string | undefined;
   command?: string | undefined;
   template?: string | undefined;
@@ -39,7 +39,7 @@ export interface McpServerInfo {
  * MCP server status
  */
 export interface McpServerStatus extends McpServerInfo {
-  status: "enabled" | "disabled" | "error";
+  status: 'enabled' | 'disabled' | 'error';
   error?: string | undefined;
 }
 
@@ -54,7 +54,7 @@ export interface GeneratedMcpConfig {
  * Single server entry in generated config
  */
 export interface McpServerEntry {
-  type?: "http" | "stdio";
+  type?: 'http' | 'stdio';
   url?: string | undefined;
   headers?: Record<string, string> | undefined;
   command?: string | undefined;
@@ -76,7 +76,7 @@ export interface OpenCodeConfig {
  * OpenCode MCP entry format
  */
 export interface OpenCodeMcpEntry {
-  type: "remote" | "stdio";
+  type: 'remote' | 'stdio';
   url?: string | undefined;
   headers?: Record<string, string> | undefined;
   command?: string | undefined;
@@ -95,7 +95,7 @@ export function getMcpServers(config: RapidConfig): McpServerInfo[] {
   }
 
   for (const [name, serverConfig] of Object.entries(config.mcp.servers)) {
-    if (!serverConfig || typeof serverConfig !== "object") {
+    if (!serverConfig || typeof serverConfig !== 'object') {
       continue;
     }
 
@@ -105,7 +105,7 @@ export function getMcpServers(config: RapidConfig): McpServerInfo[] {
     servers.push({
       name,
       enabled: def.enabled !== false,
-      type: def.type ?? template?.type ?? "stdio",
+      type: def.type ?? template?.type ?? 'stdio',
       url: def.url ?? template?.url,
       command: def.command ?? template?.command,
       template: template ? name : undefined,
@@ -123,7 +123,7 @@ export function getMcpServerStatus(config: RapidConfig): McpServerStatus[] {
 
   return servers.map((server) => ({
     ...server,
-    status: server.enabled ? ("enabled" as const) : ("disabled" as const),
+    status: server.enabled ? ('enabled' as const) : ('disabled' as const),
   }));
 }
 
@@ -133,13 +133,13 @@ export function getMcpServerStatus(config: RapidConfig): McpServerStatus[] {
 export function addMcpServer(
   config: RapidConfig,
   name: string,
-  serverConfig: McpServerDefinition,
+  serverConfig: McpServerDefinition
 ): RapidConfig {
   return {
     ...config,
     mcp: {
       ...config.mcp,
-      configFile: config.mcp?.configFile ?? ".mcp.json",
+      configFile: config.mcp?.configFile ?? '.mcp.json',
       servers: {
         ...config.mcp?.servers,
         [name]: serverConfig,
@@ -151,10 +151,7 @@ export function addMcpServer(
 /**
  * Add an MCP server from a template
  */
-export function addMcpServerFromTemplate(
-  config: RapidConfig,
-  templateName: string,
-): RapidConfig {
+export function addMcpServerFromTemplate(config: RapidConfig, templateName: string): RapidConfig {
   const template = getMcpTemplate(templateName);
   if (!template) {
     throw new Error(`Unknown MCP server template: ${templateName}`);
@@ -166,7 +163,7 @@ export function addMcpServerFromTemplate(
   };
 
   // Add type-specific config
-  if (template.type === "remote") {
+  if (template.type === 'remote') {
     if (template.url) {
       serverConfig.url = template.url;
     }
@@ -191,10 +188,7 @@ export function addMcpServerFromTemplate(
 /**
  * Remove an MCP server from configuration
  */
-export function removeMcpServer(
-  config: RapidConfig,
-  name: string,
-): RapidConfig {
+export function removeMcpServer(config: RapidConfig, name: string): RapidConfig {
   if (!config.mcp?.servers?.[name]) {
     throw new Error(`MCP server not found: ${name}`);
   }
@@ -213,10 +207,7 @@ export function removeMcpServer(
 /**
  * Enable an MCP server
  */
-export function enableMcpServer(
-  config: RapidConfig,
-  name: string,
-): RapidConfig {
+export function enableMcpServer(config: RapidConfig, name: string): RapidConfig {
   if (!config.mcp?.servers?.[name]) {
     throw new Error(`MCP server not found: ${name}`);
   }
@@ -239,10 +230,7 @@ export function enableMcpServer(
 /**
  * Disable an MCP server
  */
-export function disableMcpServer(
-  config: RapidConfig,
-  name: string,
-): RapidConfig {
+export function disableMcpServer(config: RapidConfig, name: string): RapidConfig {
   if (!config.mcp?.servers?.[name]) {
     throw new Error(`MCP server not found: ${name}`);
   }
@@ -273,7 +261,7 @@ export function generateMcpConfig(config: RapidConfig): GeneratedMcpConfig {
   }
 
   for (const [name, serverConfig] of Object.entries(config.mcp.servers)) {
-    if (!serverConfig || typeof serverConfig !== "object") {
+    if (!serverConfig || typeof serverConfig !== 'object') {
       continue;
     }
 
@@ -290,14 +278,14 @@ export function generateMcpConfig(config: RapidConfig): GeneratedMcpConfig {
     const entry: McpServerEntry = {};
 
     // Determine type
-    const type = def.type ?? template?.type ?? "stdio";
+    const type = def.type ?? template?.type ?? 'stdio';
 
-    if (type === "remote") {
-      entry.type = "http";
+    if (type === 'remote') {
+      entry.type = 'http';
       entry.url = def.url ?? template?.url;
       entry.headers = def.headers ?? template?.headers;
     } else {
-      entry.type = "stdio";
+      entry.type = 'stdio';
       entry.command = def.command ?? template?.command;
       entry.args = def.args ?? template?.args;
       if (def.env ?? template?.env) {
@@ -321,10 +309,10 @@ export function generateOpenCodeConfig(config: RapidConfig): OpenCodeConfig {
   // OpenCode reads AGENTS.md automatically, but we also include it explicitly
   // to ensure the methodology is always available
   const openCodeConfig: OpenCodeConfig = {
-    $schema: "https://opencode.ai/config.json",
+    $schema: 'https://opencode.ai/config.json',
     // Include AGENTS.md which contains RAPID methodology
     // OpenCode will read this file and include it in context
-    instructions: ["AGENTS.md"],
+    instructions: ['AGENTS.md'],
   };
 
   if (!config.mcp?.servers) {
@@ -333,7 +321,7 @@ export function generateOpenCodeConfig(config: RapidConfig): OpenCodeConfig {
   }
 
   for (const [name, serverConfig] of Object.entries(config.mcp.servers)) {
-    if (!serverConfig || typeof serverConfig !== "object") {
+    if (!serverConfig || typeof serverConfig !== 'object') {
       continue;
     }
 
@@ -347,20 +335,20 @@ export function generateOpenCodeConfig(config: RapidConfig): OpenCodeConfig {
     // Get template for defaults
     const template = getMcpTemplate(name);
 
-    const type = def.type ?? template?.type ?? "stdio";
+    const type = def.type ?? template?.type ?? 'stdio';
 
     const entry: OpenCodeMcpEntry = {
       type: type,
     };
 
-    if (type === "remote") {
+    if (type === 'remote') {
       entry.url = def.url ?? template?.url;
       const headers = def.headers ?? template?.headers;
       if (headers) {
         // OpenCode uses {env:VAR} format instead of ${VAR}
         entry.headers = {};
         for (const [key, value] of Object.entries(headers)) {
-          entry.headers[key] = value.replace(/\$\{(\w+)\}/g, "{env:$1}");
+          entry.headers[key] = value.replace(/\$\{(\w+)\}/g, '{env:$1}');
         }
       }
     } else {
@@ -381,43 +369,30 @@ export function generateOpenCodeConfig(config: RapidConfig): OpenCodeConfig {
 /**
  * Write .mcp.json file
  */
-export async function writeMcpConfig(
-  rootDir: string,
-  config: RapidConfig,
-): Promise<void> {
+export async function writeMcpConfig(rootDir: string, config: RapidConfig): Promise<void> {
   const mcpConfig = generateMcpConfig(config);
-  const configFile = config.mcp?.configFile ?? ".mcp.json";
-  const configPath = isAbsolute(configFile)
-    ? configFile
-    : join(rootDir, configFile);
+  const configFile = config.mcp?.configFile ?? '.mcp.json';
+  const configPath = isAbsolute(configFile) ? configFile : join(rootDir, configFile);
 
-  await writeFile(configPath, await formatJson(mcpConfig), "utf-8");
+  await writeFile(configPath, await formatJson(mcpConfig), 'utf-8');
 }
 
 /**
  * Write opencode.json file
  */
-export async function writeOpenCodeConfig(
-  rootDir: string,
-  config: RapidConfig,
-): Promise<void> {
+export async function writeOpenCodeConfig(rootDir: string, config: RapidConfig): Promise<void> {
   const openCodeConfig = generateOpenCodeConfig(config);
-  const configPath = join(rootDir, "opencode.json");
+  const configPath = join(rootDir, 'opencode.json');
 
-  await writeFile(configPath, await formatJson(openCodeConfig), "utf-8");
+  await writeFile(configPath, await formatJson(openCodeConfig), 'utf-8');
 }
 
 /**
  * Check if .mcp.json exists
  */
-export async function hasMcpConfig(
-  rootDir: string,
-  config?: RapidConfig,
-): Promise<boolean> {
-  const configFile = config?.mcp?.configFile ?? ".mcp.json";
-  const configPath = isAbsolute(configFile)
-    ? configFile
-    : join(rootDir, configFile);
+export async function hasMcpConfig(rootDir: string, config?: RapidConfig): Promise<boolean> {
+  const configFile = config?.mcp?.configFile ?? '.mcp.json';
+  const configPath = isAbsolute(configFile) ? configFile : join(rootDir, configFile);
 
   try {
     await access(configPath);
@@ -432,15 +407,13 @@ export async function hasMcpConfig(
  */
 export async function readMcpConfig(
   rootDir: string,
-  config?: RapidConfig,
+  config?: RapidConfig
 ): Promise<GeneratedMcpConfig | null> {
-  const configFile = config?.mcp?.configFile ?? ".mcp.json";
-  const configPath = isAbsolute(configFile)
-    ? configFile
-    : join(rootDir, configFile);
+  const configFile = config?.mcp?.configFile ?? '.mcp.json';
+  const configPath = isAbsolute(configFile) ? configFile : join(rootDir, configFile);
 
   try {
-    const content = await readFile(configPath, "utf-8");
+    const content = await readFile(configPath, 'utf-8');
     return JSON.parse(content) as GeneratedMcpConfig;
   } catch {
     return null;
@@ -450,11 +423,8 @@ export async function readMcpConfig(
 /**
  * Get the MCP config file path for environment variable
  */
-export function getMcpConfigPath(
-  rootDir: string,
-  config?: RapidConfig,
-): string {
-  const configFile = config?.mcp?.configFile ?? ".mcp.json";
+export function getMcpConfigPath(rootDir: string, config?: RapidConfig): string {
+  const configFile = config?.mcp?.configFile ?? '.mcp.json';
   return isAbsolute(configFile) ? configFile : join(rootDir, configFile);
 }
 
@@ -467,4 +437,4 @@ export {
   getRequiredSecrets,
   getSecretReferences,
   type McpServerTemplate,
-} from "./mcp-templates.js";
+} from './mcp-templates.js';

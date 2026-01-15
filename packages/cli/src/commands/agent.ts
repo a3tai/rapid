@@ -2,50 +2,43 @@
  * rapid agent - Manage AI agents
  */
 
-import { writeFile } from "node:fs/promises";
-import { Command } from "commander";
-import {
-  loadConfig,
-  checkAllAgents,
-  logger,
-  formatJson,
-} from "@a3t/rapid-core";
+import { writeFile } from 'node:fs/promises';
+import { Command } from 'commander';
+import { loadConfig, checkAllAgents, logger, formatJson } from '@a3t/rapid-core';
 
-export const agentCommand = new Command("agent").description(
-  "Manage AI agents",
-);
+export const agentCommand = new Command('agent').description('Manage AI agents');
 
 // rapid agent list
 agentCommand
-  .command("list")
-  .description("List available agents")
+  .command('list')
+  .description('List available agents')
   .action(async () => {
     try {
       const loaded = await loadConfig();
 
       if (!loaded) {
-        logger.error("No rapid.json found. Run `rapid init` first.");
+        logger.error('No rapid.json found. Run `rapid init` first.');
         process.exit(1);
       }
 
       const { config } = loaded;
       const statuses = await checkAllAgents(config);
 
-      logger.header("Available Agents");
+      logger.header('Available Agents');
 
       statuses.forEach((status) => {
         const isDefault = status.name === config.agents.default;
-        const icon = status.available ? "✓" : "○";
-        const defaultTag = isDefault ? " (default)" : "";
-        const versionTag = status.version ? ` - ${status.version}` : "";
+        const icon = status.available ? '✓' : '○';
+        const defaultTag = isDefault ? ' (default)' : '';
+        const versionTag = status.version ? ` - ${status.version}` : '';
 
         if (status.available) {
           console.log(
-            `  ${logger.brand(icon)} ${status.name}${defaultTag}${logger.dim(versionTag)}`,
+            `  ${logger.brand(icon)} ${status.name}${defaultTag}${logger.dim(versionTag)}`
           );
         } else {
           console.log(
-            `  ${logger.dim(icon)} ${logger.dim(status.name)}${defaultTag} ${logger.dim("[not installed]")}`,
+            `  ${logger.dim(icon)} ${logger.dim(status.name)}${defaultTag} ${logger.dim('[not installed]')}`
           );
         }
       });
@@ -59,14 +52,14 @@ agentCommand
 
 // rapid agent default
 agentCommand
-  .command("default [name]")
-  .description("Get or set default agent")
+  .command('default [name]')
+  .description('Get or set default agent')
   .action(async (name) => {
     try {
       const loaded = await loadConfig();
 
       if (!loaded) {
-        logger.error("No rapid.json found. Run `rapid init` first.");
+        logger.error('No rapid.json found. Run `rapid init` first.');
         process.exit(1);
       }
 
@@ -81,7 +74,7 @@ agentCommand
       // Check if agent exists
       if (!config.agents.available[name]) {
         logger.error(`Agent "${name}" not found in configuration`);
-        logger.info("Available agents:");
+        logger.info('Available agents:');
         Object.keys(config.agents.available).forEach((n) => {
           console.log(`  - ${n}`);
         });
@@ -100,15 +93,15 @@ agentCommand
 
 // rapid agent yolo
 agentCommand
-  .command("yolo [name]")
-  .description("Enable YOLO mode (skip all permission prompts) for an agent")
-  .option("--off", "Disable YOLO mode")
+  .command('yolo [name]')
+  .description('Enable YOLO mode (skip all permission prompts) for an agent')
+  .option('--off', 'Disable YOLO mode')
   .action(async (name, options) => {
     try {
       const loaded = await loadConfig();
 
       if (!loaded) {
-        logger.error("No rapid.json found. Run `rapid init` first.");
+        logger.error('No rapid.json found. Run `rapid init` first.');
         process.exit(1);
       }
 
@@ -118,7 +111,7 @@ agentCommand
       // Check if agent exists
       if (!config.agents.available[agentName]) {
         logger.error(`Agent "${agentName}" not found in configuration`);
-        logger.info("Available agents:");
+        logger.info('Available agents:');
         Object.keys(config.agents.available).forEach((n) => {
           console.log(`  - ${n}`);
         });
@@ -129,11 +122,9 @@ agentCommand
       const enabling = !options.off;
 
       // Check if agent supports yolo mode
-      if (enabling && agent.cli !== "claude") {
-        logger.warn(
-          `YOLO mode is only supported for Claude (${agentName} uses ${agent.cli})`,
-        );
-        logger.info("Continuing anyway...");
+      if (enabling && agent.cli !== 'claude') {
+        logger.warn(`YOLO mode is only supported for Claude (${agentName} uses ${agent.cli})`);
+        logger.info('Continuing anyway...');
       }
 
       // Update and save the config
@@ -142,9 +133,7 @@ agentCommand
 
       if (enabling) {
         logger.success(`YOLO mode enabled for "${agentName}"`);
-        logger.dim(
-          "Permission prompts will be skipped (--dangerously-skip-permissions)",
-        );
+        logger.dim('Permission prompts will be skipped (--dangerously-skip-permissions)');
       } else {
         logger.success(`YOLO mode disabled for "${agentName}"`);
       }

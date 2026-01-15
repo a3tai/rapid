@@ -2,7 +2,7 @@
  * JSON formatting utilities using Prettier
  */
 
-import prettier from "prettier";
+import prettier from 'prettier';
 
 /**
  * Format JSON using Prettier for consistent output
@@ -12,7 +12,7 @@ import prettier from "prettier";
 export async function formatJson(data: unknown): Promise<string> {
   const json = JSON.stringify(data);
   return prettier.format(json, {
-    parser: "json",
+    parser: 'json',
     printWidth: 80,
     tabWidth: 2,
   });
@@ -24,5 +24,5 @@ export async function formatJson(data: unknown): Promise<string> {
  * @returns Formatted JSON string with trailing newline
  */
 export function formatJsonSync(data: unknown): string {
-  return JSON.stringify(data, null, 2) + "\n";
+  return JSON.stringify(data, null, 2) + '\n';
 }
