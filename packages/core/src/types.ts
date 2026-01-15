@@ -11,6 +11,15 @@ export interface RapidConfig {
   agents: AgentsConfig;
   context?: ContextConfig;
   mcp?: McpConfig;
+  lima?: LimaConfig;
+}
+
+/**
+ * Lima VM configuration
+ */
+export interface LimaConfig {
+  /** Install GitHub CLI (gh) in the VM (default: true) */
+  installGh?: boolean;
 }
 
 export interface ContainerConfig {

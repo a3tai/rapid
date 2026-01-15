@@ -33,6 +33,9 @@
     },
     "mcp": {
       "$ref": "#/definitions/McpConfig"
+    },
+    "lima": {
+      "$ref": "#/definitions/LimaConfig"
     }
   },
   "definitions": {
@@ -271,6 +274,17 @@
         }
       },
       "additionalProperties": true
+    },
+    "LimaConfig": {
+      "type": "object",
+      "description": "Lima VM configuration (macOS local mode)",
+      "properties": {
+        "installGh": {
+          "type": "boolean",
+          "default": true,
+          "description": "Install GitHub CLI (gh) in the VM"
+        }
+      }
     }
   }
 }

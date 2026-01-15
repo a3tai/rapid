@@ -74,6 +74,8 @@ export interface LimaStartOptions {
   wait?: boolean;
   /** Timeout in seconds */
   timeout?: number;
+  /** Install GitHub CLI (gh) in the VM (default: true) */
+  installGh?: boolean;
 }
 
 /**
@@ -272,6 +274,14 @@ async function createLimaConfig(
       .map(([key, value]) => `  ${key}: "${value}"`)
       .join('\n');
     config = config.replace(/env:[\s\S]*?(?=\n\w|\n#|$)/, `env:\n${envLines}\n`);
+  }
+
+  // Remove GitHub CLI installation if disabled
+  if (options.installGh === false) {
+    // Remove the GitHub CLI installation block from the provision script
+    const ghInstallPattern =
+      /\s*# Install GitHub CLI\n\s*curl -fsSL https:\/\/cli\.github\.com\/packages\/githubcli-archive-keyring\.gpg \| dd of=\/usr\/share\/keyrings\/githubcli-archive-keyring\.gpg\n\s*chmod go\+r \/usr\/share\/keyrings\/githubcli-archive-keyring\.gpg\n\s*echo "deb \[arch=\$\(dpkg --print-architecture\) signed-by=\/usr\/share\/keyrings\/githubcli-archive-keyring\.gpg\] https:\/\/cli\.github\.com\/packages stable main" \| tee \/etc\/apt\/sources\.list\.d\/github-cli\.list > \/dev\/null\n\s*apt-get update\n\s*apt-get install -y gh\n/;
+    config = config.replace(ghInstallPattern, '\n');
   }
 
   // Write customized config
@@ -553,6 +563,90 @@ export async function getSshInfo(name: string = RAPID_LIMA_INSTANCE): Promise<{
     user: process.env.USER ?? 'lima',
     identityFile: join(homedir(), '.lima', name, 'ssh', 'id_ed25519'),
   };
+}
+
+/**
+ * Known agent CLI install commands
+ */
+const AGENT_INSTALL_COMMANDS: Record<string, string[]> = {
+  claude: ['npm', 'install', '-g', '@anthropic-ai/claude-code'],
+  opencode: ['bash', '-c', 'curl -fsSL https://opencode.ai/install | bash'],
+  aider: ['pip3', 'install', '--user', 'aider-chat'],
+};
+
+/**
+ * Check if an agent CLI is available in the Lima VM
+ */
+export async function isAgentInstalled(
+  agentCli: string,
+  name: string = RAPID_LIMA_INSTANCE
+): Promise<boolean> {
+  try {
+    const result = await execInLima(['which', agentCli], { name });
+    return result.success && !!result.stdout?.trim();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Install an agent CLI in the Lima VM
+ */
+export async function installAgent(
+  agentCli: string,
+  name: string = RAPID_LIMA_INSTANCE
+): Promise<LimaResult> {
+  const installCmd = AGENT_INSTALL_COMMANDS[agentCli];
+
+  if (!installCmd) {
+    return {
+      success: false,
+      error: `Unknown agent "${agentCli}". No install command available.`,
+    };
+  }
+
+  try {
+    const result = await execInLima(installCmd, { name });
+
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error || result.stderr || `Failed to install ${agentCli}`,
+      };
+    }
+
+    // Verify installation
+    const installed = await isAgentInstalled(agentCli, name);
+    if (!installed) {
+      return {
+        success: false,
+        error: `Installation command succeeded but ${agentCli} is not in PATH`,
+      };
+    }
+
+    return { success: true };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+/**
+ * Ensure an agent CLI is available in the Lima VM, installing if necessary
+ */
+export async function ensureAgentInstalled(
+  agentCli: string,
+  name: string = RAPID_LIMA_INSTANCE
+): Promise<LimaResult> {
+  // First check if already installed
+  if (await isAgentInstalled(agentCli, name)) {
+    return { success: true };
+  }
+
+  // Try to install
+  return installAgent(agentCli, name);
 }
 
 /**
