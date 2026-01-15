@@ -37,6 +37,17 @@ export interface RapidConfig {
 
   /** Model Context Protocol server configuration */
   mcp?: McpConfig;
+
+  /** Lima VM configuration (macOS local mode) */
+  lima?: LimaConfig;
+}
+
+/**
+ * Lima VM configuration
+ */
+export interface LimaConfig {
+  /** Install GitHub CLI (gh) in the VM (default: true) */
+  installGh?: boolean;
 }
 
 /**

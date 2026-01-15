@@ -146,3 +146,6 @@ export {
   type OpenCodeMcpEntry,
   type McpServerTemplate,
 } from './mcp.js';
+
+// Formatting
+export { formatJson, formatJsonSync } from './format.js';

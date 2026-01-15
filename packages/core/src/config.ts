@@ -102,6 +102,9 @@ export function getDefaultConfig(): RapidConfig {
       dirs: ['docs/'],
       generateAgentFiles: true,
     },
+    lima: {
+      installGh: true,
+    },
   };
 }
 
@@ -129,6 +132,10 @@ export function mergeWithDefaults(config: Partial<RapidConfig>): RapidConfig {
     context: {
       ...defaults.context,
       ...config.context,
+    },
+    lima: {
+      ...defaults.lima,
+      ...config.lima,
     },
   };
 }

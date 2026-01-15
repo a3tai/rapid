@@ -25,6 +25,7 @@ import {
   isVaultAuthenticated,
   buildAgentArgs,
   agentSupportsRuntimeInjection,
+  formatJson,
   type McpConfig,
   type AgentDefinition,
 } from '@a3t/rapid-core';
@@ -36,6 +37,7 @@ import {
   isRunning as isLimaRunning,
   startInstance as startLimaInstance,
   execInLima,
+  ensureAgentInstalled,
   RAPID_LIMA_INSTANCE,
 } from '../isolation/lima.js';
 
@@ -290,7 +292,7 @@ async function prepareMcpEnv(
     return undefined;
   }
 
-  await writeFile(configPath, `${JSON.stringify({ mcpServers }, null, 2)}\n`, 'utf-8');
+  await writeFile(configPath, await formatJson({ mcpServers }), 'utf-8');
 
   return {
     MCP_CONFIG_FILE: configFile,
@@ -310,6 +312,7 @@ async function runLocally(
       items?: Record<string, unknown>;
     };
     mcp?: McpConfig;
+    lima?: { installGh?: boolean };
   }
 ): Promise<void> {
   const { execa } = await import('execa');
@@ -401,7 +404,7 @@ async function runLocally(
 
   // Check if we should use Lima VM on macOS
   if (isMacOS() && (await hasLima())) {
-    await runInLimaVm(agent, agentName, rootDir, builtArgs, mergedEnv);
+    await runInLimaVm(agent, agentName, rootDir, builtArgs, mergedEnv, config.lima);
     return;
   }
 
@@ -432,7 +435,8 @@ async function runInLimaVm(
   agentName: string,
   rootDir: string,
   args: string[],
-  env: Record<string, string>
+  env: Record<string, string>,
+  limaConfig?: { installGh?: boolean }
 ): Promise<void> {
   const spinner = ora();
 
@@ -443,6 +447,7 @@ async function runInLimaVm(
     const result = await startLimaInstance(rootDir, {
       env,
       timeout: 600, // 10 minutes for first-time setup
+      ...(limaConfig?.installGh !== undefined && { installGh: limaConfig.installGh }),
     });
 
     if (!result.success) {
@@ -469,6 +474,32 @@ async function runInLimaVm(
   } else {
     logger.info(`Lima VM (${RAPID_LIMA_INSTANCE}) is running`);
   }
+
+  // Ensure agent CLI is installed in the VM
+  spinner.start(`Checking if ${agentName} is installed in Lima VM...`);
+  const installResult = await ensureAgentInstalled(agent.cli);
+
+  if (!installResult.success) {
+    spinner.fail(`Failed to install ${agentName} in Lima VM`);
+    logger.error(installResult.error ?? 'Unknown error');
+    logger.blank();
+    logger.info('Falling back to running directly on host...');
+    logger.blank();
+
+    // Fall back to direct execution
+    const { execa } = await import('execa');
+    await execa(agent.cli, args, {
+      cwd: rootDir,
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        ...env,
+      },
+    });
+    return;
+  }
+
+  spinner.succeed(`${agentName} is available in Lima VM`);
 
   logger.info(`Launching ${logger.brand(agentName)} in Lima VM...`);
   logger.dim(`Working directory: ${rootDir}`);
@@ -505,7 +536,10 @@ function listAgents(config: {
  */
 async function runMultiAgent(
   config: {
-    agents: { default: string; available: Record<string, { cli: string; args?: string[] }> };
+    agents: {
+      default: string;
+      available: Record<string, { cli: string; args?: string[] }>;
+    };
   },
   rootDir: string,
   options: { multi?: string | boolean; local?: boolean }

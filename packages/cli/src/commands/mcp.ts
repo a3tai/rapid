@@ -19,6 +19,7 @@ import {
   writeOpenCodeConfig,
   MCP_SERVER_TEMPLATES,
   getMcpTemplate,
+  formatJson,
   type RapidConfig,
   type McpServerDefinition,
 } from '@a3t/rapid-core';
@@ -33,7 +34,7 @@ export const mcpCommand = new Command('mcp').description(
  */
 async function saveConfig(rootDir: string, config: RapidConfig): Promise<void> {
   const configPath = join(rootDir, 'rapid.json');
-  await writeFile(configPath, JSON.stringify(config, null, 2) + '\n', 'utf-8');
+  await writeFile(configPath, await formatJson(config), 'utf-8');
 }
 
 /**

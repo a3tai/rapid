@@ -17,6 +17,7 @@ import {
   RAPID_METHODOLOGY,
   MCP_USAGE_GUIDELINES,
   GIT_GUIDELINES,
+  formatJson,
   type RapidConfig,
 } from '@a3t/rapid-core';
 import ora from 'ora';
@@ -124,7 +125,11 @@ async function detectProjectType(dir: string): Promise<DetectedProject> {
       : fileSet.has('yarn.lock')
         ? 'yarn'
         : 'npm';
-    return { language: 'javascript', packageManager: pkgManager, confidence: 'medium' };
+    return {
+      language: 'javascript',
+      packageManager: pkgManager,
+      confidence: 'medium',
+    };
   }
 
   return { language: 'unknown', confidence: 'low' };
@@ -650,7 +655,7 @@ async function createDevContainer(
   const config = getDevContainerConfig(detected, usePrebuilt);
 
   // Write devcontainer.json
-  await writeFile(devcontainerJsonPath, JSON.stringify(config, null, 2) + '\n');
+  await writeFile(devcontainerJsonPath, await formatJson(config));
 
   return true;
 }
@@ -775,7 +780,7 @@ export const initCommand = new Command('init')
       }
 
       spinner.text = 'Writing rapid.json...';
-      await writeFile(configPath, JSON.stringify(config, null, 2) + '\n');
+      await writeFile(configPath, await formatJson(config));
 
       // Generate MCP config files if MCP servers are configured
       if (mcpServers.length > 0) {

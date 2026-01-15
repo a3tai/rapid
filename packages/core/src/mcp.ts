@@ -8,6 +8,7 @@ import { writeFile, readFile, access } from 'node:fs/promises';
 import { join, isAbsolute } from 'node:path';
 import type { RapidConfig, McpServerConfig } from './types.js';
 import { getMcpTemplate } from './mcp-templates.js';
+import { formatJson } from './format.js';
 
 /**
  * Extended MCP server configuration with type-safe properties
@@ -373,7 +374,7 @@ export async function writeMcpConfig(rootDir: string, config: RapidConfig): Prom
   const configFile = config.mcp?.configFile ?? '.mcp.json';
   const configPath = isAbsolute(configFile) ? configFile : join(rootDir, configFile);
 
-  await writeFile(configPath, JSON.stringify(mcpConfig, null, 2) + '\n', 'utf-8');
+  await writeFile(configPath, await formatJson(mcpConfig), 'utf-8');
 }
 
 /**
@@ -383,7 +384,7 @@ export async function writeOpenCodeConfig(rootDir: string, config: RapidConfig):
   const openCodeConfig = generateOpenCodeConfig(config);
   const configPath = join(rootDir, 'opencode.json');
 
-  await writeFile(configPath, JSON.stringify(openCodeConfig, null, 2) + '\n', 'utf-8');
+  await writeFile(configPath, await formatJson(openCodeConfig), 'utf-8');
 }
 
 /**

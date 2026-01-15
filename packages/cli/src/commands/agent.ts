@@ -4,7 +4,7 @@
 
 import { writeFile } from 'node:fs/promises';
 import { Command } from 'commander';
-import { loadConfig, checkAllAgents, logger } from '@a3t/rapid-core';
+import { loadConfig, checkAllAgents, logger, formatJson } from '@a3t/rapid-core';
 
 export const agentCommand = new Command('agent').description('Manage AI agents');
 
@@ -83,7 +83,7 @@ agentCommand
 
       // Update and save the config
       config.agents.default = name;
-      await writeFile(loaded.filepath, JSON.stringify(config, null, 2) + '\n');
+      await writeFile(loaded.filepath, await formatJson(config));
       logger.success(`Default agent set to "${name}"`);
     } catch (error) {
       logger.error(error instanceof Error ? error.message : String(error));
@@ -129,7 +129,7 @@ agentCommand
 
       // Update and save the config
       agent.yolo = enabling;
-      await writeFile(loaded.filepath, JSON.stringify(config, null, 2) + '\n');
+      await writeFile(loaded.filepath, await formatJson(config));
 
       if (enabling) {
         logger.success(`YOLO mode enabled for "${agentName}"`);
