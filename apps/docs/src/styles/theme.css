@@ -505,6 +505,42 @@ starlight-theme-select {
     margin-left: auto !important;
   }
 
+  /* Mobile search - icon only, positioned right */
+  @media (max-width: 50rem) {
+    header.header > .header {
+      grid-template-columns: 1fr auto !important;
+    }
+
+    header.header site-search {
+      justify-self: end !important;
+      order: 1 !important;
+    }
+
+    site-search {
+      width: auto !important;
+      max-width: none !important;
+    }
+
+    site-search button {
+      min-width: auto !important;
+      width: 2.5rem !important;
+      height: 2.5rem !important;
+      padding: 0 !important;
+      justify-content: center !important;
+      border-radius: 0.5rem !important;
+    }
+
+    site-search button svg {
+      width: 1.125rem !important;
+      height: 1.125rem !important;
+    }
+
+    site-search button span[aria-hidden],
+    site-search button kbd {
+      display: none !important;
+    }
+  }
+
   /* Search dialog - command palette style */
   site-search dialog {
     background: hsl(var(--background)) !important;
