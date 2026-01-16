@@ -15,7 +15,7 @@ import { formatJson } from './format.js';
  */
 export interface McpServerDefinition extends McpServerConfig {
   enabled?: boolean;
-  type?: 'remote' | 'stdio';
+  type?: 'remote' | 'stdio' | 'streamable-http';
   url?: string;
   headers?: Record<string, string>;
   command?: string;
@@ -24,7 +24,15 @@ export interface McpServerDefinition extends McpServerConfig {
 }
 
 /**
+ * Check if a transport type represents a remote/HTTP server
+ */
+function isRemoteType(type: string | undefined): boolean {
+  return type === 'remote' || type === 'streamable-http';
+}
+
+/**
  * MCP server info for display
+ * Note: 'streamable-http' is normalized to 'remote' for display purposes
  */
 export interface McpServerInfo {
   name: string;
@@ -73,10 +81,11 @@ export interface OpenCodeConfig {
 }
 
 /**
- * OpenCode MCP entry format
+ * OpenCode MCP entry format.
+ * OpenCode uses 'local' for stdio and 'remote' for HTTP servers.
  */
 export interface OpenCodeMcpEntry {
-  type: 'remote' | 'stdio';
+  type: 'local' | 'remote';
   url?: string | undefined;
   headers?: Record<string, string> | undefined;
   command?: string | undefined;
@@ -102,10 +111,14 @@ export function getMcpServers(config: RapidConfig): McpServerInfo[] {
     const def = serverConfig as McpServerDefinition;
     const template = getMcpTemplate(name);
 
+    // Determine type, normalizing 'streamable-http' to 'remote' for display
+    const rawType = def.type ?? template?.type ?? 'stdio';
+    const displayType: 'remote' | 'stdio' = isRemoteType(rawType) ? 'remote' : 'stdio';
+
     servers.push({
       name,
       enabled: def.enabled !== false,
-      type: def.type ?? template?.type ?? 'stdio',
+      type: displayType,
       url: def.url ?? template?.url,
       command: def.command ?? template?.command,
       template: template ? name : undefined,
@@ -251,7 +264,13 @@ export function disableMcpServer(config: RapidConfig, name: string): RapidConfig
 }
 
 /**
- * Generate .mcp.json config from rapid.json mcp section
+ * Generate .mcp.json config from rapid.json mcp section.
+ *
+ * Output format follows Claude Code conventions:
+ * - 'stdio' servers use type: 'stdio' with command/args/env
+ * - Remote servers (type: 'remote' or 'streamable-http') use type: 'http' with url/headers
+ *
+ * Note: Claude Code uses 'http' instead of MCP spec's 'streamable-http' for simplicity.
  */
 export function generateMcpConfig(config: RapidConfig): GeneratedMcpConfig {
   const mcpServers: Record<string, McpServerEntry> = {};
@@ -277,14 +296,16 @@ export function generateMcpConfig(config: RapidConfig): GeneratedMcpConfig {
 
     const entry: McpServerEntry = {};
 
-    // Determine type
+    // Determine type: 'remote' and 'streamable-http' are both remote types
     const type = def.type ?? template?.type ?? 'stdio';
 
-    if (type === 'remote') {
+    if (isRemoteType(type)) {
+      // Claude Code uses 'http' for remote servers (MCP spec: 'streamable-http')
       entry.type = 'http';
       entry.url = def.url ?? template?.url;
       entry.headers = def.headers ?? template?.headers;
     } else {
+      // stdio servers: local subprocess communication
       entry.type = 'stdio';
       entry.command = def.command ?? template?.command;
       entry.args = def.args ?? template?.args;
@@ -300,7 +321,12 @@ export function generateMcpConfig(config: RapidConfig): GeneratedMcpConfig {
 }
 
 /**
- * Generate opencode.json config format
+ * Generate opencode.json config format.
+ *
+ * Output format follows OpenCode conventions:
+ * - 'stdio' servers use type: 'local' with command/args/env
+ * - Remote servers (type: 'remote' or 'streamable-http') use type: 'remote' with url/headers
+ * - Environment variables use {env:VAR} format instead of ${VAR}
  */
 export function generateOpenCodeConfig(config: RapidConfig): OpenCodeConfig {
   const mcp: Record<string, OpenCodeMcpEntry> = {};
@@ -337,11 +363,14 @@ export function generateOpenCodeConfig(config: RapidConfig): OpenCodeConfig {
 
     const type = def.type ?? template?.type ?? 'stdio';
 
+    // OpenCode uses 'local' for stdio and 'remote' for HTTP servers
+    const openCodeType: 'local' | 'remote' = isRemoteType(type) ? 'remote' : 'local';
+
     const entry: OpenCodeMcpEntry = {
-      type: type,
+      type: openCodeType,
     };
 
-    if (type === 'remote') {
+    if (isRemoteType(type)) {
       entry.url = def.url ?? template?.url;
       const headers = def.headers ?? template?.headers;
       if (headers) {

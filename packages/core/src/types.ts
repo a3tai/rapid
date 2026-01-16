@@ -111,17 +111,30 @@ export interface McpConfig {
   servers?: Record<string, McpServerConfig>;
 }
 
+/**
+ * MCP transport types following the MCP specification.
+ * - 'stdio': Local subprocess communication (MCP spec standard)
+ * - 'streamable-http': Remote HTTP communication (MCP spec standard, replaces deprecated SSE)
+ * - 'remote': Alias for 'streamable-http' (user-friendly, backwards compatible)
+ */
+export type McpTransportType = 'stdio' | 'streamable-http' | 'remote';
+
 export interface McpServerConfig {
   /** Enable this MCP server (default: true) */
   enabled?: boolean;
 
-  /** Server type: remote HTTP or local stdio */
-  type?: 'remote' | 'stdio';
+  /**
+   * Server transport type (MCP spec naming):
+   * - 'stdio': Local subprocess (command + args)
+   * - 'streamable-http': Remote HTTP server (url + headers)
+   * - 'remote': Alias for 'streamable-http' (backwards compatible)
+   */
+  type?: McpTransportType;
 
-  /** URL for remote servers */
+  /** URL for remote/streamable-http servers */
   url?: string;
 
-  /** HTTP headers for remote servers */
+  /** HTTP headers for remote/streamable-http servers */
   headers?: Record<string, string>;
 
   /** Command for stdio servers */

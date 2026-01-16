@@ -253,6 +253,27 @@ describe('mcp', () => {
       expect(generated.mcpServers.remote?.headers).toEqual({ 'X-Key': 'val' });
     });
 
+    it('should use http type for streamable-http servers (MCP spec naming)', () => {
+      const config: RapidConfig = {
+        ...baseConfig,
+        mcp: {
+          servers: {
+            api: {
+              type: 'streamable-http',
+              url: 'https://api.example.com/mcp',
+              headers: { Authorization: 'Bearer ${TOKEN}' },
+            },
+          },
+        },
+      };
+
+      const generated = generateMcpConfig(config);
+
+      // 'streamable-http' (MCP spec) maps to 'http' (Claude Code format)
+      expect(generated.mcpServers.api?.type).toBe('http');
+      expect(generated.mcpServers.api?.url).toBe('https://api.example.com/mcp');
+    });
+
     it('should handle stdio servers', () => {
       const config: RapidConfig = {
         ...baseConfig,
@@ -281,7 +302,7 @@ describe('mcp', () => {
   });
 
   describe('generateOpenCodeConfig', () => {
-    it('should generate OpenCode format config', () => {
+    it('should generate OpenCode format config with remote type', () => {
       const config: RapidConfig = {
         ...baseConfig,
         mcp: {
@@ -298,9 +319,51 @@ describe('mcp', () => {
       const generated = generateOpenCodeConfig(config);
 
       expect(generated.$schema).toBe('https://opencode.ai/config.json');
+      // OpenCode uses 'remote' for HTTP servers
       expect(generated.mcp?.context7?.type).toBe('remote');
       // Should convert ${VAR} to {env:VAR}
       expect(generated.mcp?.context7?.headers?.['Context7-API-Key']).toBe('{env:CONTEXT7_API_KEY}');
+    });
+
+    it('should use local type for stdio servers in OpenCode format', () => {
+      const config: RapidConfig = {
+        ...baseConfig,
+        mcp: {
+          servers: {
+            filesystem: {
+              type: 'stdio',
+              command: 'npx',
+              args: ['@modelcontextprotocol/server-filesystem', '.'],
+            },
+          },
+        },
+      };
+
+      const generated = generateOpenCodeConfig(config);
+
+      // OpenCode uses 'local' for stdio servers
+      expect(generated.mcp?.filesystem?.type).toBe('local');
+      expect(generated.mcp?.filesystem?.command).toBe('npx');
+    });
+
+    it('should handle streamable-http type as remote', () => {
+      const config: RapidConfig = {
+        ...baseConfig,
+        mcp: {
+          servers: {
+            api: {
+              type: 'streamable-http',
+              url: 'https://api.example.com/mcp',
+            },
+          },
+        },
+      };
+
+      const generated = generateOpenCodeConfig(config);
+
+      // 'streamable-http' should map to 'remote' in OpenCode format
+      expect(generated.mcp?.api?.type).toBe('remote');
+      expect(generated.mcp?.api?.url).toBe('https://api.example.com/mcp');
     });
   });
 
@@ -349,7 +412,8 @@ describe('mcp', () => {
       const parsed = JSON.parse(content);
 
       expect(parsed.$schema).toBe('https://opencode.ai/config.json');
-      expect(parsed.mcp?.test?.type).toBe('stdio');
+      // OpenCode uses 'local' for stdio servers
+      expect(parsed.mcp?.test?.type).toBe('local');
     });
   });
 

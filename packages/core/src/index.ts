@@ -15,6 +15,7 @@ export type {
   ContextConfig,
   McpConfig,
   McpServerConfig,
+  McpTransportType,
   AgentStatus,
   EnvironmentStatus,
   ExternalAuthSource,
