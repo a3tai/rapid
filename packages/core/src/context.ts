@@ -138,10 +138,7 @@ export interface ContextAssemblyOptions {
 /**
  * Check if a file path matches any exclude patterns
  */
-export function matchesExcludePattern(
-  relativePath: string,
-  excludePatterns: string[]
-): boolean {
+export function matchesExcludePattern(relativePath: string, excludePatterns: string[]): boolean {
   for (const pattern of excludePatterns) {
     if (minimatch(relativePath, pattern, { dot: true })) {
       return true;
@@ -203,7 +200,9 @@ export async function readContextFile(
 
     // Check file size
     if (stats.size > maxFileSize) {
-      logger.debug(`Skipping ${relativePath}: exceeds max file size (${stats.size} > ${maxFileSize})`);
+      logger.debug(
+        `Skipping ${relativePath}: exceeds max file size (${stats.size} > ${maxFileSize})`
+      );
       return { path: absolutePath, reason: 'too-large' };
     }
 
@@ -234,7 +233,9 @@ export async function readContextFile(
       logger.debug(`Skipping ${relativePath}: file not found`);
       return { path: absolutePath, reason: 'missing' };
     }
-    logger.debug(`Skipping ${relativePath}: ${error instanceof Error ? error.message : String(error)}`);
+    logger.debug(
+      `Skipping ${relativePath}: ${error instanceof Error ? error.message : String(error)}`
+    );
     return {
       path: absolutePath,
       reason: 'error',
@@ -301,7 +302,9 @@ export async function readContextDirectory(
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       logger.debug(`Directory not found: ${absolutePath}`);
     } else {
-      logger.debug(`Error reading directory ${absolutePath}: ${error instanceof Error ? error.message : String(error)}`);
+      logger.debug(
+        `Error reading directory ${absolutePath}: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -354,7 +357,12 @@ export async function assembleContext(
   // Process directories
   if (config.dirs && config.dirs.length > 0) {
     for (const dirPath of config.dirs) {
-      const { files, skipped } = await readContextDirectory(dirPath, rootDir, excludePatterns, options);
+      const { files, skipped } = await readContextDirectory(
+        dirPath,
+        rootDir,
+        excludePatterns,
+        options
+      );
 
       for (const file of files) {
         // Check total size limit

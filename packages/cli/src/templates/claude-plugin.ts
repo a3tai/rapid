@@ -227,7 +227,9 @@ export async function createClaudePlugin(
 
     return true;
   } catch (error) {
-    logger.debug(`Failed to create Claude plugin: ${error instanceof Error ? error.message : String(error)}`);
+    logger.debug(
+      `Failed to create Claude plugin: ${error instanceof Error ? error.message : String(error)}`
+    );
     return false;
   }
 }

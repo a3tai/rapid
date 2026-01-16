@@ -35,17 +35,17 @@ rapid init [options]
 
 ### Options
 
-| Option                | Default           | Description                                |
-| --------------------- | ----------------- | ------------------------------------------ |
-| `--template <name>`   | Auto-detected     | Template to use (typescript, python, etc.) |
-| `--force`             | `false`           | Overwrite existing files                   |
-| `--no-devcontainer`   | `false`           | Skip devcontainer creation                 |
-| `--prebuilt`          | `false`           | Use pre-built images (faster startup)      |
-| `--agent <name>`      | `claude`          | Default agent to configure                 |
-| `--mcp <servers>`     | `context7,tavily` | MCP servers to enable (comma-separated)    |
-| `--no-mcp`            | `false`           | Skip MCP server configuration              |
-| `--no-detect`         | `false`           | Skip auto-detection of project type        |
-| `--no-claude-plugin`  | `false`           | Skip Claude Code plugin generation         |
+| Option               | Default           | Description                                |
+| -------------------- | ----------------- | ------------------------------------------ |
+| `--template <name>`  | Auto-detected     | Template to use (typescript, python, etc.) |
+| `--force`            | `false`           | Overwrite existing files                   |
+| `--no-devcontainer`  | `false`           | Skip devcontainer creation                 |
+| `--prebuilt`         | `false`           | Use pre-built images (faster startup)      |
+| `--agent <name>`     | `claude`          | Default agent to configure                 |
+| `--mcp <servers>`    | `context7,tavily` | MCP servers to enable (comma-separated)    |
+| `--no-mcp`           | `false`           | Skip MCP server configuration              |
+| `--no-detect`        | `false`           | Skip auto-detection of project type        |
+| `--no-claude-plugin` | `false`           | Skip Claude Code plugin generation         |
 
 ### Examples
 
@@ -311,10 +311,10 @@ Toggle YOLO mode for an agent (skip permission prompts).
 rapid agent yolo <name> [options]
 ```
 
-| Option     | Description      |
-| ---------- | ---------------- |
-| `--enable` | Enable YOLO mode |
-| `--disable`| Disable YOLO mode|
+| Option      | Description       |
+| ----------- | ----------------- |
+| `--enable`  | Enable YOLO mode  |
+| `--disable` | Disable YOLO mode |
 
 YOLO mode adds `--dangerously-skip-permissions` to Claude Code, allowing it to execute commands without confirmation prompts.
 
@@ -777,9 +777,9 @@ rapid context [action] [options]
 
 ### Arguments
 
-| Argument | Default | Description                  |
-| -------- | ------- | ---------------------------- |
-| `action` | `show`  | Action: `show` or `inject`   |
+| Argument | Default | Description                |
+| -------- | ------- | -------------------------- |
+| `action` | `show`  | Action: `show` or `inject` |
 
 ### Options
 

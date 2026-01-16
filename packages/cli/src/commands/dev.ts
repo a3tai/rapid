@@ -305,7 +305,11 @@ async function prepareMcpEnv(
 
   // Use generateMcpConfig to properly handle templates and type transformations
   // This ensures stdio servers get command/args from templates if not explicitly set
-  const mcpConfig = generateMcpConfig({ version: '1.0', agents: { default: '', available: {} }, mcp });
+  const mcpConfig = generateMcpConfig({
+    version: '1.0',
+    agents: { default: '', available: {} },
+    mcp,
+  });
 
   if (Object.keys(mcpConfig.mcpServers).length === 0) {
     return undefined;
