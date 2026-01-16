@@ -26,6 +26,8 @@ import {
   buildAgentArgs,
   agentSupportsRuntimeInjection,
   formatJson,
+  assembleContext,
+  generateMcpConfig,
   type McpConfig,
   type AgentDefinition,
 } from '@a3t/rapid-core';
@@ -234,14 +236,43 @@ export const devCommand = new Command('dev')
         }
       }
 
+      // Assemble context files if configured
+      let contextContent: string | undefined;
+      if (config.context?.files?.length || config.context?.dirs?.length) {
+        const spinner2 = ora('Assembling context files...').start();
+        try {
+          const assembled = await assembleContext(rootDir, config.context);
+          if (assembled.files.length > 0) {
+            contextContent = assembled.content;
+            spinner2.succeed(
+              `Assembled ${assembled.files.length} context file${assembled.files.length !== 1 ? 's' : ''} (${Math.round(assembled.totalSize / 1024)}KB)`
+            );
+            if (assembled.skippedFiles.length > 0) {
+              logger.dim(`  Skipped ${assembled.skippedFiles.length} file(s)`);
+            }
+          } else {
+            spinner2.warn('No context files found');
+          }
+        } catch (err) {
+          spinner2.warn('Failed to assemble context files');
+          logger.debug(err instanceof Error ? err.message : String(err));
+        }
+      }
+
       // Launch the agent inside the container
       logger.blank();
       logger.info(`Launching ${logger.brand(agentName)} in container...`);
 
       // Build agent args with system prompt injection if supported
-      const builtArgs = buildAgentArgs(agent, { injectSystemPrompt: true });
+      const builtArgs = buildAgentArgs(agent, {
+        injectSystemPrompt: true,
+        ...(contextContent && { contextContent }),
+      });
       if (agentSupportsRuntimeInjection(agent)) {
         logger.dim('Injecting RAPID methodology via CLI args');
+        if (contextContent) {
+          logger.dim('Injecting context files via CLI args');
+        }
       }
       logger.blank();
 
@@ -272,27 +303,19 @@ async function prepareMcpEnv(
   const configFile = mcp.configFile ?? '.mcp.json';
   const configPath = isAbsolute(configFile) ? configFile : join(rootDir, configFile);
 
-  const mcpServers: Record<string, unknown> = {};
-  for (const [name, serverConfig] of Object.entries(mcp.servers)) {
-    if (!serverConfig || typeof serverConfig !== 'object') {
-      continue;
-    }
+  // Use generateMcpConfig to properly handle templates and type transformations
+  // This ensures stdio servers get command/args from templates if not explicitly set
+  const mcpConfig = generateMcpConfig({
+    version: '1.0',
+    agents: { default: '', available: {} },
+    mcp,
+  });
 
-    const { enabled, type, ...rest } = serverConfig as Record<string, unknown>;
-    if (enabled === false) {
-      continue;
-    }
-
-    // Transform 'remote' to 'http' for Claude MCP config format
-    const outputType = type === 'remote' ? 'http' : type;
-    mcpServers[name] = { type: outputType, ...rest };
-  }
-
-  if (Object.keys(mcpServers).length === 0) {
+  if (Object.keys(mcpConfig.mcpServers).length === 0) {
     return undefined;
   }
 
-  await writeFile(configPath, await formatJson({ mcpServers }), 'utf-8');
+  await writeFile(configPath, await formatJson(mcpConfig), 'utf-8');
 
   return {
     MCP_CONFIG_FILE: configFile,
@@ -313,6 +336,7 @@ async function runLocally(
     };
     mcp?: McpConfig;
     lima?: { installGh?: boolean };
+    context?: Parameters<typeof assembleContext>[1];
   }
 ): Promise<void> {
   const { execa } = await import('execa');
@@ -399,8 +423,34 @@ async function runLocally(
   const mcpEnv = await prepareMcpEnv(rootDir, config.mcp);
   const mergedEnv = { ...secrets, ...(mcpEnv ?? {}) };
 
+  // Assemble context files if configured
+  let contextContent: string | undefined;
+  if (config.context?.files?.length || config.context?.dirs?.length) {
+    const spinner = ora('Assembling context files...').start();
+    try {
+      const assembled = await assembleContext(rootDir, config.context);
+      if (assembled.files.length > 0) {
+        contextContent = assembled.content;
+        spinner.succeed(
+          `Assembled ${assembled.files.length} context file${assembled.files.length !== 1 ? 's' : ''} (${Math.round(assembled.totalSize / 1024)}KB)`
+        );
+        if (assembled.skippedFiles.length > 0) {
+          logger.dim(`  Skipped ${assembled.skippedFiles.length} file(s)`);
+        }
+      } else {
+        spinner.warn('No context files found');
+      }
+    } catch (err) {
+      spinner.warn('Failed to assemble context files');
+      logger.debug(err instanceof Error ? err.message : String(err));
+    }
+  }
+
   // Build agent args with system prompt injection if supported
-  const builtArgs = buildAgentArgs(agent, { injectSystemPrompt: true });
+  const builtArgs = buildAgentArgs(agent, {
+    injectSystemPrompt: true,
+    ...(contextContent && { contextContent }),
+  });
 
   // Check if we should use Lima VM on macOS
   if (isMacOS() && (await hasLima())) {
@@ -414,6 +464,9 @@ async function runLocally(
 
   if (agentSupportsRuntimeInjection(agent)) {
     logger.dim('Injecting RAPID methodology via CLI args');
+    if (contextContent) {
+      logger.dim('Injecting context files via CLI args');
+    }
   }
   logger.blank();
 

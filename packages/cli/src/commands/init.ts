@@ -21,6 +21,7 @@ import {
   type RapidConfig,
 } from '@a3t/rapid-core';
 import ora from 'ora';
+import { createClaudePlugin, getClaudePluginFiles } from '../templates/claude-plugin.js';
 
 /**
  * Detected project type with language and optional framework
@@ -670,6 +671,7 @@ export const initCommand = new Command('init')
   .option('--mcp <servers>', 'MCP servers to enable (comma-separated)', 'context7,tavily')
   .option('--no-mcp', 'Skip MCP server configuration')
   .option('--no-detect', 'Skip auto-detection of project type')
+  .option('--no-claude-plugin', 'Skip Claude Code plugin generation')
   .action(async (templateArg: string | undefined, options) => {
     const spinner = ora('Initializing RAPID...').start();
 
@@ -816,6 +818,14 @@ export const initCommand = new Command('init')
         );
       }
 
+      // Create Claude Code plugin if using claude and not skipped
+      let claudePluginCreated = false;
+      if (options.claudePlugin !== false && config.agents.available.claude) {
+        spinner.text = 'Creating Claude Code plugin...';
+        const projectName = cwd.split('/').pop() || 'project';
+        claudePluginCreated = await createClaudePlugin(cwd, projectName, { force: options.force });
+      }
+
       spinner.succeed('RAPID initialized successfully!');
 
       // Show detected info
@@ -840,6 +850,12 @@ export const initCommand = new Command('init')
       }
       if (devcontainerCreated) {
         console.log(`  ${logger.dim('•')} .devcontainer/devcontainer.json`);
+      }
+      if (claudePluginCreated) {
+        console.log(`  ${logger.dim('•')} .claude-plugin/`);
+        for (const file of getClaudePluginFiles()) {
+          console.log(`    ${logger.dim('•')} ${file.replace('.claude-plugin/', '')}`);
+        }
       }
       console.log(`  ${logger.dim('•')} CLAUDE.md`);
       console.log(`  ${logger.dim('•')} AGENTS.md`);

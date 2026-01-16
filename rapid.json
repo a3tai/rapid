@@ -43,17 +43,13 @@
         "enabled": true,
         "type": "remote",
         "url": "https://mcp.context7.com/mcp",
-        "headers": {
-          "Context7-API-Key": "${CONTEXT7_API_KEY}"
-        }
+        "headers": { "Context7-API-Key": "${CONTEXT7_API_KEY}" }
       },
       "tavily": {
         "enabled": true,
         "type": "remote",
         "url": "https://mcp.tavily.com/mcp",
-        "headers": {
-          "Authorization": "Bearer ${TAVILY_API_KEY}"
-        }
+        "headers": { "Authorization": "Bearer ${TAVILY_API_KEY}" }
       }
     }
   }
