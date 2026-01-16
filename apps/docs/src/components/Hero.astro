@@ -67,9 +67,15 @@ const rapidMethods = [
 
   <div class="hero-content">
     <h1 class="hero-title anim-reveal">
-      <span class="title-chars">{title.split('').map((char: string, i: number) => (
-          <span class="char" style={`--char-index: ${i}`}>{char}</span>
-        ))}</span><span class="cursor">_</span>
+      <span class="title-chars"
+        >{
+          title.split('').map((char: string, i: number) => (
+            <span class="char" style={`--char-index: ${i}`}>
+              {char}
+            </span>
+          ))
+        }</span
+      ><span class="cursor">_</span>
     </h1>
 
     <p class="hero-tagline anim-fade-up" style="--delay: 0.4s" set:html={tagline} />
@@ -255,7 +261,8 @@ const rapidMethods = [
   }
 
   @keyframes float-drift {
-    0%, 100% {
+    0%,
+    100% {
       transform: translate(0, 0) rotate(var(--rotation, 0deg));
       opacity: 0.1;
     }
@@ -305,7 +312,8 @@ const rapidMethods = [
   }
 
   @keyframes orb-pulse {
-    0%, 100% {
+    0%,
+    100% {
       transform: translateX(-50%) scale(1);
       opacity: 0.6;
     }
@@ -368,8 +376,13 @@ const rapidMethods = [
   }
 
   @keyframes cursor-blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0;
+    }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════
@@ -563,8 +576,12 @@ const rapidMethods = [
     color: hsl(142 76% 50%);
   }
 
-  .copy-btn.copied .copy-icon { display: none; }
-  .copy-btn.copied .check-icon { display: block; }
+  .copy-btn.copied .copy-icon {
+    display: none;
+  }
+  .copy-btn.copied .check-icon {
+    display: block;
+  }
 
   /* ═══════════════════════════════════════════════════════════════════════════
      RAPID Method Cards with Cascade Animation
@@ -691,7 +708,8 @@ const rapidMethods = [
       grid-template-columns: repeat(3, 1fr);
     }
 
-    .float-2, .float-4 {
+    .float-2,
+    .float-4 {
       display: none;
     }
   }
