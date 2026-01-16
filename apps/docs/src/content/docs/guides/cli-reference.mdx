@@ -35,16 +35,17 @@ rapid init [options]
 
 ### Options
 
-| Option              | Default           | Description                                |
-| ------------------- | ----------------- | ------------------------------------------ |
-| `--template <name>` | Auto-detected     | Template to use (typescript, python, etc.) |
-| `--force`           | `false`           | Overwrite existing files                   |
-| `--no-devcontainer` | `false`           | Skip devcontainer creation                 |
-| `--prebuilt`        | `false`           | Use pre-built images (faster startup)      |
-| `--agent <name>`    | `claude`          | Default agent to configure                 |
-| `--mcp <servers>`   | `context7,tavily` | MCP servers to enable (comma-separated)    |
-| `--no-mcp`          | `false`           | Skip MCP server configuration              |
-| `--no-detect`       | `false`           | Skip auto-detection of project type        |
+| Option                | Default           | Description                                |
+| --------------------- | ----------------- | ------------------------------------------ |
+| `--template <name>`   | Auto-detected     | Template to use (typescript, python, etc.) |
+| `--force`             | `false`           | Overwrite existing files                   |
+| `--no-devcontainer`   | `false`           | Skip devcontainer creation                 |
+| `--prebuilt`          | `false`           | Use pre-built images (faster startup)      |
+| `--agent <name>`      | `claude`          | Default agent to configure                 |
+| `--mcp <servers>`     | `context7,tavily` | MCP servers to enable (comma-separated)    |
+| `--no-mcp`            | `false`           | Skip MCP server configuration              |
+| `--no-detect`         | `false`           | Skip auto-detection of project type        |
+| `--no-claude-plugin`  | `false`           | Skip Claude Code plugin generation         |
 
 ### Examples
 
@@ -83,8 +84,13 @@ project/
 ├── opencode.json           # MCP server config (for OpenCode)
 ├── AGENTS.md               # Generic agent instructions
 ├── CLAUDE.md               # Claude-specific instructions
-└── .devcontainer/          # (if not skipped)
-    └── devcontainer.json
+├── .devcontainer/          # (if not skipped)
+│   └── devcontainer.json
+└── .claude-plugin/         # (if using Claude)
+    ├── plugin.json         # Plugin manifest
+    ├── commands/           # Slash commands
+    ├── skills/             # Skill definitions
+    └── hooks/              # Lifecycle hooks
 ```
 
 ---
@@ -297,6 +303,25 @@ Set default agent.
 rapid agent default <name>
 ```
 
+#### rapid agent yolo
+
+Toggle YOLO mode for an agent (skip permission prompts).
+
+```bash
+rapid agent yolo <name> [options]
+```
+
+| Option     | Description      |
+| ---------- | ---------------- |
+| `--enable` | Enable YOLO mode |
+| `--disable`| Disable YOLO mode|
+
+YOLO mode adds `--dangerously-skip-permissions` to Claude Code, allowing it to execute commands without confirmation prompts.
+
+:::caution
+YOLO mode should only be used in isolated development environments (containers or VMs) where the AI has limited blast radius.
+:::
+
 ### Examples
 
 ```bash
@@ -311,69 +336,12 @@ rapid agent add cursor --cli cursor --instruction-file CURSOR.md
 
 # Remove agent
 rapid agent remove aider
-```
 
----
+# Enable YOLO mode for Claude
+rapid agent yolo claude --enable
 
-## rapid config
-
-View and edit configuration.
-
-```bash
-rapid config [subcommand] [options]
-```
-
-### Subcommands
-
-#### rapid config show
-
-Display current configuration.
-
-```bash
-rapid config show [--json]
-```
-
-#### rapid config edit
-
-Open config in editor.
-
-```bash
-rapid config edit
-```
-
-#### rapid config set
-
-Set a configuration value.
-
-```bash
-rapid config set <key> <value>
-```
-
-#### rapid config get
-
-Get a configuration value.
-
-```bash
-rapid config get <key>
-```
-
-### Examples
-
-```bash
-# Show config
-rapid config show
-
-# Show as JSON
-rapid config show --json
-
-# Edit in $EDITOR
-rapid config edit
-
-# Set default agent
-rapid config set agents.default opencode
-
-# Get secret provider
-rapid config get secrets.provider
+# Disable YOLO mode
+rapid agent yolo claude --disable
 ```
 
 ---
@@ -451,40 +419,6 @@ Uptime:     2h 34m
 Agent:      claude (active)
 Secrets:    loaded (3 items)
 MCP:        2 servers connected
-```
-
----
-
-## rapid logs
-
-View logs.
-
-```bash
-rapid logs [options]
-```
-
-### Options
-
-| Option           | Default | Description         |
-| ---------------- | ------- | ------------------- |
-| `--follow`, `-f` | `false` | Follow log output   |
-| `--tail <n>`     | `100`   | Number of lines     |
-| `--container`    | `false` | Show container logs |
-
-### Examples
-
-```bash
-# View RAPID logs
-rapid logs
-
-# Follow logs
-rapid logs -f
-
-# View container logs
-rapid logs --container
-
-# Last 50 lines
-rapid logs --tail 50
 ```
 
 ---
@@ -830,6 +764,101 @@ rapid lima delete --force
 - Uses Apple Virtualization.framework (VZ) for best performance on Apple Silicon
 - SSH agent is automatically forwarded for commit signing
 - Install Lima with: `brew install lima`
+
+---
+
+## rapid context
+
+Show or inject project context from rapid.json configuration.
+
+```bash
+rapid context [action] [options]
+```
+
+### Arguments
+
+| Argument | Default | Description                  |
+| -------- | ------- | ---------------------------- |
+| `action` | `show`  | Action: `show` or `inject`   |
+
+### Options
+
+| Option   | Description    |
+| -------- | -------------- |
+| `--json` | Output as JSON |
+
+### Examples
+
+```bash
+# Show context configuration
+rapid context show
+
+# Show as JSON
+rapid context show --json
+
+# Output assembled context (for hooks)
+rapid context inject
+```
+
+The `inject` action outputs the assembled context content to stdout, suitable for use in Claude Code hooks.
+
+---
+
+## rapid auth
+
+Show authentication status for external AI providers.
+
+```bash
+rapid auth [options]
+```
+
+### Options
+
+| Option   | Description    |
+| -------- | -------------- |
+| `--json` | Output as JSON |
+
+### Examples
+
+```bash
+# Check authentication status
+rapid auth
+
+# Output as JSON
+rapid auth --json
+```
+
+Output shows detected credentials for Claude, Codex, Gemini, Aider, and environment variables.
+
+---
+
+## rapid update
+
+Check for and install RAPID updates.
+
+```bash
+rapid update [options]
+```
+
+### Options
+
+| Option          | Description                  |
+| --------------- | ---------------------------- |
+| `--check`       | Only check for updates       |
+| `-f`, `--force` | Force update even if current |
+
+### Examples
+
+```bash
+# Update RAPID
+rapid update
+
+# Check for updates without installing
+rapid update --check
+
+# Force update
+rapid update --force
+```
 
 ---
 

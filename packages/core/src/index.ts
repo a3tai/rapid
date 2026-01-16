@@ -150,3 +150,17 @@ export {
 
 // Formatting
 export { formatJson, formatJsonSync } from './format.js';
+
+// Context
+export {
+  assembleContext,
+  readContextFile,
+  readContextDirectory,
+  matchesExcludePattern,
+  isBinaryFile,
+  formatContextContent,
+  type ContextFileResult,
+  type AssembledContext,
+  type SkippedFile,
+  type ContextAssemblyOptions,
+} from './context.js';

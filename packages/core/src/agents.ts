@@ -84,6 +84,8 @@ export function buildAgentArgs(
     compactPrompt?: boolean;
     /** Custom system prompt to use instead of default RAPID methodology */
     customPrompt?: string;
+    /** Additional context content to append to the system prompt */
+    contextContent?: string;
   }
 ): string[] {
   const baseArgs = [...(agent.args ?? [])];
@@ -108,7 +110,12 @@ export function buildAgentArgs(
   if (options?.compactPrompt) {
     instructionOptions.compact = true;
   }
-  const promptContent = options?.customPrompt ?? getStandardAgentInstructions(instructionOptions);
+  let promptContent = options?.customPrompt ?? getStandardAgentInstructions(instructionOptions);
+
+  // Append context content if provided
+  if (options?.contextContent) {
+    promptContent = promptContent + '\n\n' + options.contextContent;
+  }
 
   // Parse the systemPromptArg pattern and build the args
   // Pattern can be like "--append-system-prompt {prompt}" or "--system-prompt-file {prompt}"
