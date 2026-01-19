@@ -58,17 +58,16 @@ The event bus uses Redis (managed automatically in Docker) to provide:
 
 ### Architecture
 
-```
-┌─────────────┐     ┌─────────────────┐     ┌─────────────┐
-│   Claude    │────▶│  Redis Event    │◀────│  OpenCode   │
-│   Agent     │◀────│     Bus         │────▶│   Agent     │
-└─────────────┘     └─────────────────┘     └─────────────┘
-                            │
-                            ▼
-                    ┌─────────────┐
-                    │   Aider     │
-                    │   Agent     │
-                    └─────────────┘
+```mermaid
+flowchart LR
+    Claude["Claude Agent"]
+    OpenCode["OpenCode Agent"]
+    Aider["Aider Agent"]
+    Redis["Redis Event Bus"]
+
+    Claude <--> Redis
+    OpenCode <--> Redis
+    Aider <--> Redis
 ```
 
 ## MCP Tools for Agents

@@ -19,21 +19,23 @@ The event bus solves these problems by providing a shared communication channel.
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      RAPID Event Bus                        │
-│                                                             │
-│  ┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────┐  │
-│  │  Redis  │◀──▶│ Message │◀──▶│  Agent  │◀──▶│ Presence│  │
-│  │ Storage │    │  Queue  │    │ Registry│    │ Tracking│  │
-│  └─────────┘    └─────────┘    └─────────┘    └─────────┘  │
-└─────────────────────────────────────────────────────────────┘
-        ▲                ▲                ▲
-        │                │                │
-   ┌────┴────┐      ┌────┴────┐      ┌────┴────┐
-   │  Claude │      │ OpenCode│      │  Aider  │
-   │  Agent  │      │  Agent  │      │  Agent  │
-   └─────────┘      └─────────┘      └─────────┘
+```mermaid
+flowchart TB
+    subgraph EventBus["RAPID Event Bus"]
+        Redis["Redis Storage"]
+        Queue["Message Queue"]
+        Registry["Agent Registry"]
+        Presence["Presence Tracking"]
+        Redis <--> Queue <--> Registry <--> Presence
+    end
+
+    Claude["Claude Agent"]
+    OpenCode["OpenCode Agent"]
+    Aider["Aider Agent"]
+
+    Claude --> EventBus
+    OpenCode --> EventBus
+    Aider --> EventBus
 ```
 
 ### Components

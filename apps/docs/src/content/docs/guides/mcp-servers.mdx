@@ -89,24 +89,22 @@ The server uses the **Streamable HTTP transport** (the recommended MCP transport
 
 ### Architecture
 
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Claude    │     │  OpenCode   │     │   Aider     │
-│   Agent     │     │   Agent     │     │   Agent     │
-└──────┬──────┘     └──────┬──────┘     └──────┬──────┘
-       │                   │                   │
-       └───────────────────┼───────────────────┘
-                           │
-                           ▼
-              ┌────────────────────────┐
-              │   RAPID MCP Server     │
-              │   (Centralized)        │
-              │                        │
-              │  • Event Bus           │
-              │  • Secrets             │
-              │  • Filesystem          │
-              │  • Context             │
-              └────────────────────────┘
+```mermaid
+flowchart TB
+    Claude["Claude Agent"]
+    OpenCode["OpenCode Agent"]
+    Aider["Aider Agent"]
+
+    subgraph MCPServer["RAPID MCP Server (Centralized)"]
+        EventBus["Event Bus"]
+        Secrets["Secrets"]
+        Filesystem["Filesystem"]
+        Context["Context"]
+    end
+
+    Claude --> MCPServer
+    OpenCode --> MCPServer
+    Aider --> MCPServer
 ```
 
 The server runs in the RAPID daemon and all agents connect to it via HTTP.
