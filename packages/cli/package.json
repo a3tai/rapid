@@ -1,6 +1,6 @@
 {
   "name": "@a3t/rapid",
-  "version": "0.1.10",
+  "version": "0.2.0",
   "description": "CLI for RAPID - AI-assisted development with dev containers",
   "license": "MIT",
   "author": "Steve Rude <steve@rude.la>",
@@ -42,6 +42,10 @@
   },
   "dependencies": {
     "@a3t/rapid-core": "workspace:*",
+    "@a3t/rapid-daemon": "workspace:*",
+    "@a3t/rapid-eventbus": "workspace:*",
+    "@a3t/rapid-mcp": "workspace:*",
+    "@a3t/rapid-runtime": "workspace:*",
     "@clack/prompts": "^0.11.0",
     "chalk": "^5.6.2",
     "commander": "^14.0.2",

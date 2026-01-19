@@ -1,0 +1,50 @@
+{
+  "name": "@a3t/rapid-eventbus",
+  "version": "0.2.0",
+  "description": "Inter-agent event bus for RAPID multi-agent communication",
+  "license": "MIT",
+  "author": "A3T <hello@a3t.ai>",
+  "homepage": "https://getrapid.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/a3tai/rapid.git",
+    "directory": "packages/rapid-eventbus"
+  },
+  "keywords": [
+    "rapid",
+    "eventbus",
+    "multi-agent",
+    "redis",
+    "mcp"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@a3t/rapid-core": "workspace:*",
+    "ioredis": "^5.6.1",
+    "zod": "^3.25.32"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.8",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.17"
+  }
+}

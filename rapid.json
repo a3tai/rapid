@@ -52,5 +52,8 @@
         "headers": { "Authorization": "Bearer ${TAVILY_API_KEY}" }
       }
     }
+  },
+  "eventBus": {
+    "enabled": true
   }
 }

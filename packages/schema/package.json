@@ -1,6 +1,6 @@
 {
   "name": "@a3t/rapid-schema",
-  "version": "0.1.10",
+  "version": "0.2.0",
   "description": "JSON schema and TypeScript types for RAPID configuration",
   "license": "MIT",
   "author": "Steve Rude <steve@rude.la>",

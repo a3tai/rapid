@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allowedTools": [
+      "secure_exec",
+      "fetch_via_proxy",
+      "get_secret",
+      "read_file",
+      "write_file",
+      "list_files",
+      "check_security"
+    ],
+    "defaultMode": "balanced",
+    "auditLog": true
+  },
+  "policy": {
+    "blockedCommands": ["rm -rf /", "sudo rm", "chmod 777", "> /dev/sda", "mkfs", ":(){:|:&};:"],
+    "blockedPatterns": [
+      "rm\\s+-rf\\s+/",
+      "sudo\\s+(rm|chmod|chown)",
+      "chmod\\s+777",
+      "\\|\\s*(bash|sh|zsh)",
+      "curl.*\\|.*sh"
+    ],
+    "requireApprovalPatterns": [
+      "git\\s+push\\s+--force",
+      "git\\s+push\\s+-f",
+      "git\\s+reset\\s+--hard",
+      "npm\\s+publish",
+      "docker\\s+push"
+    ],
+    "autoApprovePatterns": [
+      "npm\\s+(test|run|install|ci)",
+      "pnpm\\s+(test|run|install)",
+      "git\\s+(status|diff|log|branch|checkout)",
+      "ls\\s",
+      "cat\\s",
+      "echo\\s"
+    ]
+  }
+}

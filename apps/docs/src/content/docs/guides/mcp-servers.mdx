@@ -81,6 +81,129 @@ RAPID includes built-in templates for popular MCP servers:
 | `fetch`      | Stdio  | HTTP content retrieval              | None               |
 | `sqlite`     | Stdio  | SQLite database access              | None               |
 
+## RAPID MCP Server
+
+RAPID includes a centralized MCP server that provides all agents with project-aware tools. This server runs as a **centralized service** (not per-agent) so that all agents share the same state—critical for features like the event bus.
+
+The server uses the **Streamable HTTP transport** (the recommended MCP transport for server-based deployments), enabling efficient bidirectional communication with support for server-sent events (SSE).
+
+### Architecture
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Claude    │     │  OpenCode   │     │   Aider     │
+│   Agent     │     │   Agent     │     │   Agent     │
+└──────┬──────┘     └──────┬──────┘     └──────┬──────┘
+       │                   │                   │
+       └───────────────────┼───────────────────┘
+                           │
+                           ▼
+              ┌────────────────────────┐
+              │   RAPID MCP Server     │
+              │   (Centralized)        │
+              │                        │
+              │  • Event Bus           │
+              │  • Secrets             │
+              │  • Filesystem          │
+              │  • Context             │
+              └────────────────────────┘
+```
+
+The server runs in the RAPID daemon and all agents connect to it via HTTP.
+
+### Tools Provided
+
+| Tool             | Description                                 |
+| ---------------- | ------------------------------------------- |
+| `bus_register`   | Register agent with the event bus           |
+| `bus_send`       | Send a message to other agents              |
+| `bus_messages`   | Get messages from the event bus             |
+| `bus_agents`     | List connected agents                       |
+| `secure_exec`    | Execute commands in a sandboxed environment |
+| `get_secret`     | Retrieve a secret by name                   |
+| `list_secrets`   | List available secret names                 |
+| `read_file`      | Read a file with path validation            |
+| `write_file`     | Write a file with path validation           |
+| `list_directory` | List directory contents                     |
+| `fetch_url`      | Fetch content from a URL                    |
+
+### Resources Provided
+
+| Resource          | Description                         |
+| ----------------- | ----------------------------------- |
+| `rapid://config`  | Current rapid.json configuration    |
+| `rapid://context` | Assembled project context           |
+| `rapid://status`  | Project status (files, agents, bus) |
+
+### Prompts Provided
+
+| Prompt              | Description                         |
+| ------------------- | ----------------------------------- |
+| `rapid-methodology` | RAPID development methodology guide |
+
+### Configuration
+
+The RAPID MCP server is automatically configured to run centrally:
+
+```json title="rapid.json"
+{
+  "mcp": {
+    "servers": {
+      "rapid": {
+        "enabled": true,
+        "type": "remote",
+        "url": "http://localhost:${RAPID_MCP_PORT}/mcp"
+      }
+    }
+  }
+}
+```
+
+The server starts automatically when you run `rapid dev`. The port is managed by the RAPID daemon.
+
+You can disable it (not recommended):
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "rapid": {
+        "enabled": false
+      }
+    }
+  }
+}
+```
+
+### Why Centralized?
+
+**Shared State**: All agents connect to the same server, enabling:
+
+- Event bus messages visible to all agents
+- Consistent secret access
+- Coordinated file operations
+
+**Efficiency**: One server process instead of N (one per agent).
+
+**Coordination**: The server can mediate between agents, preventing conflicts.
+
+### Using RAPID MCP Tools
+
+Agents can use these tools directly:
+
+```
+Agent: "I'll check what other agents are working on"
+→ Uses bus_agents tool
+
+Agent: "Let me notify the team about the API changes"
+→ Uses bus_send tool
+
+Agent: "I need the database password"
+→ Uses get_secret tool
+```
+
+See the [Multi-Agent Guide](/guides/multi-agent/) for detailed event bus usage.
+
 ## Configuration
 
 ### In rapid.json

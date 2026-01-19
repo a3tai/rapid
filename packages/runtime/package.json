@@ -1,0 +1,55 @@
+{
+  "name": "@a3t/rapid-runtime",
+  "version": "0.2.0",
+  "description": "OS-level sandbox runtime for RAPID - inspired by Anthropic's sandbox-runtime",
+  "license": "MIT",
+  "author": "Steve Rude <steve@rude.la>",
+  "homepage": "https://getrapid.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/a3tai/rapid.git",
+    "directory": "packages/runtime"
+  },
+  "keywords": [
+    "rapid",
+    "sandbox",
+    "seatbelt",
+    "bubblewrap",
+    "isolation",
+    "security"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "execa": "^9.6.1",
+    "get-port": "^7.1.0",
+    "http-proxy": "^1.18.1",
+    "socks": "^2.8.4",
+    "zod": "^3.25.32"
+  },
+  "devDependencies": {
+    "@types/http-proxy": "^1.17.15",
+    "@types/node": "^25.0.8",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.17"
+  }
+}

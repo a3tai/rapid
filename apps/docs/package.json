@@ -1,6 +1,6 @@
 {
   "name": "@a3t/rapid-docs",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -16,7 +16,7 @@
     "@astrojs/starlight": "^0.37.2",
     "@astrojs/starlight-tailwind": "^4.0.2",
     "@tailwindcss/vite": "^4.1.18",
-    "astro": "^5.16.9",
+    "astro": "^5.16.11",
     "sharp": "^0.34.5",
     "tailwindcss": "^4.1.18"
   },

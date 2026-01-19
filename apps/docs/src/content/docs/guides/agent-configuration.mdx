@@ -26,13 +26,121 @@ RAPID supports multiple AI coding agents. Each agent is configured in `rapid.jso
 
 Each agent configuration supports:
 
-| Property          | Type   | Required | Description                    |
-| ----------------- | ------ | -------- | ------------------------------ |
-| `cli`             | string | Yes      | Command to execute             |
-| `instructionFile` | string | No       | Path to instruction file       |
-| `envVars`         | array  | No       | Required environment variables |
-| `installCmd`      | string | No       | Installation command           |
-| `args`            | array  | No       | Additional CLI arguments       |
+| Property          | Type    | Required | Description                     |
+| ----------------- | ------- | -------- | ------------------------------- |
+| `cli`             | string  | Yes      | Command to execute              |
+| `instructionFile` | string  | No       | Path to instruction file        |
+| `envVars`         | array   | No       | Required environment variables  |
+| `installCmd`      | string  | No       | Installation command            |
+| `args`            | array   | No       | Additional CLI arguments        |
+| `yolo`            | boolean | No       | Enable YOLO mode (skip prompts) |
+
+## YOLO Mode
+
+YOLO mode allows agents to execute commands without permission prompts. This is **enabled by default** for Claude in RAPID's default configuration.
+
+### What It Does
+
+When `yolo: true` is set:
+
+- Claude Code runs with `--dangerously-skip-permissions`
+- The agent can execute commands, write files, and make changes without asking for confirmation
+- Dramatically faster development cycles
+
+### When to Use
+
+YOLO mode is safe when running in:
+
+- **Containers**: Dev containers provide isolation
+- **VMs**: Lima VMs limit blast radius
+- **Sandboxed environments**: RAPID's sandbox mode
+
+### Configuration
+
+```json
+{
+  "agents": {
+    "available": {
+      "claude": {
+        "cli": "claude",
+        "instructionFile": "CLAUDE.md",
+        "yolo": true
+      }
+    }
+  }
+}
+```
+
+### Enabling/Disabling via CLI
+
+```bash
+# Enable YOLO mode
+rapid agent yolo claude --enable
+
+# Disable YOLO mode
+rapid agent yolo claude --disable
+```
+
+### Security Considerations
+
+:::caution
+YOLO mode should only be used in isolated environments. Never enable on production machines or with access to sensitive data.
+:::
+
+Mitigations RAPID provides:
+
+1. **Container isolation**: Run agents in dev containers
+2. **VM isolation**: Use Lima VMs on macOS
+3. **Sandbox mode**: OS-level sandboxing (seatbelt/bubblewrap)
+4. **Network filtering**: Restrict outbound connections
+
+## Authentication
+
+### Auth Passthrough (Default)
+
+RAPID automatically detects your existing AI tool credentials. If you're logged into Claude Code, RAPID uses that authentication—no API key configuration needed.
+
+```bash
+# Already logged into Claude?
+claude --version  # Works without prompts
+
+# RAPID uses your existing auth
+rapid dev  # No additional setup!
+```
+
+See [Auth Passthrough](/concepts/auth-passthrough/) for details.
+
+### Explicit API Keys
+
+If you prefer explicit configuration or auth passthrough doesn't work:
+
+```json
+{
+  "agents": {
+    "available": {
+      "claude": {
+        "cli": "claude",
+        "envVars": ["ANTHROPIC_API_KEY"]
+      }
+    }
+  },
+  "secrets": {
+    "provider": "1password",
+    "vault": "Development",
+    "items": {
+      "ANTHROPIC_API_KEY": "op://Development/Anthropic/api-key"
+    }
+  }
+}
+```
+
+### Checking Auth Status
+
+```bash
+rapid auth
+```
+
+Output shows detected credentials for all supported providers.
 
 ---
 

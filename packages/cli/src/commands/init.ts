@@ -21,6 +21,8 @@ import {
   type RapidConfig,
 } from '@a3t/rapid-core';
 import ora from 'ora';
+import * as clack from '@clack/prompts';
+import chalk from 'chalk';
 import { createClaudePlugin, getClaudePluginFiles } from '../templates/claude-plugin.js';
 
 /**
@@ -661,6 +663,133 @@ async function createDevContainer(
   return true;
 }
 
+/**
+ * Interactive init flow using @clack/prompts
+ */
+async function runInteractiveInit(
+  cwd: string,
+  _detectedProject: DetectedProject | undefined,
+  _options: { force?: boolean }
+): Promise<{
+  projectName: string;
+  mcpServers: string[];
+  secretsProvider: 'env' | '1password' | 'vault';
+  vault: string | undefined;
+  createDevcontainer: boolean;
+  usePrebuilt: boolean;
+} | null> {
+  console.log();
+  clack.intro(chalk.cyan.bold('  RAPID Setup'));
+
+  // Project name (auto-detected)
+  const dirName = cwd.split('/').pop() || 'my-project';
+  const projectName = await clack.text({
+    message: 'Project name',
+    initialValue: dirName,
+    validate: (value) => {
+      if (!value.trim()) return 'Project name is required';
+      return undefined;
+    },
+  });
+
+  if (clack.isCancel(projectName)) {
+    clack.cancel('Setup cancelled');
+    return null;
+  }
+
+  // MCP servers selection
+  const mcpOptions = [
+    { value: 'context7', label: 'context7', hint: 'Library docs (Recommended)' },
+    { value: 'tavily', label: 'tavily', hint: 'Web search (Recommended)' },
+    { value: 'github', label: 'github', hint: 'GitHub operations' },
+    { value: 'postgres', label: 'postgres', hint: 'Database access' },
+    { value: 'filesystem', label: 'filesystem', hint: 'File operations' },
+    { value: 'puppeteer', label: 'puppeteer', hint: 'Browser automation' },
+  ];
+
+  const selectedMcp = await clack.multiselect({
+    message: 'MCP servers to enable',
+    options: mcpOptions,
+    initialValues: ['context7', 'tavily'],
+    required: false,
+  });
+
+  if (clack.isCancel(selectedMcp)) {
+    clack.cancel('Setup cancelled');
+    return null;
+  }
+
+  // Secret management provider
+  const secretsProvider = await clack.select({
+    message: 'Secret management',
+    options: [
+      { value: '1password', label: '1Password', hint: 'Recommended' },
+      { value: 'vault', label: 'HashiCorp Vault' },
+      { value: 'env', label: 'Environment variables' },
+    ],
+    initialValue: '1password',
+  });
+
+  if (clack.isCancel(secretsProvider)) {
+    clack.cancel('Setup cancelled');
+    return null;
+  }
+
+  // Vault name if using 1Password or Vault
+  let vault: string | undefined;
+  if (secretsProvider === '1password' || secretsProvider === 'vault') {
+    const vaultInput = await clack.text({
+      message: secretsProvider === '1password' ? '1Password vault name' : 'Vault path',
+      initialValue: 'Development',
+      validate: (value) => {
+        if (!value.trim()) return 'Vault is required';
+        return undefined;
+      },
+    });
+
+    if (clack.isCancel(vaultInput)) {
+      clack.cancel('Setup cancelled');
+      return null;
+    }
+    vault = vaultInput;
+  }
+
+  // Devcontainer creation
+  const createDevcontainer = await clack.confirm({
+    message: 'Create devcontainer configuration?',
+    initialValue: true,
+  });
+
+  if (clack.isCancel(createDevcontainer)) {
+    clack.cancel('Setup cancelled');
+    return null;
+  }
+
+  // Pre-built images if devcontainer
+  let usePrebuilt = false;
+  if (createDevcontainer) {
+    const prebuiltChoice = await clack.confirm({
+      message: 'Use pre-built images for faster startup?',
+      initialValue: false,
+    });
+
+    if (clack.isCancel(prebuiltChoice)) {
+      clack.cancel('Setup cancelled');
+      return null;
+    }
+    usePrebuilt = prebuiltChoice;
+  }
+
+  return {
+    projectName,
+    mcpServers: selectedMcp as string[],
+    secretsProvider: secretsProvider as 'env' | '1password' | 'vault',
+    vault,
+    createDevcontainer,
+    usePrebuilt,
+  };
+}
+
 export const initCommand = new Command('init')
   .description('Initialize RAPID in a project')
   .argument('[template]', 'Template: builtin name, github:user/repo, npm:package, or URL')
@@ -672,44 +801,79 @@ export const initCommand = new Command('init')
   .option('--no-mcp', 'Skip MCP server configuration')
   .option('--no-detect', 'Skip auto-detection of project type')
   .option('--no-claude-plugin', 'Skip Claude Code plugin generation')
+  .option('-y, --yes', 'Skip interactive prompts and use defaults')
   .action(async (templateArg: string | undefined, options) => {
-    const spinner = ora('Initializing RAPID...').start();
+    const cwd = process.cwd();
+    const configPath = join(cwd, 'rapid.json');
 
-    try {
-      const cwd = process.cwd();
-      const configPath = join(cwd, 'rapid.json');
+    // Check if config already exists (before interactive mode)
+    if (!options.force) {
+      try {
+        await access(configPath);
+        logger.error('rapid.json already exists. Use --force to overwrite.');
+        process.exit(1);
+      } catch {
+        // File doesn't exist, continue
+      }
+    }
 
-      // Check if config already exists
-      if (!options.force) {
-        try {
-          await access(configPath);
-          spinner.fail('rapid.json already exists. Use --force to overwrite.');
-          process.exit(1);
-        } catch {
-          // File doesn't exist, continue
-        }
+    // Auto-detect project type
+    const spinner = ora('Detecting project type...').start();
+    let detectedProject: DetectedProject | undefined;
+    if (options.detect !== false) {
+      detectedProject = await detectProjectType(cwd);
+      if (detectedProject.language !== 'unknown') {
+        spinner.succeed(
+          `Detected ${detectedProject.language}${detectedProject.framework ? ` (${detectedProject.framework})` : ''} project`
+        );
+      } else {
+        spinner.info('Could not detect project type');
+      }
+    } else {
+      spinner.stop();
+    }
+
+    // Determine if we should use interactive mode
+    // Interactive mode: no template specified and not --yes
+    const useInteractive = !templateArg && !options.yes;
+
+    let mcpServers: string[];
+    let secretsProvider: 'env' | '1password' | 'vault';
+    let vault: string | undefined;
+    let createDevcontainerFlag: boolean;
+    let usePrebuilt: boolean;
+    let projectName: string;
+
+    if (useInteractive) {
+      // Run interactive flow
+      const answers = await runInteractiveInit(cwd, detectedProject, options);
+      if (!answers) {
+        process.exit(0);
       }
 
-      // Auto-detect project type if no template specified
-      let detectedProject: DetectedProject | undefined;
+      projectName = answers.projectName;
+      mcpServers = answers.mcpServers;
+      secretsProvider = answers.secretsProvider;
+      vault = answers.vault;
+      createDevcontainerFlag = answers.createDevcontainer;
+      usePrebuilt = answers.usePrebuilt;
+    } else {
+      // Non-interactive mode (--yes or template specified)
+      projectName = cwd.split('/').pop() || 'my-project';
+      mcpServers = options.mcp === false ? [] : options.mcp.split(',').map((s: string) => s.trim());
+      secretsProvider = '1password';
+      vault = 'Development';
+      createDevcontainerFlag = options.devcontainer !== false;
+      usePrebuilt = options.prebuilt === true;
+    }
+
+    const spinner2 = ora('Initializing RAPID...').start();
+
+    try {
       let templateSource = templateArg;
 
-      if (!templateArg && options.detect !== false) {
-        spinner.text = 'Detecting project type...';
-        detectedProject = await detectProjectType(cwd);
-
-        if (detectedProject.language !== 'unknown') {
-          const suggested = getSuggestedTemplate(detectedProject);
-          spinner.succeed(
-            `Detected ${detectedProject.language}${detectedProject.framework ? ` (${detectedProject.framework})` : ''} project`
-          );
-          templateSource = suggested;
-          logger.info(`Using ${logger.brand(suggested)} template`);
-        } else {
-          spinner.info('Could not detect project type, using universal template');
-          templateSource = 'universal';
-        }
-        spinner.start('Initializing RAPID...');
+      if (!templateArg && detectedProject && detectedProject.language !== 'unknown') {
+        templateSource = getSuggestedTemplate(detectedProject);
       }
 
       // Parse template source
@@ -717,23 +881,23 @@ export const initCommand = new Command('init')
 
       // Handle remote templates (GitHub, GitLab, npm, URL)
       if (parsed.type !== 'builtin') {
-        spinner.text = `Fetching template from ${parsed.source}...`;
+        spinner2.text = `Fetching template from ${parsed.source}...`;
 
         // For npm packages, we'd need additional handling
         if (parsed.type === 'npm') {
-          spinner.fail('npm template support coming soon. Use github:user/repo instead.');
+          spinner2.fail('npm template support coming soon. Use github:user/repo instead.');
           process.exit(1);
         }
 
-        const downloaded = await downloadRemoteTemplate(parsed, cwd, spinner);
+        const downloaded = await downloadRemoteTemplate(parsed, cwd, spinner2);
         if (!downloaded) {
-          spinner.fail(`Failed to download template from ${parsed.source}`);
+          spinner2.fail(`Failed to download template from ${parsed.source}`);
           logger.info('Make sure the repository exists and is accessible.');
           logger.info('For private repos, set GIGET_AUTH environment variable.');
           process.exit(1);
         }
 
-        spinner.succeed(`Downloaded template from ${parsed.source}`);
+        spinner2.succeed(`Downloaded template from ${parsed.source}`);
 
         // Check if downloaded template has rapid.json, if so we're done
         try {
@@ -744,20 +908,19 @@ export const initCommand = new Command('init')
           return;
         } catch {
           // No rapid.json in template, continue to create one
-          spinner.start('Creating RAPID configuration...');
+          spinner2.start('Creating RAPID configuration...');
         }
       }
 
-      // Parse MCP servers option
-      const mcpServers: string[] =
-        options.mcp === false ? [] : options.mcp.split(',').map((s: string) => s.trim());
+      // Create config with project name and MCP servers
+      let config = createConfigWithOptions({ agent: options.agent, projectName }, detectedProject);
 
-      // Create config with MCP servers
-      let config = createConfig(options, detectedProject);
+      // Always add RAPID MCP server first
+      config = addRapidMcpServer(config);
 
-      // Add MCP servers
+      // Add selected MCP servers
       if (mcpServers.length > 0) {
-        spinner.text = 'Configuring MCP servers...';
+        spinner2.text = 'Configuring MCP servers...';
         for (const serverName of mcpServers) {
           if (MCP_SERVER_TEMPLATES[serverName]) {
             config = addMcpServerFromTemplate(config, serverName);
@@ -771,43 +934,50 @@ export const initCommand = new Command('init')
         if (Object.keys(secretRefs).length > 0) {
           config.secrets = {
             ...config.secrets,
-            provider: '1password',
-            vault: 'Development',
+            provider: secretsProvider,
+            ...(vault !== undefined ? { vault } : {}),
             items: {
               ...config.secrets?.items,
               ...secretRefs,
             },
           };
         }
+      } else {
+        // Still set the secrets provider even without MCP servers
+        config.secrets = {
+          ...config.secrets,
+          provider: secretsProvider,
+          ...(vault !== undefined ? { vault } : {}),
+        };
       }
 
-      spinner.text = 'Writing rapid.json...';
+      // Enable event bus by default
+      config.eventBus = { enabled: true };
+
+      spinner2.text = 'Writing rapid.json...';
       await writeFile(configPath, await formatJson(config));
 
-      // Generate MCP config files if MCP servers are configured
-      if (mcpServers.length > 0) {
-        spinner.text = 'Generating MCP configuration files...';
-        await writeMcpConfig(cwd, config);
-        await writeOpenCodeConfig(cwd, config);
-      }
+      // Generate MCP config files (always generate since we have rapid MCP server)
+      spinner2.text = 'Generating MCP configuration files...';
+      await writeMcpConfig(cwd, config);
+      await writeOpenCodeConfig(cwd, config);
 
       // Create CLAUDE.md if using claude
       if (config.agents.available.claude) {
-        spinner.text = 'Creating CLAUDE.md...';
+        spinner2.text = 'Creating CLAUDE.md...';
         const claudeMdPath = join(cwd, 'CLAUDE.md');
         await writeFile(claudeMdPath, getClaudeMdTemplate(cwd, detectedProject));
       }
 
       // Create AGENTS.md
-      spinner.text = 'Creating AGENTS.md...';
+      spinner2.text = 'Creating AGENTS.md...';
       const agentsMdPath = join(cwd, 'AGENTS.md');
       await writeFile(agentsMdPath, getAgentsMdTemplate(cwd, detectedProject));
 
       // Create devcontainer if not skipped
       let devcontainerCreated = false;
-      const usePrebuilt = options.prebuilt === true;
-      if (options.devcontainer !== false) {
-        spinner.text = usePrebuilt
+      if (createDevcontainerFlag) {
+        spinner2.text = usePrebuilt
           ? 'Creating devcontainer configuration (using pre-built image)...'
           : 'Creating devcontainer configuration...';
         devcontainerCreated = await createDevContainer(
@@ -821,12 +991,11 @@ export const initCommand = new Command('init')
       // Create Claude Code plugin if using claude and not skipped
       let claudePluginCreated = false;
       if (options.claudePlugin !== false && config.agents.available.claude) {
-        spinner.text = 'Creating Claude Code plugin...';
-        const projectName = cwd.split('/').pop() || 'project';
+        spinner2.text = 'Creating Claude Code plugin...';
         claudePluginCreated = await createClaudePlugin(cwd, projectName, { force: options.force });
       }
 
-      spinner.succeed('RAPID initialized successfully!');
+      spinner2.succeed('RAPID initialized successfully!');
 
       // Show detected info
       if (detectedProject && detectedProject.language !== 'unknown') {
@@ -860,54 +1029,59 @@ export const initCommand = new Command('init')
       console.log(`  ${logger.dim('•')} CLAUDE.md`);
       console.log(`  ${logger.dim('•')} AGENTS.md`);
 
-      // Show configured MCP servers
-      if (mcpServers.length > 0) {
-        logger.blank();
-        logger.info('MCP servers configured:');
-        for (const serverName of mcpServers) {
-          const template = MCP_SERVER_TEMPLATES[serverName];
-          if (template) {
-            console.log(`  ${logger.brand('•')} ${serverName} - ${template.description}`);
-          }
+      // Show configured MCP servers (always show RAPID server + user-selected ones)
+      logger.blank();
+      logger.info('MCP servers configured:');
+      console.log(`  ${logger.brand('•')} rapid - RAPID event bus & tools (always enabled)`);
+      for (const serverName of mcpServers) {
+        const template = MCP_SERVER_TEMPLATES[serverName];
+        if (template) {
+          console.log(`  ${logger.brand('•')} ${serverName} - ${template.description}`);
         }
       }
 
       logger.blank();
-      logger.info('Next steps:');
-      let stepNum = 1;
-      console.log(
-        `  ${logger.dim(`${stepNum++}.`)} Run ${logger.brand('rapid dev')} to start coding`
-      );
-      console.log(
-        `  ${logger.dim(`${stepNum++}.`)} Edit ${logger.dim('rapid.json')} to customize your setup`
-      );
-      if (mcpServers.length > 0) {
-        console.log(
-          `  ${logger.dim(`${stepNum++}.`)} Add API keys to ${logger.dim('secrets.items')} in rapid.json`
-        );
-      }
-      if (devcontainerCreated) {
-        console.log(
-          `  ${logger.dim(`${stepNum++}.`)} Set ${logger.dim('OP_SERVICE_ACCOUNT_TOKEN')} env var for 1Password secrets`
+      logger.info('Next step:');
+      console.log(`  Run ${logger.brand('rapid dev')} to start coding!`);
+
+      if (secretsProvider !== 'env' && mcpServers.length > 0) {
+        logger.blank();
+        logger.dim(
+          `  Note: Configure API keys in ${secretsProvider === '1password' ? '1Password' : 'Vault'} for MCP servers.`
         );
       }
       logger.blank();
     } catch (error) {
-      spinner.fail('Failed to initialize RAPID');
+      spinner2.fail('Failed to initialize RAPID');
       logger.error(error instanceof Error ? error.message : String(error));
       process.exit(1);
     }
   });
 
-function createConfig(options: { agent: string }, detectedProject?: DetectedProject): RapidConfig {
+function createConfigWithOptions(
+  options: { agent: string; projectName: string },
+  _detectedProject?: DetectedProject
+): RapidConfig {
   const defaults = getDefaultConfig();
 
   const config: RapidConfig = {
     $schema: 'https://getrapid.dev/schema/v1/rapid.json',
     version: '1.0',
+    name: options.projectName,
     agents: {
       default: options.agent,
-      available: defaults.agents.available,
+      available: {
+        ...defaults.agents.available,
+        claude: {
+          cli: 'claude',
+          instructionFile: 'CLAUDE.md',
+          yolo: true, // Enable YOLO mode by default for streamlined UX
+        },
+        opencode: {
+          cli: 'opencode',
+          instructionFile: 'AGENTS.md',
+        },
+      },
     },
     secrets: {
       provider: 'env',
@@ -916,17 +1090,35 @@ function createConfig(options: { agent: string }, detectedProject?: DetectedProj
       files: ['README.md', 'CLAUDE.md', 'AGENTS.md'],
       generateAgentFiles: false, // We already created them
     },
+    mcp: {
+      configFile: '.mcp.json',
+      servers: {},
+    },
   };
 
-  // Add detected project info as context hints
-  if (detectedProject && detectedProject.language !== 'unknown') {
-    config.context = {
-      ...config.context,
-      // Store detected info for potential future use
-    };
-  }
-
   return config;
+}
+
+/**
+ * Add the RAPID MCP server to the config (always included)
+ */
+function addRapidMcpServer(config: RapidConfig): RapidConfig {
+  return {
+    ...config,
+    mcp: {
+      ...config.mcp,
+      configFile: config.mcp?.configFile ?? '.mcp.json',
+      servers: {
+        rapid: {
+          enabled: true,
+          type: 'stdio',
+          command: 'rapid',
+          args: ['mcp', 'serve'],
+        },
+        ...config.mcp?.servers,
+      },
+    },
+  };
 }
 
 function getClaudeMdTemplate(projectPath: string, detectedProject?: DetectedProject): string {

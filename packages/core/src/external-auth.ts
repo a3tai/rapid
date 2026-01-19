@@ -65,82 +65,177 @@ interface ClaudeCodeConfig {
     refreshToken?: string;
     expiresAt?: string;
   };
+  hasCompletedOnboarding?: boolean;
   lastAccountUuid?: string;
 }
 
 /**
- * Detect Claude Code credentials from ~/.claude.json
+ * Credentials file structure (~/.claude/.credentials.json)
+ * This is where Claude Code stores actual tokens on Linux/Windows
+ */
+interface ClaudeCredentialsFile {
+  accessToken?: string;
+  refreshToken?: string;
+  expiresAt?: string;
+}
+
+/**
+ * Extract account info from Claude config for display
+ */
+function getClaudeAccountInfo(config: ClaudeCodeConfig): {
+  email?: string;
+  organization?: string;
+  plan?: string;
+} {
+  const accountInfo: {
+    email?: string;
+    organization?: string;
+    plan?: string;
+  } = {};
+
+  if (config.oauthAccount?.emailAddress) {
+    accountInfo.email = config.oauthAccount.emailAddress;
+  }
+  if (config.oauthAccount?.organizationName) {
+    accountInfo.organization = config.oauthAccount.organizationName;
+  }
+  if (config.oauthAccount?.planType) {
+    accountInfo.plan = config.oauthAccount.planType;
+  }
+
+  return accountInfo;
+}
+
+/**
+ * Detect Claude Code credentials
+ *
+ * Auth sources (checked in order):
+ * 1. CLAUDE_CODE_OAUTH_TOKEN env var (official way for headless/automated use)
+ * 2. ANTHROPIC_AUTH_TOKEN env var (bearer token)
+ * 3. ~/.claude/.credentials.json (Linux/Windows credential storage)
+ * 4. ~/.claude.json oauthAccount.accessToken (legacy, may still work)
+ * 5. ANTHROPIC_API_KEY env var (API key fallback)
  */
 export async function detectClaudeCodeAuth(): Promise<DetectedCredential | null> {
   const home = homedir();
   const configPath = join(home, '.claude.json');
+  const credentialsPath = join(home, '.claude', '.credentials.json');
 
-  if (!(await fileExists(configPath))) {
-    return null;
-  }
-
+  // Load config for account info (even if token is from env)
   const config = await readJsonFile<ClaudeCodeConfig>(configPath);
-  if (!config) {
-    return null;
-  }
+  const accountInfo = config ? getClaudeAccountInfo(config) : {};
 
-  // Check for OAuth session (Claude Pro/Max login)
-  const oauth = config.oauthAccount || config.claudeAiOauth;
-  if (oauth?.accessToken) {
-    const expiresAt = oauth.expiresAt ? new Date(oauth.expiresAt) : undefined;
-
-    // Check if token is expired
-    if (expiresAt && expiresAt < new Date()) {
-      logger.debug('Claude Code OAuth token expired');
-      return null;
-    }
-
+  // 1. Check CLAUDE_CODE_OAUTH_TOKEN (official new way from `claude setup-token`)
+  const oauthToken = process.env.CLAUDE_CODE_OAUTH_TOKEN;
+  if (oauthToken) {
+    logger.debug('Found CLAUDE_CODE_OAUTH_TOKEN environment variable');
     const cred: DetectedCredential = {
       source: 'claude-code',
       provider: 'anthropic',
       authType: 'oauth',
-      value: oauth.accessToken,
-      configPath,
+      envVar: 'CLAUDE_CODE_OAUTH_TOKEN',
+      value: oauthToken,
     };
-
-    if (expiresAt) {
-      cred.expiresAt = expiresAt;
-    }
-
-    const accountInfo: {
-      email?: string;
-      organization?: string;
-      plan?: string;
-    } = {};
-
-    if (config.oauthAccount?.emailAddress) {
-      accountInfo.email = config.oauthAccount.emailAddress;
-    }
-    if (config.oauthAccount?.organizationName) {
-      accountInfo.organization = config.oauthAccount.organizationName;
-    }
-    if (config.oauthAccount?.planType) {
-      accountInfo.plan = config.oauthAccount.planType;
-    }
-
     if (Object.keys(accountInfo).length > 0) {
       cred.accountInfo = accountInfo;
     }
-
     return cred;
   }
 
-  // Check for API key in environment (Claude Code also respects ANTHROPIC_API_KEY)
+  // 2. Check ANTHROPIC_AUTH_TOKEN (bearer token)
+  const authToken = process.env.ANTHROPIC_AUTH_TOKEN;
+  if (authToken) {
+    logger.debug('Found ANTHROPIC_AUTH_TOKEN environment variable');
+    const cred: DetectedCredential = {
+      source: 'claude-code',
+      provider: 'anthropic',
+      authType: 'oauth',
+      envVar: 'ANTHROPIC_AUTH_TOKEN',
+      value: authToken,
+    };
+    if (Object.keys(accountInfo).length > 0) {
+      cred.accountInfo = accountInfo;
+    }
+    return cred;
+  }
+
+  // 3. Check ~/.claude/.credentials.json (Linux/Windows storage)
+  if (await fileExists(credentialsPath)) {
+    const credentials = await readJsonFile<ClaudeCredentialsFile>(credentialsPath);
+    if (credentials?.accessToken) {
+      const expiresAt = credentials.expiresAt ? new Date(credentials.expiresAt) : undefined;
+
+      if (expiresAt && expiresAt < new Date()) {
+        logger.debug('Claude Code credentials.json token expired');
+      } else {
+        logger.debug('Found token in ~/.claude/.credentials.json');
+        const cred: DetectedCredential = {
+          source: 'claude-code',
+          provider: 'anthropic',
+          authType: 'oauth',
+          value: credentials.accessToken,
+          configPath: credentialsPath,
+        };
+        if (expiresAt) {
+          cred.expiresAt = expiresAt;
+        }
+        if (Object.keys(accountInfo).length > 0) {
+          cred.accountInfo = accountInfo;
+        }
+        return cred;
+      }
+    }
+  }
+
+  // 4. Check ~/.claude.json oauthAccount (legacy, may still work on some versions)
+  if (config) {
+    const oauth = config.oauthAccount || config.claudeAiOauth;
+    if (oauth?.accessToken) {
+      const expiresAt = oauth.expiresAt ? new Date(oauth.expiresAt) : undefined;
+
+      if (expiresAt && expiresAt < new Date()) {
+        logger.debug('Claude Code OAuth token expired');
+      } else {
+        logger.debug('Found token in ~/.claude.json oauthAccount');
+        const cred: DetectedCredential = {
+          source: 'claude-code',
+          provider: 'anthropic',
+          authType: 'oauth',
+          value: oauth.accessToken,
+          configPath,
+        };
+        if (expiresAt) {
+          cred.expiresAt = expiresAt;
+        }
+        if (Object.keys(accountInfo).length > 0) {
+          cred.accountInfo = accountInfo;
+        }
+        return cred;
+      }
+    }
+  }
+
+  // 5. Check ANTHROPIC_API_KEY (API key fallback)
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (apiKey) {
+    logger.debug('Found ANTHROPIC_API_KEY environment variable');
     return {
       source: 'claude-code',
       provider: 'anthropic',
       authType: 'api-key',
       envVar: 'ANTHROPIC_API_KEY',
       value: apiKey,
-      configPath,
     };
+  }
+
+  // No credentials found, but if config exists with account info, note that
+  // macOS stores tokens in Keychain which we can't access directly
+  if (config?.oauthAccount?.emailAddress) {
+    logger.debug(
+      'Claude Code config found but no accessible token. ' +
+        'On macOS, tokens are stored in Keychain. ' +
+        'Use `claude setup-token` to generate a portable token.'
+    );
   }
 
   return null;
@@ -574,10 +669,12 @@ export async function getAuthEnvironment(
 
     switch (provider) {
       case 'anthropic':
-        // For OAuth tokens, we use ANTHROPIC_AUTH_TOKEN
-        // For API keys, we use ANTHROPIC_API_KEY
+        // For OAuth tokens, set both ANTHROPIC_AUTH_TOKEN and CLAUDE_CODE_OAUTH_TOKEN
+        // ANTHROPIC_AUTH_TOKEN: Used as Bearer token in Authorization header
+        // CLAUDE_CODE_OAUTH_TOKEN: Official Claude Code env var (from `claude setup-token`)
         if (cred.authType === 'oauth') {
           env['ANTHROPIC_AUTH_TOKEN'] = cred.value;
+          env['CLAUDE_CODE_OAUTH_TOKEN'] = cred.value;
         } else {
           env['ANTHROPIC_API_KEY'] = cred.value;
         }

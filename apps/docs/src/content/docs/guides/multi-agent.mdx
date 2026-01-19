@@ -1,0 +1,360 @@
+---
+title: Multi-Agent Communication
+description: Enable multiple AI agents to work together on the same project
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+RAPID includes a built-in event bus that allows multiple AI agents to communicate and coordinate their work on the same project.
+
+## Overview
+
+The event bus enables scenarios like:
+
+- **Specialist collaboration**: Have Claude handle architecture while Aider focuses on tests
+- **Parallel development**: Multiple agents working on different features simultaneously
+- **Review workflows**: One agent writes code, another reviews it
+- **Task delegation**: Agents can request help from other agents
+
+## Quick Start
+
+<Steps>
+
+1. **Enable the event bus** (enabled by default):
+
+   ```json title="rapid.json"
+   {
+     "eventBus": {
+       "enabled": true
+     }
+   }
+   ```
+
+2. **Start multiple agents**:
+
+   ```bash
+   # Terminal 1
+   rapid dev
+
+   # Terminal 2
+   rapid dev --agent opencode
+   ```
+
+3. **Check connected agents**:
+
+   ```bash
+   rapid bus agents
+   ```
+
+</Steps>
+
+## How It Works
+
+The event bus uses Redis (managed automatically in Docker) to provide:
+
+- **Persistent messaging**: Messages are stored and can be retrieved by agents that connect later
+- **Agent presence**: Track which agents are currently active
+- **Message routing**: Send messages to specific agents or broadcast to all
+
+### Architecture
+
+```
+┌─────────────┐     ┌─────────────────┐     ┌─────────────┐
+│   Claude    │────▶│  Redis Event    │◀────│  OpenCode   │
+│   Agent     │◀────│     Bus         │────▶│   Agent     │
+└─────────────┘     └─────────────────┘     └─────────────┘
+                            │
+                            ▼
+                    ┌─────────────┐
+                    │   Aider     │
+                    │   Agent     │
+                    └─────────────┘
+```
+
+## MCP Tools for Agents
+
+When the RAPID MCP server is connected, agents have access to these event bus tools:
+
+### bus_register
+
+Register the agent with the event bus.
+
+```typescript
+// Called automatically when agent starts
+bus_register({ name: 'claude', capabilities: ['code', 'review'] });
+```
+
+### bus_send
+
+Send a message to other agents.
+
+```typescript
+// Send to all agents
+bus_send({
+  type: 'task_complete',
+  content: 'Finished implementing auth module',
+});
+
+// Send to specific agent
+bus_send({
+  type: 'review_request',
+  content: 'Please review src/auth.ts',
+  to: 'opencode',
+});
+```
+
+### bus_messages
+
+Get recent messages from the bus.
+
+```typescript
+// Get all messages
+bus_messages({ limit: 50 });
+
+// Get messages from specific agent
+bus_messages({ from: 'aider', limit: 10 });
+```
+
+### bus_agents
+
+List currently connected agents.
+
+```typescript
+bus_agents();
+// Returns: [{ id: "claude-abc", name: "claude", lastSeen: "..." }, ...]
+```
+
+## Message Types
+
+Common message types for agent coordination:
+
+| Type              | Description                 |
+| ----------------- | --------------------------- |
+| `task_start`      | Agent starting a task       |
+| `task_complete`   | Agent finished a task       |
+| `task_blocked`    | Agent blocked, needs help   |
+| `review_request`  | Request code review         |
+| `review_complete` | Review finished             |
+| `question`        | Ask other agents a question |
+| `answer`          | Response to a question      |
+| `file_changed`    | Notify about file changes   |
+| `test_result`     | Share test results          |
+
+## Configuration
+
+### Basic Configuration
+
+```json title="rapid.json"
+{
+  "eventBus": {
+    "enabled": true
+  }
+}
+```
+
+### Advanced Configuration
+
+```json title="rapid.json"
+{
+  "eventBus": {
+    "enabled": true,
+    "redis": {
+      "port": 6379,
+      "dataDir": "~/.rapid/redis-data"
+    },
+    "injection": {
+      "enabled": true,
+      "promptTemplate": "Connected agents: {{agents}}"
+    }
+  }
+}
+```
+
+### Configuration Options
+
+| Option                     | Default | Description                    |
+| -------------------------- | ------- | ------------------------------ |
+| `enabled`                  | `true`  | Enable/disable the event bus   |
+| `redis.port`               | `6379`  | Redis port                     |
+| `redis.dataDir`            | none    | Persist Redis data             |
+| `injection.enabled`        | `true`  | Inject agent info into prompts |
+| `injection.promptTemplate` | default | Custom prompt template         |
+
+## CLI Commands
+
+### Check Status
+
+```bash
+rapid bus status
+```
+
+Output:
+
+```
+RAPID Event Bus Status
+────────────────────────────────
+
+Project:    my-project
+Mode:       Redis (persistent)
+URL:        redis://localhost:6379
+Container:  d5263f2e5c71
+
+Messages:   42
+Agents:     3
+```
+
+### View Message History
+
+```bash
+# Recent messages
+rapid bus history
+
+# Last 10 messages
+rapid bus history --limit 10
+
+# Messages from specific agent
+rapid bus history --agent claude-abc123
+
+# Filter by type
+rapid bus history --type review_request
+```
+
+### List Connected Agents
+
+```bash
+rapid bus agents
+```
+
+Output:
+
+```
+Connected Agents
+────────────────
+
+  claude-abc123
+    Name:         claude
+    Connected:    2 hours ago
+    Last active:  just now
+    Capabilities: code, review, test
+
+  opencode-def456
+    Name:         opencode
+    Connected:    1 hour ago
+    Last active:  5 minutes ago
+    Capabilities: code, refactor
+```
+
+## Workflows
+
+### Code Review Workflow
+
+1. Claude writes code:
+
+   ```
+   Claude: Sends message type "review_request" with file path
+   ```
+
+2. OpenCode reviews:
+
+   ```
+   OpenCode: Receives message, reviews code, sends "review_complete"
+   ```
+
+3. Claude addresses feedback:
+   ```
+   Claude: Receives review, makes changes
+   ```
+
+### Parallel Feature Development
+
+1. Start both agents on different features:
+
+   ```bash
+   # Terminal 1 - Claude on auth
+   rapid dev
+   # Claude works on src/auth/
+
+   # Terminal 2 - Aider on API
+   rapid dev --agent aider
+   # Aider works on src/api/
+   ```
+
+2. Agents notify each other of changes:
+   ```
+   Claude: "file_changed" - src/auth/types.ts
+   Aider: Sees notification, updates API imports
+   ```
+
+### Task Delegation
+
+1. Claude encounters a task better suited for another agent:
+
+   ```
+   Claude: Sends "task_blocked" with context
+   ```
+
+2. OpenCode picks up the task:
+   ```
+   OpenCode: Receives message, handles the task
+   OpenCode: Sends "task_complete" when done
+   ```
+
+## Best Practices
+
+1. **Use clear message types**: Stick to standard types for interoperability
+2. **Include context**: Messages should have enough context to act on
+3. **Avoid conflicts**: Coordinate which agent works on which files
+4. **Monitor the bus**: Use `rapid bus status` to check health
+5. **Clean up**: Messages are cleared when you restart the event bus
+
+## Troubleshooting
+
+### Event bus not starting
+
+```bash
+# Check if Docker is running
+docker ps
+
+# Check Redis container
+docker logs rapid-redis
+
+# Manually restart
+rapid stop --remove
+rapid dev
+```
+
+### Agents not seeing messages
+
+```bash
+# Verify agents are registered
+rapid bus agents
+
+# Check message history
+rapid bus history --limit 100
+```
+
+### High memory usage
+
+Redis stores all messages in memory. If you have many messages:
+
+```bash
+# Stop and remove to clear messages
+rapid stop --remove
+
+# Or configure data persistence
+# rapid.json: eventBus.redis.dataDir = "~/.rapid/redis"
+```
+
+## Disabling the Event Bus
+
+If you don't need multi-agent features:
+
+```json title="rapid.json"
+{
+  "eventBus": {
+    "enabled": false
+  }
+}
+```
+
+This skips Redis startup and event bus initialization.

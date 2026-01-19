@@ -5,7 +5,7 @@ description: Understanding the RAPID orchestration layer for AI-assisted develop
 
 import { Aside } from '@astrojs/starlight/components';
 
-RAPID is an orchestration layer for AI-assisted development. It manages the complexity of running AI coding tools inside containerized environments.
+RAPID is an orchestration layer for AI-assisted development. It manages the complexity of running AI coding tools, providing magic defaults that work out of the box.
 
 ## The Problem
 
@@ -16,59 +16,81 @@ AI coding assistants are powerful but require significant setup:
 3. **Secret Management** — API keys must be injected securely, not committed to repos
 4. **Container Isolation** — Running AI agents in containers provides security boundaries
 5. **Tool Fragmentation** — Each AI tool (Claude, OpenCode, Aider) has different setup requirements
+6. **Multi-Agent Coordination** — Running multiple AI agents requires manual orchestration
 
 Setting this up for each project is tedious, error-prone, and often results in inconsistent experiences.
 
 ## The Solution
 
-RAPID provides a single orchestration layer:
+RAPID provides a zero-config experience with smart defaults:
 
-### `rapid start`
+```bash
+rapid init    # Interactive setup with sane defaults
+rapid dev     # Everything starts automatically
+```
 
-1. Build/start dev container from `devcontainer.json`
-2. Load secrets from 1Password/Vault into environment
-3. Generate/update `AGENTS.md`, `CLAUDE.md` from project context
-4. Install AI CLI tools if missing (claude, opencode, aider)
-5. Configure MCP servers if specified
+That's it. No manual configuration, no service management, no authentication prompts.
 
-### `rapid dev`
+### What `rapid init` Does
 
-1. Attach to running container
-2. Launch configured AI CLI (claude, opencode, etc.)
-3. AI tool reads instruction files for context
-4. Developer works in AI-assisted chat interface
-5. Optional: Launch multiple agents in split panes
+1. Interactively configures your project with smart defaults
+2. Sets up MCP servers (context7, tavily, and the RAPID MCP server)
+3. Configures secrets management (1Password, Vault, or env vars)
+4. Generates instruction files (`CLAUDE.md`, `AGENTS.md`)
+5. Creates devcontainer configuration if desired
 
-### `rapid stop`
+### What `rapid dev` Does
 
-1. Gracefully exit AI CLI session
-2. Stop dev container
-3. Cleanup temporary resources
+1. **Auto-starts services** — Event bus, RAPID MCP server, containers
+2. **Auth passthrough** — Uses your existing Claude/OpenAI credentials
+3. **Launches your AI agent** — With full MCP tool access
+4. **Enables multi-agent features** — Agents can communicate via the event bus
+
+### What `rapid stop` Does
+
+1. Gracefully exits AI CLI sessions
+2. Stops dev container and services
+3. Cleans up temporary resources
 
 ## Core Principles
 
-### 1. Wrap, Don't Reinvent
+### 1. Magic Defaults
+
+Everything works out of the box:
+
+- **Event bus** enabled by default — agents can communicate immediately
+- **Auth passthrough** — use your existing Claude/OpenAI credentials
+- **RAPID MCP server** — always available for agent coordination
+- **YOLO mode** — skip permission prompts in isolated environments
+
+### 2. Wrap, Don't Reinvent
 
 RAPID wraps existing AI coding tools rather than building another one. Claude Code, OpenCode, and Aider are excellent tools — RAPID makes them easier to use consistently.
 
-### 2. Configuration as Code
+### 3. Configuration as Code
 
 Everything is defined in `rapid.json`:
 
 - Which AI agents are available
 - How secrets are loaded
 - What context files to include
-- Container configuration
+- Container and MCP server configuration
 
-### 3. Secure by Default
+### 4. Secure by Default
 
 - Secrets never stored in plaintext
 - Containers provide isolation
 - API keys injected at runtime only
+- Sandboxed command execution available
 
-### 4. Multi-Agent Support
+### 5. Multi-Agent Coordination
 
-Run multiple AI tools concurrently in split panes. Use Claude for architecture questions while Aider handles implementation.
+Run multiple AI tools that work together:
+
+- **Event bus** — agents communicate in real-time via Redis
+- **Shared context** — all agents see the same project state
+- **Task delegation** — agents can request help from each other
+- **Presence tracking** — know which agents are active
 
 ## The RAPID Methodology
 
@@ -129,16 +151,75 @@ Execute with AI assistance:
 
 <Aside>This is where value is delivered.</Aside>
 
+## Key Features
+
+### Auth Passthrough
+
+RAPID automatically detects your existing AI tool credentials:
+
+- **Claude Code** — Uses `~/.claude.json` OAuth tokens
+- **OpenAI** — Uses `~/.openai` or environment variables
+- **Anthropic API** — Uses `~/.anthropic` configuration
+
+No need to configure API keys if you're already logged in. See [Auth Passthrough](/concepts/auth-passthrough/) for details.
+
+### Event Bus
+
+Multiple agents can communicate in real-time:
+
+```
+Claude: "I've designed the auth module"
+  → sends task_complete to event bus
+
+OpenCode: Sees notification, picks up implementation
+  → sends review_request when done
+```
+
+The event bus uses Redis (auto-managed) and is enabled by default. See [Event Bus](/concepts/event-bus/) for details.
+
+### RAPID MCP Server
+
+A centralized MCP server provides all agents with shared tools:
+
+| Tool           | Description                   |
+| -------------- | ----------------------------- |
+| `bus_register` | Register with the event bus   |
+| `bus_send`     | Send messages to other agents |
+| `bus_messages` | Retrieve messages             |
+| `bus_agents`   | List connected agents         |
+| `secure_exec`  | Execute sandboxed commands    |
+| `get_secret`   | Access secrets securely       |
+
+The server runs centrally so all agents share state. See [MCP Servers](/guides/mcp-servers/#rapid-mcp-server) for details.
+
+### YOLO Mode
+
+In isolated environments (containers, VMs), agents can skip permission prompts:
+
+```json
+{
+  "agents": {
+    "available": {
+      "claude": { "yolo": true }
+    }
+  }
+}
+```
+
+This dramatically speeds up development cycles. See [Agent Configuration](/guides/agent-configuration/#yolo-mode) for details.
+
 ## Comparison to Manual Setup
 
-| Task                   | Manual                            | With RAPID           |
-| ---------------------- | --------------------------------- | -------------------- |
-| Start container        | `devcontainer up`, wait, attach   | `rapid start`        |
-| Load secrets           | Export vars, source .env, etc.    | Automatic            |
-| Install AI tools       | npm install -g, pip install, etc. | Automatic            |
-| Generate context files | Write AGENTS.md manually          | Auto-generated       |
-| Switch AI tools        | Exit, configure, restart          | `rapid agent <name>` |
-| Run multiple agents    | Manual tmux setup                 | `rapid dev --multi`  |
+| Task                   | Manual                          | With RAPID          |
+| ---------------------- | ------------------------------- | ------------------- |
+| Initial setup          | Write configs, install tools    | `rapid init`        |
+| Start everything       | Multiple commands, manual order | `rapid dev`         |
+| Authentication         | Configure API keys everywhere   | Auth passthrough    |
+| Load secrets           | Export vars, source .env, etc.  | Automatic           |
+| Generate context files | Write AGENTS.md manually        | Auto-generated      |
+| Multi-agent comms      | Build your own message system   | Event bus included  |
+| Switch AI tools        | Exit, configure, restart        | `rapid dev --agent` |
+| Run multiple agents    | Manual tmux setup               | `rapid dev --multi` |
 
 ## When to Use RAPID
 
@@ -147,10 +228,18 @@ Execute with AI assistance:
 - Teams wanting consistent AI-assisted workflows
 - Projects requiring secure secret management
 - Developers using multiple AI tools
+- Multi-agent workflows requiring coordination
 - Organizations with container-based development
 
 **Not necessary:**
 
 - Single-file scripts or quick experiments
-- Projects not using containers
+- Projects not using containers or isolation
 - When using only one AI tool without secrets
+
+## Related Concepts
+
+- [Auth Passthrough](/concepts/auth-passthrough/) — How credential detection works
+- [Event Bus](/concepts/event-bus/) — Inter-agent communication
+- [Agent Integration](/concepts/agent-integration/) — How agents connect to RAPID
+- [Container Lifecycle](/concepts/container-lifecycle/) — Container management

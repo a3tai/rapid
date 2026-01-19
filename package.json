@@ -1,6 +1,6 @@
 {
   "name": "rapid",
-  "version": "0.1.10",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "AI-assisted development with dev containers",
@@ -48,7 +48,7 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.53.0",
     "vitest": "^4.0.17",
-    "wrangler": "^4.59.1"
+    "wrangler": "^4.59.2"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
@@ -58,5 +58,11 @@
     "*.{json,md,mdx,css,yaml,yml}": [
       "prettier --write"
     ]
+  },
+  "pnpm": {
+    "overrides": {
+      "h3": ">=1.15.5",
+      "undici": ">=7.18.2"
+    }
   }
 }

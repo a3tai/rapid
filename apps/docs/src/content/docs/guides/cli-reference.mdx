@@ -804,6 +804,100 @@ The `inject` action outputs the assembled context content to stdout, suitable fo
 
 ---
 
+## rapid bus
+
+Manage the event bus for multi-agent communication.
+
+```bash
+rapid bus <subcommand> [options]
+```
+
+The event bus enables agents to communicate with each other in real-time, using Redis for message persistence and delivery.
+
+### Subcommands
+
+#### rapid bus status
+
+Show event bus status.
+
+```bash
+rapid bus status [options]
+```
+
+| Option   | Description    |
+| -------- | -------------- |
+| `--json` | Output as JSON |
+
+Output:
+
+```
+RAPID Event Bus Status
+────────────────────────────────
+
+Project:    my-project
+Mode:       Redis (persistent)
+URL:        redis://localhost:6379
+Container:  d5263f2e5c71
+
+Messages:   12
+Agents:     2
+```
+
+#### rapid bus history
+
+Show recent message history.
+
+```bash
+rapid bus history [options]
+```
+
+| Option          | Default | Description                |
+| --------------- | ------- | -------------------------- |
+| `--limit <n>`   | `50`    | Number of messages to show |
+| `--agent <id>`  | all     | Filter by agent ID         |
+| `--type <type>` | all     | Filter by message type     |
+| `--json`        |         | Output as JSON             |
+
+#### rapid bus agents
+
+List connected agents.
+
+```bash
+rapid bus agents [options]
+```
+
+| Option   | Description    |
+| -------- | -------------- |
+| `--json` | Output as JSON |
+
+### Examples
+
+```bash
+# Check event bus status
+rapid bus status
+
+# View recent messages
+rapid bus history
+
+# View last 10 messages
+rapid bus history --limit 10
+
+# Filter by agent
+rapid bus history --agent claude-abc123
+
+# List connected agents
+rapid bus agents
+```
+
+### Notes
+
+- The event bus starts automatically when `rapid dev` runs (if enabled in config)
+- Uses Redis in Docker for message persistence
+- Messages are retained for the session lifetime
+- Agents can send/receive messages via the RAPID MCP server tools
+
+---
+
 ## rapid auth
 
 Show authentication status for external AI providers.

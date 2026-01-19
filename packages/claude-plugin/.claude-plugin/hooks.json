@@ -1,0 +1,31 @@
+{
+  "hooks": [
+    {
+      "matcher": "PreToolUse",
+      "command": [
+        "bash",
+        "-c",
+        "HOOK_DIR=$(dirname \"$0\")/../hooks && \"$HOOK_DIR/pre-tool-use.sh\""
+      ],
+      "timeout": 5000
+    },
+    {
+      "matcher": "PostToolUse",
+      "command": [
+        "bash",
+        "-c",
+        "HOOK_DIR=$(dirname \"$0\")/../hooks && \"$HOOK_DIR/post-tool-use.sh\""
+      ],
+      "timeout": 5000
+    },
+    {
+      "matcher": "PermissionRequest",
+      "command": [
+        "bash",
+        "-c",
+        "HOOK_DIR=$(dirname \"$0\")/../hooks && \"$HOOK_DIR/permission-request.sh\""
+      ],
+      "timeout": 5000
+    }
+  ]
+}

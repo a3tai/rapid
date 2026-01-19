@@ -1,0 +1,30 @@
+{
+  "name": "@a3t/rapid-claude-plugin",
+  "version": "0.2.0",
+  "description": "RAPID governance, sandboxing, and policy enforcement for Claude Code",
+  "license": "MIT",
+  "author": "A3T <hello@a3t.ai>",
+  "homepage": "https://getrapid.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/a3tai/rapid.git",
+    "directory": "packages/claude-plugin"
+  },
+  "keywords": [
+    "rapid",
+    "claude",
+    "claude-code",
+    "plugin",
+    "governance",
+    "sandbox"
+  ],
+  "type": "module",
+  "files": [
+    ".claude-plugin",
+    "hooks"
+  ],
+  "scripts": {
+    "build": "echo 'No build required for Claude plugin'",
+    "test": "echo 'Plugin tests not yet implemented'"
+  }
+}
