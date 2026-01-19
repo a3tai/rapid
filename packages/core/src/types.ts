@@ -1,157 +1,50 @@
 /**
- * RAPID Configuration Types
+ * @a3t/rapid-core Types
+ *
+ * This file re-exports configuration types from @a3t/rapid-schema (the source of truth)
+ * and defines runtime-only types used within core.
  */
 
-export interface RapidConfig {
-  $schema?: string;
-  version: '1.0';
-  name?: string;
-  container?: ContainerConfig;
-  secrets?: SecretsConfig;
-  agents: AgentsConfig;
-  context?: ContextConfig;
-  mcp?: McpConfig;
-  lima?: LimaConfig;
-}
+// ============================================================================
+// Re-export all configuration types from schema (single source of truth)
+// ============================================================================
+export type {
+  RapidConfig,
+  LimaConfig,
+  ContainerConfig,
+  SecretsConfig,
+  EnvrcConfig,
+  DotenvConfig,
+  ExternalAuthSource,
+  ExternalAuthConfig,
+  AgentsConfig,
+  AgentDefinition,
+  ContextConfig,
+  McpConfig,
+  McpTransportType,
+  McpServerConfig,
+  SandboxMode,
+  SandboxConfig,
+  SandboxNetworkConfig,
+  SandboxFilesystemConfig,
+  GatewayConfig,
+  GatewayConnectionConfig,
+  GatewayModelsConfig,
+  GatewayModelConfig,
+  GatewayBudgetConfig,
+  BudgetLimit,
+  EventBusConfig,
+  EventBusRedisConfig,
+  EventBusInjectionConfig,
+  EventBusAutoCheckConfig,
+} from '@a3t/rapid-schema';
+
+// ============================================================================
+// Runtime types (not persisted to config, only used at runtime)
+// ============================================================================
 
 /**
- * Lima VM configuration
- */
-export interface LimaConfig {
-  /** Install GitHub CLI (gh) in the VM (default: true) */
-  installGh?: boolean;
-}
-
-export interface ContainerConfig {
-  devcontainer?: string;
-  compose?: string;
-  autoStart?: boolean;
-  buildArgs?: Record<string, string>;
-}
-
-/**
- * External auth source types
- */
-export type ExternalAuthSource = 'claude-code' | 'codex' | 'gemini-cli' | 'aider' | 'env';
-
-/**
- * External auth configuration
- */
-export interface ExternalAuthConfig {
-  enabled?: boolean;
-  sources?: ExternalAuthSource[];
-  preferSource?: ExternalAuthSource;
-}
-
-export interface SecretsConfig {
-  provider?: 'env' | '1password' | 'vault';
-  vault?: string;
-  address?: string;
-  items?: Record<string, string>;
-  envrc?: EnvrcConfig;
-  dotenv?: DotenvConfig;
-  externalAuth?: ExternalAuthConfig;
-}
-
-export interface EnvrcConfig {
-  generate?: boolean;
-  path?: string;
-  includeLocal?: boolean;
-}
-
-export interface DotenvConfig {
-  enabled?: boolean;
-  files?: string[];
-  warn?: boolean;
-}
-
-export interface AgentsConfig {
-  default: string;
-  available: Record<string, AgentDefinition>;
-}
-
-export interface AgentDefinition {
-  cli: string;
-  instructionFile?: string;
-  envVars?: string[];
-  installCmd?: string;
-  args?: string[];
-  /**
-   * CLI argument pattern for injecting system prompts at runtime.
-   * Use {prompt} as placeholder for the prompt content.
-   * Example: "--append-system-prompt {prompt}" for Claude
-   * If not specified, system prompt injection via CLI is not supported.
-   */
-  systemPromptArg?: string;
-  /**
-   * Whether this agent reads instruction files from the filesystem automatically.
-   * If true, RAPID will ensure AGENTS.md exists with methodology.
-   * If false, RAPID will try to inject prompts via CLI args.
-   */
-  readsInstructionFiles?: boolean;
-  /**
-   * YOLO mode: Skip all permission prompts when launching the agent.
-   * For Claude, this adds the --dangerously-skip-permissions flag.
-   * WARNING: Only use in trusted environments (dev containers, CI, etc.)
-   */
-  yolo?: boolean;
-}
-
-export interface ContextConfig {
-  files?: string[];
-  dirs?: string[];
-  exclude?: string[];
-  generateAgentFiles?: boolean;
-  templateDir?: string;
-  preserve?: string[];
-}
-
-export interface McpConfig {
-  configFile?: string;
-  servers?: Record<string, McpServerConfig>;
-}
-
-/**
- * MCP transport types following the MCP specification.
- * - 'stdio': Local subprocess communication (MCP spec standard)
- * - 'streamable-http': Remote HTTP communication (MCP spec standard, replaces deprecated SSE)
- * - 'remote': Alias for 'streamable-http' (user-friendly, backwards compatible)
- */
-export type McpTransportType = 'stdio' | 'streamable-http' | 'remote';
-
-export interface McpServerConfig {
-  /** Enable this MCP server (default: true) */
-  enabled?: boolean;
-
-  /**
-   * Server transport type (MCP spec naming):
-   * - 'stdio': Local subprocess (command + args)
-   * - 'streamable-http': Remote HTTP server (url + headers)
-   * - 'remote': Alias for 'streamable-http' (backwards compatible)
-   */
-  type?: McpTransportType;
-
-  /** URL for remote/streamable-http servers */
-  url?: string;
-
-  /** HTTP headers for remote/streamable-http servers */
-  headers?: Record<string, string>;
-
-  /** Command for stdio servers */
-  command?: string;
-
-  /** Arguments for stdio command */
-  args?: string[];
-
-  /** Environment variables for stdio servers */
-  env?: Record<string, string>;
-
-  /** Additional server-specific configuration */
-  [key: string]: unknown;
-}
-
-/**
- * Agent status
+ * Runtime status of an AI agent
  */
 export interface AgentStatus {
   name: string;
@@ -161,7 +54,7 @@ export interface AgentStatus {
 }
 
 /**
- * Environment status
+ * Runtime environment status
  */
 export interface EnvironmentStatus {
   configPath?: string;
@@ -172,10 +65,10 @@ export interface EnvironmentStatus {
 }
 
 /**
- * Detected credential from an external tool
+ * Detected credential from an external tool (runtime)
  */
 export interface DetectedCredential {
-  source: ExternalAuthSource;
+  source: import('@a3t/rapid-schema').ExternalAuthSource;
   provider: 'anthropic' | 'openai' | 'google' | 'unknown';
   authType: 'api-key' | 'oauth' | 'service-account';
   envVar?: string;
@@ -190,11 +83,23 @@ export interface DetectedCredential {
 }
 
 /**
- * Auth status summary
+ * Runtime auth status summary
  */
 export interface AuthStatus {
   authenticated: boolean;
   sources: DetectedCredential[];
   preferredSource?: DetectedCredential;
   warnings?: string[];
+}
+
+/**
+ * Runtime gateway status
+ */
+export interface GatewayStatus {
+  enabled: boolean;
+  healthy: boolean;
+  type?: string | undefined;
+  mode?: string | undefined;
+  baseUrl?: string | undefined;
+  lastHealthCheck?: Date | undefined;
 }

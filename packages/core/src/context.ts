@@ -133,6 +133,12 @@ export interface ContextAssemblyOptions {
   includeHeaders?: boolean;
   /** File extensions to treat as binary (in addition to built-in list) */
   binaryExtensions?: string[];
+  /**
+   * Agent-specific instruction file (e.g., 'CLAUDE.md', 'OPENCODE.md').
+   * When specified and present in the files list, AGENTS.md will be excluded
+   * since the agent-specific file takes precedence.
+   */
+  agentInstructionFile?: string;
 }
 
 /**
@@ -326,10 +332,32 @@ export async function assembleContext(
   const skippedFiles: SkippedFile[] = [];
   let totalSize = 0;
 
+  // Check if we should exclude AGENTS.md because an agent-specific instruction file is specified
+  const agentInstructionFile = options.agentInstructionFile;
+  let shouldExcludeAgentsMd = false;
+
+  if (agentInstructionFile) {
+    const normalizedAgentFile = agentInstructionFile.toLowerCase();
+    // Only exclude AGENTS.md if the agent-specific file is not AGENTS.md itself
+    // and the agent-specific file exists in the files list
+    if (normalizedAgentFile !== 'agents.md' && config.files) {
+      const hasAgentFile = config.files.some((f) => f.toLowerCase() === normalizedAgentFile);
+      if (hasAgentFile) {
+        shouldExcludeAgentsMd = true;
+      }
+    }
+  }
+
   // Process explicit files first
   if (config.files && config.files.length > 0) {
     for (const filePath of config.files) {
       const relativePath = filePath;
+
+      // Check if this is AGENTS.md and should be excluded
+      if (shouldExcludeAgentsMd && filePath.toLowerCase() === 'agents.md') {
+        skippedFiles.push({ path: join(rootDir, filePath), reason: 'excluded' });
+        continue;
+      }
 
       // Check exclude patterns
       if (matchesExcludePattern(relativePath, excludePatterns)) {
