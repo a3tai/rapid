@@ -20,8 +20,9 @@ import {
 import ora from 'ora';
 import chalk from 'chalk';
 
-export const busCommand = new Command('bus')
-  .description('Manage inter-agent event bus for multi-agent collaboration');
+export const busCommand = new Command('bus').description(
+  'Manage inter-agent event bus for multi-agent collaboration'
+);
 
 // Cached bus instance
 let busInstance: EventBus | InMemoryEventBus | null = null;
@@ -33,7 +34,9 @@ function getProjectId(): string {
 /**
  * Get or create the event bus, preferring Redis if available
  */
-async function getOrCreateBus(options: { forceInMemory?: boolean } = {}): Promise<EventBus | InMemoryEventBus> {
+async function getOrCreateBus(
+  options: { forceInMemory?: boolean } = {}
+): Promise<EventBus | InMemoryEventBus> {
   if (busInstance) {
     return busInstance;
   }
@@ -127,15 +130,18 @@ busCommand
       const bus = await getOrCreateBus();
       const maxAge = parseInt(options.maxAge, 10);
       // Both EventBus and InMemoryEventBus support getActiveAgents
-      const agents = bus instanceof EventBus
-        ? await bus.getActiveAgents(maxAge)
-        : await (bus as InMemoryEventBus).getActiveAgents();
+      const agents =
+        bus instanceof EventBus
+          ? await bus.getActiveAgents(maxAge)
+          : await (bus as InMemoryEventBus).getActiveAgents();
 
       spinner.succeed(`Found ${agents.length} active agent(s)`);
       console.log();
 
       if (agents.length === 0) {
-        console.log(chalk.dim('  No active agents. Agents register when they connect to the event bus.'));
+        console.log(
+          chalk.dim('  No active agents. Agents register when they connect to the event bus.')
+        );
       } else {
         console.log(chalk.bold('  ID                     NAME        WORKTREE'));
         console.log(chalk.dim('  ─'.repeat(30)));
@@ -160,7 +166,10 @@ busCommand
   .command('history')
   .description('View message history from the event bus')
   .option('--hours <hours>', 'Get messages from the last N hours', '1')
-  .option('--type <type>', 'Filter by message type (discovery, error, completion, question, learning, coordination)')
+  .option(
+    '--type <type>',
+    'Filter by message type (discovery, error, completion, question, learning, coordination)'
+  )
   .option('--from <agent>', 'Filter by agent name')
   .option('--limit <count>', 'Maximum number of messages', '20')
   .option('--format <format>', 'Output format: display, json, inject', 'display')
@@ -172,7 +181,9 @@ busCommand
       const hours = parseFloat(options.hours);
       const limit = parseInt(options.limit, 10);
 
-      const historyOptions: { hours: number; types?: MessageType[]; fromAgent?: string } = { hours };
+      const historyOptions: { hours: number; types?: MessageType[]; fromAgent?: string } = {
+        hours,
+      };
       if (options.type) {
         historyOptions.types = [options.type as MessageType];
       }
@@ -201,7 +212,9 @@ busCommand
             : msg.fromAgent.name;
 
           console.log(`  ${chalk.dim(time)} │ ${chalk.cyan(from)}`);
-          console.log(`           │ ${icon} ${chalk.bold(msg.type.toUpperCase())}: ${msg.payload.title}`);
+          console.log(
+            `           │ ${icon} ${chalk.bold(msg.type.toUpperCase())}: ${msg.payload.title}`
+          );
           if (msg.payload.content) {
             const contentLines = msg.payload.content.split('\n');
             for (const line of contentLines) {
@@ -224,7 +237,10 @@ busCommand
 busCommand
   .command('send')
   .description('Send a message to other agents via the event bus')
-  .requiredOption('--type <type>', 'Message type (discovery, error, completion, question, learning, coordination)')
+  .requiredOption(
+    '--type <type>',
+    'Message type (discovery, error, completion, question, learning, coordination)'
+  )
   .requiredOption('--title <title>', 'Short message title')
   .requiredOption('--content <content>', 'Message content')
   .option('--name <name>', 'Your agent name', 'cli')
@@ -266,7 +282,9 @@ busCommand
       console.log();
       console.log(`  ${chalk.bold('Message ID:')} ${message.id}`);
       console.log(`  ${chalk.bold('Timestamp:')}  ${message.timestamp}`);
-      console.log(`  ${chalk.bold('Type:')}       ${MESSAGE_TYPE_ICONS[message.type]} ${message.type}`);
+      console.log(
+        `  ${chalk.bold('Type:')}       ${MESSAGE_TYPE_ICONS[message.type]} ${message.type}`
+      );
       console.log(`  ${chalk.bold('Title:')}      ${message.payload.title}`);
       console.log();
     } catch (error) {
@@ -351,7 +369,9 @@ busCommand
           : msg.fromAgent.name;
 
         console.log(`  ${chalk.dim(time)} │ ${chalk.cyan(from)}`);
-        console.log(`           │ ${icon} ${chalk.bold(msg.type.toUpperCase())}: ${msg.payload.title}`);
+        console.log(
+          `           │ ${icon} ${chalk.bold(msg.type.toUpperCase())}: ${msg.payload.title}`
+        );
         if (msg.payload.content) {
           const contentLines = msg.payload.content.split('\n').slice(0, 3);
           for (const line of contentLines) {

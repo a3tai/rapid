@@ -17,10 +17,7 @@ import {
   getContainerStatus,
   startContainer,
 } from '@a3t/rapid-core';
-import {
-  startRedis,
-  getRedisStatus,
-} from '@a3t/rapid-eventbus';
+import { startRedis, getRedisStatus } from '@a3t/rapid-eventbus';
 import ora from 'ora';
 
 export const startCommand = new Command('start')
@@ -75,7 +72,9 @@ export const startCommand = new Command('start')
               }
             }
           } catch (error) {
-            logger.warn(`Failed to start event bus: ${error instanceof Error ? error.message : String(error)}`);
+            logger.warn(
+              `Failed to start event bus: ${error instanceof Error ? error.message : String(error)}`
+            );
           }
         }
       }
@@ -162,15 +161,23 @@ export const startCommand = new Command('start')
 
         console.log(`  ${logger.dim('Next steps:')}`);
         console.log(`    ${logger.dim('•')} Run ${logger.brand('rapid dev')} to start coding`);
-        console.log(`    ${logger.dim('•')} Run ${logger.brand('rapid status')} to see full status`);
+        console.log(
+          `    ${logger.dim('•')} Run ${logger.brand('rapid status')} to see full status`
+        );
         console.log(`    ${logger.dim('•')} Run ${logger.brand('rapid stop')} when done`);
       } else {
         logger.info('No services to start.');
         logger.blank();
         logger.info('Configure services in rapid.json:');
-        console.log(`    ${logger.dim('•')} eventBus.enabled: true  ${logger.dim('# Inter-agent communication')}`);
-        console.log(`    ${logger.dim('•')} gateway.enabled: true   ${logger.dim('# LLM cost tracking')}`);
-        console.log(`    ${logger.dim('•')} Add .devcontainer/      ${logger.dim('# Sandboxed development')}`);
+        console.log(
+          `    ${logger.dim('•')} eventBus.enabled: true  ${logger.dim('# Inter-agent communication')}`
+        );
+        console.log(
+          `    ${logger.dim('•')} gateway.enabled: true   ${logger.dim('# LLM cost tracking')}`
+        );
+        console.log(
+          `    ${logger.dim('•')} Add .devcontainer/      ${logger.dim('# Sandboxed development')}`
+        );
       }
 
       logger.blank();

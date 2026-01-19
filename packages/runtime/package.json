@@ -1,27 +1,24 @@
 {
-  "name": "@a3t/rapid",
+  "name": "@a3t/rapid-runtime",
   "version": "0.2.0",
-  "description": "CLI for RAPID - AI-assisted development with dev containers",
+  "description": "OS-level sandbox runtime for RAPID - inspired by Anthropic's sandbox-runtime",
   "license": "MIT",
   "author": "Steve Rude <steve@rude.la>",
   "homepage": "https://getrapid.dev",
   "repository": {
     "type": "git",
     "url": "https://github.com/a3tai/rapid.git",
-    "directory": "packages/cli"
+    "directory": "packages/runtime"
   },
   "keywords": [
     "rapid",
-    "cli",
-    "ai",
-    "devcontainer",
-    "claude",
-    "opencode"
+    "sandbox",
+    "seatbelt",
+    "bubblewrap",
+    "isolation",
+    "security"
   ],
   "type": "module",
-  "bin": {
-    "rapid": "./dist/bin.js"
-  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -41,26 +38,16 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "@a3t/rapid-core": "workspace:*",
-    "@a3t/rapid-daemon": "workspace:*",
-    "@a3t/rapid-eventbus": "workspace:*",
-    "@a3t/rapid-mcp": "workspace:*",
-    "@a3t/rapid-runtime": "workspace:*",
-    "@clack/prompts": "^0.11.0",
     "chalk": "^5.6.2",
-    "commander": "^14.0.2",
     "execa": "^9.6.1",
-    "giget": "^2.0.0",
-    "ora": "^9.0.0",
-    "prompts": "^2.4.2",
-    "semver": "^7.7.3",
-    "update-notifier": "^7.3.1"
+    "get-port": "^7.1.0",
+    "http-proxy": "^1.18.1",
+    "socks": "^2.8.4",
+    "zod": "^3.25.32"
   },
   "devDependencies": {
+    "@types/http-proxy": "^1.17.15",
     "@types/node": "^25.0.8",
-    "@types/prompts": "^2.4.9",
-    "@types/semver": "^7.7.1",
-    "@types/update-notifier": "^6.0.8",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "vitest": "^4.0.17"

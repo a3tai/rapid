@@ -1,22 +1,21 @@
 {
-  "name": "@a3t/rapid-core",
+  "name": "@a3t/rapid-eventbus",
   "version": "0.2.0",
-  "description": "Core library for RAPID - AI-assisted development with dev containers",
+  "description": "Inter-agent event bus for RAPID multi-agent communication",
   "license": "MIT",
-  "author": "Steve Rude <steve@rude.la>",
+  "author": "A3T <hello@a3t.ai>",
   "homepage": "https://getrapid.dev",
   "repository": {
     "type": "git",
     "url": "https://github.com/a3tai/rapid.git",
-    "directory": "packages/core"
+    "directory": "packages/rapid-eventbus"
   },
   "keywords": [
     "rapid",
-    "ai",
-    "devcontainer",
-    "claude",
-    "opencode",
-    "development"
+    "eventbus",
+    "multi-agent",
+    "redis",
+    "mcp"
   ],
   "type": "module",
   "exports": {
@@ -38,17 +37,12 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "@a3t/rapid-schema": "workspace:*",
-    "chalk": "^5.6.2",
-    "cosmiconfig": "^9.0.0",
-    "execa": "^9.6.1",
-    "minimatch": "^10.0.1",
-    "prettier": "^3.5.3",
-    "which": "^6.0.0"
+    "@a3t/rapid-core": "workspace:*",
+    "ioredis": "^5.6.1",
+    "zod": "^3.25.32"
   },
   "devDependencies": {
     "@types/node": "^25.0.8",
-    "@types/which": "^3.0.4",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "vitest": "^4.0.17"

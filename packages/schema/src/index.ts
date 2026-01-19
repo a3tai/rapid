@@ -334,12 +334,7 @@ export interface SecretsConfig {
 /**
  * External auth source types
  */
-export type ExternalAuthSource =
-  | 'claude-code'
-  | 'codex'
-  | 'gemini-cli'
-  | 'aider'
-  | 'env';
+export type ExternalAuthSource = 'claude-code' | 'codex' | 'gemini-cli' | 'aider' | 'env';
 
 /**
  * External auth configuration

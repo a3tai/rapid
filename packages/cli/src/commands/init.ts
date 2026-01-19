@@ -913,10 +913,7 @@ export const initCommand = new Command('init')
       }
 
       // Create config with project name and MCP servers
-      let config = createConfigWithOptions(
-        { agent: options.agent, projectName },
-        detectedProject
-      );
+      let config = createConfigWithOptions({ agent: options.agent, projectName }, detectedProject);
 
       // Always add RAPID MCP server first
       config = addRapidMcpServer(config);
@@ -1049,7 +1046,9 @@ export const initCommand = new Command('init')
 
       if (secretsProvider !== 'env' && mcpServers.length > 0) {
         logger.blank();
-        logger.dim(`  Note: Configure API keys in ${secretsProvider === '1password' ? '1Password' : 'Vault'} for MCP servers.`);
+        logger.dim(
+          `  Note: Configure API keys in ${secretsProvider === '1password' ? '1Password' : 'Vault'} for MCP servers.`
+        );
       }
       logger.blank();
     } catch (error) {

@@ -3,25 +3,42 @@
  * Core library for RAPID - AI-assisted development with dev containers
  */
 
-// Types
+// Types - Config types from schema, runtime types from core
 export type {
+  // Config types (from schema)
   RapidConfig,
+  LimaConfig,
   ContainerConfig,
   SecretsConfig,
   EnvrcConfig,
   DotenvConfig,
+  ExternalAuthSource,
+  ExternalAuthConfig,
   AgentsConfig,
   AgentDefinition,
   ContextConfig,
   McpConfig,
   McpServerConfig,
   McpTransportType,
+  SandboxMode,
+  SandboxConfig,
+  SandboxNetworkConfig,
+  SandboxFilesystemConfig,
+  GatewayConfig,
+  GatewayConnectionConfig,
+  GatewayModelConfig,
+  GatewayBudgetConfig,
+  BudgetLimit,
+  EventBusConfig,
+  EventBusRedisConfig,
+  EventBusInjectionConfig,
+  EventBusAutoCheckConfig,
+  // Runtime types (from core)
   AgentStatus,
   EnvironmentStatus,
-  ExternalAuthSource,
   DetectedCredential,
-  ExternalAuthConfig,
   AuthStatus,
+  GatewayStatus,
 } from './types.js';
 
 // Config
@@ -164,3 +181,16 @@ export {
   type SkippedFile,
   type ContextAssemblyOptions,
 } from './context.js';
+
+// Gateway
+export {
+  GatewayManager,
+  createGatewayManager,
+  checkExternalGateway,
+  DEFAULT_GATEWAY_CONFIG,
+  GATEWAY_ENV_VARS,
+  type CostRecord,
+  type CostSummary,
+  type BudgetConfig,
+  type LiteLLMConfig,
+} from './gateway.js';

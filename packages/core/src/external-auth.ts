@@ -233,8 +233,8 @@ export async function detectClaudeCodeAuth(): Promise<DetectedCredential | null>
   if (config?.oauthAccount?.emailAddress) {
     logger.debug(
       'Claude Code config found but no accessible token. ' +
-      'On macOS, tokens are stored in Keychain. ' +
-      'Use `claude setup-token` to generate a portable token.'
+        'On macOS, tokens are stored in Keychain. ' +
+        'Use `claude setup-token` to generate a portable token.'
     );
   }
 

@@ -43,11 +43,7 @@ import {
   ensureAgentInstalled,
   RAPID_LIMA_INSTANCE,
 } from '../isolation/lima.js';
-import {
-  hasDocker,
-  getRedisStatus,
-  startRedis,
-} from '@a3t/rapid-eventbus';
+import { hasDocker, getRedisStatus, startRedis } from '@a3t/rapid-eventbus';
 
 export const devCommand = new Command('dev')
   .description('Launch AI coding session in the dev container')

@@ -1,27 +1,24 @@
 {
-  "name": "@a3t/rapid",
+  "name": "@a3t/rapid-mcp",
   "version": "0.2.0",
-  "description": "CLI for RAPID - AI-assisted development with dev containers",
+  "description": "MCP server exposing RAPID sandbox and governance capabilities to AI agents",
   "license": "MIT",
   "author": "Steve Rude <steve@rude.la>",
   "homepage": "https://getrapid.dev",
   "repository": {
     "type": "git",
     "url": "https://github.com/a3tai/rapid.git",
-    "directory": "packages/cli"
+    "directory": "packages/rapid-mcp"
   },
   "keywords": [
     "rapid",
-    "cli",
-    "ai",
-    "devcontainer",
-    "claude",
-    "opencode"
+    "mcp",
+    "model-context-protocol",
+    "ai-agents",
+    "sandbox",
+    "governance"
   ],
   "type": "module",
-  "bin": {
-    "rapid": "./dist/bin.js"
-  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -30,6 +27,9 @@
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "rapid-mcp": "./dist/bin.js"
+  },
   "files": [
     "dist"
   ],
@@ -44,23 +44,16 @@
     "@a3t/rapid-core": "workspace:*",
     "@a3t/rapid-daemon": "workspace:*",
     "@a3t/rapid-eventbus": "workspace:*",
-    "@a3t/rapid-mcp": "workspace:*",
     "@a3t/rapid-runtime": "workspace:*",
-    "@clack/prompts": "^0.11.0",
+    "@modelcontextprotocol/sdk": "^1.12.1",
     "chalk": "^5.6.2",
-    "commander": "^14.0.2",
     "execa": "^9.6.1",
-    "giget": "^2.0.0",
-    "ora": "^9.0.0",
-    "prompts": "^2.4.2",
-    "semver": "^7.7.3",
-    "update-notifier": "^7.3.1"
+    "express": "^5.0.0",
+    "zod": "^3.25.32"
   },
   "devDependencies": {
+    "@types/express": "^5.0.0",
     "@types/node": "^25.0.8",
-    "@types/prompts": "^2.4.9",
-    "@types/semver": "^7.7.1",
-    "@types/update-notifier": "^6.0.8",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "vitest": "^4.0.17"
