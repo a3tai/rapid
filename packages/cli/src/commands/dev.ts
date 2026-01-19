@@ -28,6 +28,7 @@ import {
   formatJson,
   assembleContext,
   generateMcpConfig,
+  getAuthEnvironment,
   type McpConfig,
   type AgentDefinition,
 } from '@a3t/rapid-core';
@@ -42,6 +43,11 @@ import {
   ensureAgentInstalled,
   RAPID_LIMA_INSTANCE,
 } from '../isolation/lima.js';
+import {
+  hasDocker,
+  getRedisStatus,
+  startRedis,
+} from '@a3t/rapid-eventbus';
 
 export const devCommand = new Command('dev')
   .description('Launch AI coding session in the dev container')
@@ -68,6 +74,23 @@ export const devCommand = new Command('dev')
       const { config } = loaded;
       let { rootDir } = loaded;
       spinner.succeed('Configuration loaded');
+
+      // Auto-start event bus if enabled but not running
+      if (config.eventBus?.enabled) {
+        const hasDockerInstalled = await hasDocker();
+        if (hasDockerInstalled) {
+          const redisStatus = await getRedisStatus();
+          if (!redisStatus.running) {
+            spinner.start('Starting event bus...');
+            const result = await startRedis({ port: 6379, verbose: false });
+            if (result.running) {
+              spinner.succeed('Event bus started');
+            } else {
+              spinner.warn('Could not start event bus - multi-agent features may be limited');
+            }
+          }
+        }
+      }
 
       // List mode
       if (options.list) {
@@ -278,9 +301,10 @@ export const devCommand = new Command('dev')
 
       const agentArgs = [agent.cli, ...builtArgs];
       const mcpEnv = await prepareMcpEnv(rootDir, config.mcp);
-      const mergedEnv = { ...secrets, ...(mcpEnv ?? {}) };
+      const authEnv = await getAuthEnvironment();
+      const mergedEnv = { ...secrets, ...authEnv, ...(mcpEnv ?? {}) };
 
-      // Inject secrets and MCP config as environment variables
+      // Inject secrets, auth tokens, and MCP config as environment variables
       await execInContainer(rootDir, agentArgs, config, {
         interactive: true,
         tty: true,
@@ -419,9 +443,10 @@ async function runLocally(
     }
   }
 
-  // Prepare MCP environment
+  // Prepare MCP environment and auth passthrough
   const mcpEnv = await prepareMcpEnv(rootDir, config.mcp);
-  const mergedEnv = { ...secrets, ...(mcpEnv ?? {}) };
+  const authEnv = await getAuthEnvironment();
+  const mergedEnv = { ...secrets, ...authEnv, ...(mcpEnv ?? {}) };
 
   // Assemble context files if configured
   let contextContent: string | undefined;
