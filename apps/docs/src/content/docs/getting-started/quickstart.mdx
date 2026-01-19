@@ -38,9 +38,7 @@ That's it. No manual configuration, no API key setup, no Docker commands.
    - **Secrets provider**: 1Password, HashiCorp Vault, or environment variables
    - **Create devcontainer?**: For reproducible environments
 
-   <Aside type="tip">
-     For non-interactive setup, use `rapid init -y` to accept all defaults.
-   </Aside>
+   <Aside type="tip">For non-interactive setup, use `rapid init -y` to accept all defaults.</Aside>
 
 3. **Start coding with AI**:
 
@@ -58,12 +56,14 @@ That's it. No manual configuration, no API key setup, no Docker commands.
 ## What Happens Behind the Scenes
 
 When you run `rapid init`:
+
 - Creates `rapid.json` with smart defaults
 - Generates `.mcp.json` for MCP server configuration
 - Creates `CLAUDE.md` and `AGENTS.md` instruction files
 - Optionally creates `.devcontainer/` for container environments
 
 When you run `rapid dev`:
+
 - Auto-starts the event bus (for multi-agent features)
 - Passes through your existing Claude authentication (no re-login!)
 - Injects configured MCP servers
@@ -82,12 +82,9 @@ rapid dev  # No API key prompts!
 ```
 
 <Aside>
-  RAPID checks for auth in this order:
-  1. `CLAUDE_CODE_OAUTH_TOKEN` environment variable
-  2. `ANTHROPIC_AUTH_TOKEN` environment variable
-  3. `~/.claude/.credentials.json` (Linux/Windows)
-  4. `~/.claude.json` OAuth account (legacy)
-  5. `ANTHROPIC_API_KEY` (fallback)
+  RAPID checks for auth in this order: 1. `CLAUDE_CODE_OAUTH_TOKEN` environment variable 2.
+  `ANTHROPIC_AUTH_TOKEN` environment variable 3. `~/.claude/.credentials.json` (Linux/Windows) 4.
+  `~/.claude.json` OAuth account (legacy) 5. `ANTHROPIC_API_KEY` (fallback)
 </Aside>
 
 ## Multi-Agent Communication
@@ -105,6 +102,7 @@ rapid dev --agent opencode
 ```
 
 Check event bus status:
+
 ```bash
 rapid bus status
 rapid bus history

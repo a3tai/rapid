@@ -81,7 +81,7 @@ Register the agent with the event bus.
 
 ```typescript
 // Called automatically when agent starts
-bus_register({ name: "claude", capabilities: ["code", "review"] })
+bus_register({ name: 'claude', capabilities: ['code', 'review'] });
 ```
 
 ### bus_send
@@ -91,16 +91,16 @@ Send a message to other agents.
 ```typescript
 // Send to all agents
 bus_send({
-  type: "task_complete",
-  content: "Finished implementing auth module"
-})
+  type: 'task_complete',
+  content: 'Finished implementing auth module',
+});
 
 // Send to specific agent
 bus_send({
-  type: "review_request",
-  content: "Please review src/auth.ts",
-  to: "opencode"
-})
+  type: 'review_request',
+  content: 'Please review src/auth.ts',
+  to: 'opencode',
+});
 ```
 
 ### bus_messages
@@ -109,10 +109,10 @@ Get recent messages from the bus.
 
 ```typescript
 // Get all messages
-bus_messages({ limit: 50 })
+bus_messages({ limit: 50 });
 
 // Get messages from specific agent
-bus_messages({ from: "aider", limit: 10 })
+bus_messages({ from: 'aider', limit: 10 });
 ```
 
 ### bus_agents
@@ -120,7 +120,7 @@ bus_messages({ from: "aider", limit: 10 })
 List currently connected agents.
 
 ```typescript
-bus_agents()
+bus_agents();
 // Returns: [{ id: "claude-abc", name: "claude", lastSeen: "..." }, ...]
 ```
 
@@ -128,17 +128,17 @@ bus_agents()
 
 Common message types for agent coordination:
 
-| Type | Description |
-|------|-------------|
-| `task_start` | Agent starting a task |
-| `task_complete` | Agent finished a task |
-| `task_blocked` | Agent blocked, needs help |
-| `review_request` | Request code review |
-| `review_complete` | Review finished |
-| `question` | Ask other agents a question |
-| `answer` | Response to a question |
-| `file_changed` | Notify about file changes |
-| `test_result` | Share test results |
+| Type              | Description                 |
+| ----------------- | --------------------------- |
+| `task_start`      | Agent starting a task       |
+| `task_complete`   | Agent finished a task       |
+| `task_blocked`    | Agent blocked, needs help   |
+| `review_request`  | Request code review         |
+| `review_complete` | Review finished             |
+| `question`        | Ask other agents a question |
+| `answer`          | Response to a question      |
+| `file_changed`    | Notify about file changes   |
+| `test_result`     | Share test results          |
 
 ## Configuration
 
@@ -172,13 +172,13 @@ Common message types for agent coordination:
 
 ### Configuration Options
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `enabled` | `true` | Enable/disable the event bus |
-| `redis.port` | `6379` | Redis port |
-| `redis.dataDir` | none | Persist Redis data |
-| `injection.enabled` | `true` | Inject agent info into prompts |
-| `injection.promptTemplate` | default | Custom prompt template |
+| Option                     | Default | Description                    |
+| -------------------------- | ------- | ------------------------------ |
+| `enabled`                  | `true`  | Enable/disable the event bus   |
+| `redis.port`               | `6379`  | Redis port                     |
+| `redis.dataDir`            | none    | Persist Redis data             |
+| `injection.enabled`        | `true`  | Inject agent info into prompts |
+| `injection.promptTemplate` | default | Custom prompt template         |
 
 ## CLI Commands
 
@@ -189,6 +189,7 @@ rapid bus status
 ```
 
 Output:
+
 ```
 RAPID Event Bus Status
 ────────────────────────────────
@@ -225,6 +226,7 @@ rapid bus agents
 ```
 
 Output:
+
 ```
 Connected Agents
 ────────────────
@@ -247,11 +249,13 @@ Connected Agents
 ### Code Review Workflow
 
 1. Claude writes code:
+
    ```
    Claude: Sends message type "review_request" with file path
    ```
 
 2. OpenCode reviews:
+
    ```
    OpenCode: Receives message, reviews code, sends "review_complete"
    ```
@@ -264,6 +268,7 @@ Connected Agents
 ### Parallel Feature Development
 
 1. Start both agents on different features:
+
    ```bash
    # Terminal 1 - Claude on auth
    rapid dev
@@ -283,6 +288,7 @@ Connected Agents
 ### Task Delegation
 
 1. Claude encounters a task better suited for another agent:
+
    ```
    Claude: Sends "task_blocked" with context
    ```
