@@ -1,11 +1,20 @@
 ---
 title: Quickstart
-description: Get a RAPID-enabled project running in 5 minutes.
+description: Get a RAPID-enabled project running in 2 minutes.
 ---
 
 import { Aside, Steps, Tabs, TabItem, Code } from '@astrojs/starlight/components';
 
-Get RAPID running in your project in under 5 minutes.
+Get RAPID running in your project with just two commands.
+
+## The Magic
+
+```bash
+rapid init    # Answer a few questions
+rapid dev     # Start coding with AI
+```
+
+That's it. No manual configuration, no API key setup, no Docker commands.
 
 ## Initialize a Project
 
@@ -17,73 +26,89 @@ Get RAPID running in your project in under 5 minutes.
    mkdir my-project && cd my-project
    ```
 
-2. **Initialize RAPID**:
+2. **Initialize RAPID** (interactive):
 
    ```bash
-   rapid init --template typescript
+   rapid init
    ```
 
-   This creates:
-   - `rapid.json` — RAPID configuration
-   - `.envrc` — Secure secrets loading (safe to commit)
-   - `.devcontainer/` — Dev container configuration
-   - `CLAUDE.md` — AI instruction file
+   You'll be asked:
+   - **Project name**: Auto-detected from directory
+   - **MCP servers**: Select which tools your AI needs (context7 for docs, tavily for search)
+   - **Secrets provider**: 1Password, HashiCorp Vault, or environment variables
+   - **Create devcontainer?**: For reproducible environments
 
-3. **Configure your secrets**:
+   <Aside type="tip">
+     For non-interactive setup, use `rapid init -y` to accept all defaults.
+   </Aside>
 
-   Edit `rapid.json` to point to your 1Password vault:
-
-   ```json
-   {
-     "secrets": {
-       "provider": "1password",
-       "vault": "Development",
-       "items": {
-         "ANTHROPIC_API_KEY": "op://Development/Anthropic/api-key"
-       }
-     }
-   }
-   ```
-
-4. **Allow direnv**:
-
-   ```bash
-   direnv allow
-   ```
-
-5. **Start the environment**:
-
-   ```bash
-   rapid start
-   ```
-
-6. **Launch AI coding session**:
+3. **Start coding with AI**:
 
    ```bash
    rapid dev
    ```
 
+   RAPID automatically:
+   - Detects your existing Claude/OpenAI authentication
+   - Starts any needed services (like the event bus)
+   - Launches your AI coding assistant
+
 </Steps>
 
-<Aside type="tip">
-  If you don't have API keys set up in 1Password yet, you can use environment variables temporarily:
-  ```bash export ANTHROPIC_API_KEY="your-key-here" rapid start --skip-secrets rapid dev ```
+## What Happens Behind the Scenes
+
+When you run `rapid init`:
+- Creates `rapid.json` with smart defaults
+- Generates `.mcp.json` for MCP server configuration
+- Creates `CLAUDE.md` and `AGENTS.md` instruction files
+- Optionally creates `.devcontainer/` for container environments
+
+When you run `rapid dev`:
+- Auto-starts the event bus (for multi-agent features)
+- Passes through your existing Claude authentication (no re-login!)
+- Injects configured MCP servers
+- Launches your AI assistant with full project context
+
+## Auth Passthrough
+
+If you're already logged into Claude Code, RAPID automatically uses your existing authentication:
+
+```bash
+# Already logged in?
+claude --version  # If this works, you're good!
+
+# RAPID will use your existing auth
+rapid dev  # No API key prompts!
+```
+
+<Aside>
+  RAPID checks for auth in this order:
+  1. `CLAUDE_CODE_OAUTH_TOKEN` environment variable
+  2. `ANTHROPIC_AUTH_TOKEN` environment variable
+  3. `~/.claude/.credentials.json` (Linux/Windows)
+  4. `~/.claude.json` OAuth account (legacy)
+  5. `ANTHROPIC_API_KEY` (fallback)
 </Aside>
 
-## What Just Happened?
+## Multi-Agent Communication
 
-When you ran `rapid start`, RAPID:
+RAPID includes a built-in event bus for agents to communicate:
 
-1. Built and started a dev container based on your template
-2. Loaded secrets from 1Password into the container environment
-3. Installed AI CLI tools (Claude Code, OpenCode) inside the container
-4. Generated/updated the `CLAUDE.md` instruction file
+```bash
+# Terminal 1: Start Claude
+rapid dev
 
-When you ran `rapid dev`, RAPID:
+# Terminal 2: Start a different agent
+rapid dev --agent opencode
 
-1. Attached to the running container
-2. Launched your configured AI coding assistant (Claude by default)
-3. The AI tool reads `CLAUDE.md` for project context
+# Agents can now send messages to each other!
+```
+
+Check event bus status:
+```bash
+rapid bus status
+rapid bus history
+```
 
 ## Common Workflows
 
@@ -104,36 +129,74 @@ rapid agent default opencode
 rapid dev --multi
 ```
 
-### Rebuild Environment
+### Check Status
 
 ```bash
-# After changing devcontainer.json or Dockerfile
-rapid start --rebuild
+rapid status        # Overall project status
+rapid bus status    # Event bus status
+rapid bus agents    # Connected agents
 ```
 
-### Stop Environment
+### Stop Services
 
 ```bash
-rapid stop
+rapid stop          # Stop all RAPID services
+rapid stop --remove # Also remove containers
 ```
 
 ## Project Structure
 
-After initialization, your project looks like:
+After initialization:
 
 ```
 my-project/
 ├── rapid.json              # RAPID configuration
-├── .envrc                  # Secret references (safe to commit)
-├── CLAUDE.md               # AI instruction file
+├── .mcp.json               # MCP server configuration
+├── CLAUDE.md               # Claude-specific instructions
 ├── AGENTS.md               # Generic AI instructions
-└── .devcontainer/
-    └── devcontainer.json   # Container configuration
+└── .devcontainer/          # (optional) Container config
+    └── devcontainer.json
+```
+
+## Generated Configuration
+
+Here's what `rapid.json` looks like with defaults:
+
+```json
+{
+  "$schema": "https://getrapid.dev/schema/v1/rapid.json",
+  "version": "1.0",
+  "name": "my-project",
+  "agents": {
+    "default": "claude",
+    "available": {
+      "claude": {
+        "cli": "claude",
+        "instructionFile": "CLAUDE.md",
+        "yolo": true
+      }
+    }
+  },
+  "eventBus": {
+    "enabled": true
+  },
+  "mcp": {
+    "configFile": ".mcp.json",
+    "servers": {
+      "rapid": {
+        "enabled": true,
+        "type": "stdio",
+        "command": "rapid",
+        "args": ["mcp", "serve"]
+      }
+    }
+  }
+}
 ```
 
 ## Next Steps
 
-- [Customize your AI agents](/guides/agent-configuration/)
-- [Set up secure secrets](/guides/secrets-management/)
-- [Explore dev container templates](/guides/devcontainer-templates/)
-- [Learn the CLI commands](/guides/cli-reference/)
+- [Configure your AI agents](/guides/agent-configuration/)
+- [Set up MCP servers](/guides/mcp-servers/)
+- [Manage secrets securely](/guides/secrets-management/)
+- [Explore CLI commands](/guides/cli-reference/)
