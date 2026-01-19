@@ -1,6 +1,7 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import tailwindcss from '@tailwindcss/vite';
+import mermaid from 'astro-mermaid';
 
 export default defineConfig({
   site: 'https://getrapid.dev',
@@ -8,6 +9,11 @@ export default defineConfig({
     plugins: [tailwindcss()],
   },
   integrations: [
+    // ⚠️ Mermaid must come BEFORE starlight for proper markdown processing
+    mermaid({
+      theme: 'neutral',
+      autoTheme: true,
+    }),
     starlight({
       title: 'RAPID',
       description: 'AI-assisted development with dev containers. An open source project by A3T.',
@@ -56,6 +62,8 @@ export default defineConfig({
           label: 'Concepts',
           items: [
             { label: 'RAPID Overview', slug: 'concepts/rapid-overview' },
+            { label: 'Event Bus', slug: 'concepts/event-bus' },
+            { label: 'Auth Passthrough', slug: 'concepts/auth-passthrough' },
             { label: 'Agent Integration', slug: 'concepts/agent-integration' },
             { label: 'Container Lifecycle', slug: 'concepts/container-lifecycle' },
           ],
@@ -65,6 +73,7 @@ export default defineConfig({
           items: [
             { label: 'CLI Reference', slug: 'guides/cli-reference' },
             { label: 'Agent Configuration', slug: 'guides/agent-configuration' },
+            { label: 'Multi-Agent', slug: 'guides/multi-agent' },
             { label: 'MCP Servers', slug: 'guides/mcp-servers' },
             { label: 'Secrets Management', slug: 'guides/secrets-management' },
             { label: 'Dev Container Templates', slug: 'guides/devcontainer-templates' },

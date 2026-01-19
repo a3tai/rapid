@@ -67,47 +67,17 @@ When you run `rapid dev`, RAPID checks for credentials in this order:
 
 ## Detection Flow
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                   Auth Detection Flow                       │
-└─────────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-              ┌────────────────────────┐
-              │ CLAUDE_CODE_OAUTH_TOKEN│
-              │     env variable?      │
-              └────────────────────────┘
-                    │           │
-                   Yes          No
-                    │           │
-                    ▼           ▼
-              ┌─────────┐  ┌────────────────────────┐
-              │  Use it │  │ ANTHROPIC_AUTH_TOKEN   │
-              └─────────┘  │     env variable?      │
-                           └────────────────────────┘
-                                 │           │
-                                Yes          No
-                                 │           │
-                                 ▼           ▼
-                           ┌─────────┐  ┌────────────────────────┐
-                           │  Use it │  │ ~/.claude/.credentials │
-                           └─────────┘  │        exists?         │
-                                        └────────────────────────┘
-                                              │           │
-                                             Yes          No
-                                              │           │
-                                              ▼           ▼
-                                        ┌─────────┐  ┌────────────────────────┐
-                                        │  Use it │  │   ANTHROPIC_API_KEY    │
-                                        └─────────┘  │     env variable?      │
-                                                     └────────────────────────┘
-                                                           │           │
-                                                          Yes          No
-                                                           │           │
-                                                           ▼           ▼
-                                                     ┌─────────┐  ┌─────────┐
-                                                     │  Use it │  │ No auth │
-                                                     └─────────┘  └─────────┘
+```mermaid
+flowchart TD
+    Start["Auth Detection Flow"] --> OAuth{"CLAUDE_CODE_OAUTH_TOKEN<br/>env variable?"}
+    OAuth -->|Yes| UseOAuth["Use it ✓"]
+    OAuth -->|No| AuthToken{"ANTHROPIC_AUTH_TOKEN<br/>env variable?"}
+    AuthToken -->|Yes| UseAuthToken["Use it ✓"]
+    AuthToken -->|No| Creds{"~/.claude/.credentials<br/>exists?"}
+    Creds -->|Yes| UseCreds["Use it ✓"]
+    Creds -->|No| ApiKey{"ANTHROPIC_API_KEY<br/>env variable?"}
+    ApiKey -->|Yes| UseApiKey["Use it ✓"]
+    ApiKey -->|No| NoAuth["No auth"]
 ```
 
 ## Credential Types
