@@ -475,7 +475,9 @@ export class InMemoryEventBus {
     for (const handler of this.handlers) {
       try {
         handler(message);
-      } catch {}
+      } catch {
+        // Ignore handler errors
+      }
     }
 
     return message;

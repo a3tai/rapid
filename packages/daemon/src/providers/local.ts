@@ -6,7 +6,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { execa } from 'execa';
-import type { SandboxManager} from '@a3t/rapid-runtime';
+import type { SandboxManager } from '@a3t/rapid-runtime';
 import { createSandboxManager } from '@a3t/rapid-runtime';
 import { BaseProvider } from './base.js';
 import type {

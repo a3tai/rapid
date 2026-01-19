@@ -67,8 +67,10 @@ export interface EnvironmentStatus {
 /**
  * Detected credential from an external tool (runtime)
  */
+import type { ExternalAuthSource as SchemaExternalAuthSource } from '@a3t/rapid-schema';
+
 export interface DetectedCredential {
-  source: import('@a3t/rapid-schema').ExternalAuthSource;
+  source: SchemaExternalAuthSource;
   provider: 'anthropic' | 'openai' | 'google' | 'unknown';
   authType: 'api-key' | 'oauth' | 'service-account';
   envVar?: string;

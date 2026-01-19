@@ -4,7 +4,7 @@
  * Provides a SOCKS5 proxy for non-HTTP traffic with domain allowlisting.
  */
 
-import { createServer, type Server, type Socket } from 'node:net';
+import { connect, createServer, type Server, type Socket } from 'node:net';
 import type { NetworkConfig } from '../types.js';
 import { isDomainAllowed } from './utils.js';
 
@@ -113,7 +113,6 @@ function handleSocksConnection(
 
       // Parse destination address
       let destHost: string;
-      let destPort: number;
       let addrEndOffset: number;
 
       switch (atyp) {
@@ -145,7 +144,7 @@ function handleSocksConnection(
         }
       }
 
-      destPort = requestData.readUInt16BE(addrEndOffset);
+      const destPort = requestData.readUInt16BE(addrEndOffset);
 
       // Check domain allowlist
       if (!isDomainAllowed(destHost, network.allowedDomains, network.deniedDomains)) {
@@ -158,7 +157,6 @@ function handleSocksConnection(
       onAllow?.(destHost);
 
       // Connect to destination
-      const { connect } = require('node:net');
       const destSocket: Socket = connect({ host: destHost, port: destPort }, () => {
         // Send success reply
         sendReply(clientSocket, REP_SUCCESS);

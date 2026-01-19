@@ -6,7 +6,12 @@
  */
 
 import { createServer as createNetServer, Socket, type Server as NetServer } from 'node:net';
-import { createServer as createHttpServer, type Server as HttpServer } from 'node:http';
+import {
+  createServer as createHttpServer,
+  type Server as HttpServer,
+  type IncomingMessage,
+  type ServerResponse,
+} from 'node:http';
 import { mkdir, unlink, writeFile, readFile, rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
@@ -212,10 +217,7 @@ export class DaemonServer {
   /**
    * Handle HTTP request
    */
-  private async handleHttpRequest(
-    req: import('node:http').IncomingMessage,
-    res: import('node:http').ServerResponse
-  ): Promise<void> {
+  private async handleHttpRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
     if (req.method !== 'POST') {
       res.writeHead(405, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Method not allowed' }));

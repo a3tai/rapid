@@ -138,22 +138,30 @@ export function registerStatusResource(server: McpServer, context: ServerContext
       try {
         await stat(join(context.projectDir, 'rapid.json'));
         hasRapidJson = true;
-      } catch {}
+      } catch {
+        // File doesn't exist
+      }
 
       try {
         await stat(join(context.projectDir, 'AGENTS.md'));
         hasAgentsMd = true;
-      } catch {}
+      } catch {
+        // File doesn't exist
+      }
 
       try {
         await stat(join(context.projectDir, 'CLAUDE.md'));
         hasClaudeMd = true;
-      } catch {}
+      } catch {
+        // File doesn't exist
+      }
 
       try {
         await stat(join(context.projectDir, '.mcp.json'));
         hasMcpJson = true;
-      } catch {}
+      } catch {
+        // File doesn't exist
+      }
 
       const status = {
         projectDir: context.projectDir,
