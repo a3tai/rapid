@@ -127,8 +127,8 @@ export function registerStatusResource(server: McpServer, context: ServerContext
       mimeType: 'application/json',
     },
     async (uri) => {
-      const { stat } = await import('fs/promises');
-      const { join } = await import('path');
+      const { stat } = await import('node:fs/promises');
+      const { join } = await import('node:path');
 
       let hasRapidJson = false;
       let hasAgentsMd = false;

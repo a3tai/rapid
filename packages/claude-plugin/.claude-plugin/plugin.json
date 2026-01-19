@@ -1,0 +1,11 @@
+{
+  "name": "rapid-governance",
+  "version": "1.0.0",
+  "description": "RAPID governance, sandboxing, and policy enforcement for Claude Code",
+  "author": "A3T",
+  "hooks": "./hooks.json",
+  "mcp": "./mcp.json",
+  "settings": "./settings.json",
+  "homepage": "https://getrapid.dev",
+  "repository": "https://github.com/a3tai/rapid"
+}

@@ -21,6 +21,14 @@ import { contextCommand } from './commands/context.js';
 import { updateCommand } from './commands/update.js';
 import { worktreeCommand } from './commands/worktree.js';
 import { limaCommand } from './commands/lima.js';
+import { checkpointCommand } from './commands/checkpoint.js';
+import { busCommand } from './commands/bus.js';
+import { gatewayCommand } from './commands/gateway.js';
+import { sandboxCommand } from './commands/sandbox.js';
+import { daemonCommand } from './commands/daemon.js';
+import { sessionCommand } from './commands/session.js';
+import { pluginCommand } from './commands/plugin.js';
+import { rewindCommand } from './commands/rewind.js';
 import { updateChecker } from './utils/update-checker.js';
 
 // Read version from package.json
@@ -73,6 +81,14 @@ program.addCommand(contextCommand);
 program.addCommand(updateCommand);
 program.addCommand(worktreeCommand);
 program.addCommand(limaCommand);
+program.addCommand(checkpointCommand);
+program.addCommand(busCommand);
+program.addCommand(gatewayCommand);
+program.addCommand(sandboxCommand);
+program.addCommand(daemonCommand);
+program.addCommand(sessionCommand);
+program.addCommand(pluginCommand);
+program.addCommand(rewindCommand);
 
 // Default action - show help
 program.action(() => {

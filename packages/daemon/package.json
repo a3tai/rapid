@@ -1,0 +1,57 @@
+{
+  "name": "@a3t/rapid-daemon",
+  "version": "0.2.0",
+  "description": "Background daemon for RAPID session management, config watching, and secrets caching",
+  "license": "MIT",
+  "author": "Steve Rude <steve@rude.la>",
+  "homepage": "https://getrapid.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/a3tai/rapid.git",
+    "directory": "packages/daemon"
+  },
+  "keywords": [
+    "rapid",
+    "daemon",
+    "session",
+    "ipc",
+    "json-rpc"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "rapidd": "./dist/bin.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@a3t/rapid-core": "workspace:*",
+    "@a3t/rapid-runtime": "workspace:*",
+    "chalk": "^5.6.2",
+    "chokidar": "^4.0.3",
+    "execa": "^9.6.1",
+    "json-rpc-2.0": "^1.7.0",
+    "zod": "^3.25.32"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.8",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.17"
+  }
+}

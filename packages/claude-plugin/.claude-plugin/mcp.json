@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "rapid-mcp": {
+      "command": "rapid",
+      "args": ["mcp", "serve"],
+      "env": {}
+    }
+  }
+}

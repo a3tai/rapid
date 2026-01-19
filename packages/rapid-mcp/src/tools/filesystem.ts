@@ -7,8 +7,8 @@
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { readFile, writeFile, mkdir, stat } from 'fs/promises';
-import { dirname, join, resolve, relative } from 'path';
+import { readFile, writeFile, mkdir, stat } from 'node:fs/promises';
+import { dirname, join, resolve, relative } from 'node:path';
 import type { ServerContext } from '../server.js';
 
 /**
@@ -303,7 +303,7 @@ export function registerFilesystemTools(server: McpServer, context: ServerContex
 
       try {
         const absolutePath = validatePath(context.projectDir, requestedPath);
-        const { readdir } = await import('fs/promises');
+        const { readdir } = await import('node:fs/promises');
 
         const entries = await readdir(absolutePath, { withFileTypes: true });
         const files: Array<{

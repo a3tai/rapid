@@ -8,8 +8,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { execa } from 'execa';
-import { readFile, readdir, stat } from 'fs/promises';
-import { join } from 'path';
+import { readFile, readdir, stat } from 'node:fs/promises';
+import { join } from 'node:path';
 import type { ServerContext } from '../server.js';
 
 /**
