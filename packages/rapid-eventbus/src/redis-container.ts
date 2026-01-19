@@ -5,10 +5,11 @@
  * Makes multi-agent communication work out of the box.
  */
 
-import { exec } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { resolve, isAbsolute } from 'node:path';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 const CONTAINER_NAME = 'rapid-redis';
 const REDIS_IMAGE = 'redis:7-alpine';
@@ -28,11 +29,35 @@ export interface RedisContainerStatus {
 }
 
 /**
+ * Validate port number to prevent injection
+ */
+function validatePort(port: number): number {
+  const portNum = Math.floor(port);
+  if (portNum < 1 || portNum > 65535 || !Number.isFinite(portNum)) {
+    throw new Error(`Invalid port number: ${port}`);
+  }
+  return portNum;
+}
+
+/**
+ * Validate and sanitize directory path
+ */
+function validatePath(path: string): string {
+  // Resolve to absolute path and ensure it doesn't contain shell metacharacters
+  const resolved = isAbsolute(path) ? path : resolve(path);
+  // Check for dangerous characters that could be used for injection
+  if (/[;&|`$(){}[\]<>!#*?]/.test(resolved)) {
+    throw new Error(`Invalid characters in path: ${path}`);
+  }
+  return resolved;
+}
+
+/**
  * Check if Docker is available
  */
 export async function hasDocker(): Promise<boolean> {
   try {
-    await execAsync('docker --version');
+    await execFileAsync('docker', ['--version']);
     return true;
   } catch {
     return false;
@@ -44,9 +69,12 @@ export async function hasDocker(): Promise<boolean> {
  */
 export async function getRedisStatus(): Promise<RedisContainerStatus> {
   try {
-    const { stdout } = await execAsync(
-      `docker inspect ${CONTAINER_NAME} --format '{{.State.Running}}|{{.Id}}|{{.NetworkSettings.Ports}}'`
-    );
+    const { stdout } = await execFileAsync('docker', [
+      'inspect',
+      CONTAINER_NAME,
+      '--format',
+      '{{.State.Running}}|{{.Id}}|{{.NetworkSettings.Ports}}',
+    ]);
     const parts = stdout.trim().split('|');
     const running = parts[0];
     const containerId = parts[1] ?? '';
@@ -75,7 +103,7 @@ export async function getRedisStatus(): Promise<RedisContainerStatus> {
  * Start Redis container
  */
 export async function startRedis(config: RedisContainerConfig = {}): Promise<RedisContainerStatus> {
-  const port = config.port ?? DEFAULT_PORT;
+  const port = validatePort(config.port ?? DEFAULT_PORT);
 
   // Check if already running
   const status = await getRedisStatus();
@@ -85,7 +113,7 @@ export async function startRedis(config: RedisContainerConfig = {}): Promise<Red
 
   // Check if container exists but stopped
   if (status.containerId) {
-    await execAsync(`docker start ${CONTAINER_NAME}`);
+    await execFileAsync('docker', ['start', CONTAINER_NAME]);
     // Wait for Redis to be ready
     await waitForRedis(port);
     return getRedisStatus();
@@ -93,16 +121,16 @@ export async function startRedis(config: RedisContainerConfig = {}): Promise<Red
 
   // Pull image if needed (silently)
   try {
-    await execAsync(`docker image inspect ${REDIS_IMAGE}`, { timeout: 5000 });
+    await execFileAsync('docker', ['image', 'inspect', REDIS_IMAGE], { timeout: 5000 });
   } catch {
     // Image doesn't exist, pull it
     if (config.verbose) {
       console.log(`Pulling ${REDIS_IMAGE}...`);
     }
-    await execAsync(`docker pull ${REDIS_IMAGE}`);
+    await execFileAsync('docker', ['pull', REDIS_IMAGE]);
   }
 
-  // Build run command
+  // Build run command args (no string concatenation)
   const args = [
     'run',
     '-d',
@@ -116,13 +144,14 @@ export async function startRedis(config: RedisContainerConfig = {}): Promise<Red
 
   // Add data volume for persistence
   if (config.dataDir) {
-    args.push('-v', `${config.dataDir}:/data`);
+    const safeDir = validatePath(config.dataDir);
+    args.push('-v', `${safeDir}:/data`);
   }
 
   args.push(REDIS_IMAGE);
 
-  // Run container
-  await execAsync(`docker ${args.join(' ')}`);
+  // Run container using execFile (safe from injection)
+  await execFileAsync('docker', args);
 
   // Wait for Redis to be ready
   await waitForRedis(port);
@@ -141,11 +170,11 @@ export async function stopRedis(remove = false): Promise<void> {
   }
 
   if (status.running) {
-    await execAsync(`docker stop ${CONTAINER_NAME}`);
+    await execFileAsync('docker', ['stop', CONTAINER_NAME]);
   }
 
   if (remove) {
-    await execAsync(`docker rm ${CONTAINER_NAME}`);
+    await execFileAsync('docker', ['rm', CONTAINER_NAME]);
   }
 }
 
@@ -158,9 +187,11 @@ async function waitForRedis(_port: number, timeoutMs = 10000): Promise<void> {
   while (Date.now() - start < timeoutMs) {
     try {
       // Try to connect using docker exec
-      const { stdout } = await execAsync(`docker exec ${CONTAINER_NAME} redis-cli ping`, {
-        timeout: 2000,
-      });
+      const { stdout } = await execFileAsync(
+        'docker',
+        ['exec', CONTAINER_NAME, 'redis-cli', 'ping'],
+        { timeout: 2000 }
+      );
       if (stdout.trim() === 'PONG') {
         return;
       }
@@ -178,9 +209,11 @@ async function waitForRedis(_port: number, timeoutMs = 10000): Promise<void> {
  */
 export async function isRedisHealthy(): Promise<boolean> {
   try {
-    const { stdout } = await execAsync(`docker exec ${CONTAINER_NAME} redis-cli ping`, {
-      timeout: 2000,
-    });
+    const { stdout } = await execFileAsync(
+      'docker',
+      ['exec', CONTAINER_NAME, 'redis-cli', 'ping'],
+      { timeout: 2000 }
+    );
     return stdout.trim() === 'PONG';
   } catch {
     return false;
@@ -191,5 +224,5 @@ export async function isRedisHealthy(): Promise<boolean> {
  * Get Redis connection URL
  */
 export function getRedisUrl(port = DEFAULT_PORT): string {
-  return `redis://localhost:${port}`;
+  return `redis://localhost:${validatePort(port)}`;
 }

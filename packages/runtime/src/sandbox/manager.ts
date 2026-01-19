@@ -5,6 +5,7 @@
  * with HTTP/SOCKS proxy servers for network filtering.
  */
 
+import { resolve, isAbsolute } from 'node:path';
 import type {
   SandboxConfig,
   SandboxStatus,
@@ -18,6 +19,22 @@ import { createSocksProxy, type SocksProxyInstance } from './socks-proxy.js';
 import { generateSeatbeltProfile, wrapWithSeatbelt } from './seatbelt.js';
 import { generateBwrapArgs, wrapWithBubblewrap } from './bubblewrap.js';
 import { getPlatform, detectSandboxMethod } from './utils.js';
+
+/**
+ * Validate and sanitize a path to prevent command injection
+ * @param path - The path to validate
+ * @returns The validated absolute path
+ * @throws Error if the path contains dangerous characters
+ */
+function validatePath(path: string): string {
+  // Resolve to absolute path
+  const resolved = isAbsolute(path) ? path : resolve(path);
+  // Check for dangerous characters that could be used for injection
+  if (/[;&|`$(){}[\]<>!#*?'"\n\r]/.test(resolved)) {
+    throw new Error(`Invalid characters in path: ${path}`);
+  }
+  return resolved;
+}
 
 export interface SandboxManagerOptions {
   /** Working directory for the sandboxed process */
@@ -218,7 +235,8 @@ export class SandboxManager {
     await this.initialize();
 
     const proxyAddresses = this.getProxyAddresses();
-    const cwd = this.options.cwd;
+    // Validate cwd path to prevent command injection
+    const cwd = this.options.cwd ? validatePath(this.options.cwd) : undefined;
 
     if (method === 'seatbelt') {
       const profileOptions: { cwd?: string; httpProxyPort?: number; socksProxyPort?: number } = {};
@@ -302,7 +320,8 @@ export class SandboxManager {
         env: mergedEnv,
       };
       if (this.options.cwd) {
-        execaOptions.cwd = this.options.cwd;
+        // Validate cwd path to prevent command injection
+        execaOptions.cwd = validatePath(this.options.cwd);
       }
 
       const result = await execa(wrapResult.wrappedCommand!, execaOptions);
