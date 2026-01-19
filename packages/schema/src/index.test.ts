@@ -56,8 +56,22 @@ describe('@a3t/rapid-schema', () => {
       expect(claude).toBeDefined();
       expect(claude!.cli).toBe('claude');
       expect(claude!.instructionFile).toBe('CLAUDE.md');
-      expect(claude!.envVars).toContain('ANTHROPIC_API_KEY');
-      expect(claude!.installCmd).toContain('npm install');
+      // Auth passthrough is used instead of explicit envVars - no ANTHROPIC_API_KEY needed
+      expect(claude!.yolo).toBe(true); // Skip permission prompts by default
+    });
+
+    it('should have eventBus enabled by default', () => {
+      expect(DEFAULT_CONFIG.eventBus).toBeDefined();
+      expect(DEFAULT_CONFIG.eventBus!.enabled).toBe(true);
+    });
+
+    it('should have RAPID MCP server configured by default', () => {
+      expect(DEFAULT_CONFIG.mcp).toBeDefined();
+      expect(DEFAULT_CONFIG.mcp!.servers).toBeDefined();
+      expect(DEFAULT_CONFIG.mcp!.servers!.rapid).toBeDefined();
+      expect(DEFAULT_CONFIG.mcp!.servers!.rapid!.enabled).toBe(true);
+      expect(DEFAULT_CONFIG.mcp!.servers!.rapid!.type).toBe('stdio');
+      expect(DEFAULT_CONFIG.mcp!.servers!.rapid!.command).toBe('rapid');
     });
   });
 
