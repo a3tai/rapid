@@ -7,8 +7,8 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { EventBus, type EventBusConfig } from './bus.js';
-import { createMessage, type AgentInfo } from './messages.js';
-import { getRedisStatus, startRedis, stopRedis } from './redis-container.js';
+import { type AgentInfo, type Message } from './messages.js';
+import { getRedisStatus } from './redis-container.js';
 
 // Test configuration
 const TEST_PROJECT_ID = 'integration-test';
@@ -232,10 +232,10 @@ describe('Event Bus Integration Tests', () => {
 
   describe('Pub/Sub Delivery', () => {
     it.skipIf(!redisAvailable)('should deliver messages via pub/sub', async () => {
-      const receivedMessages: unknown[] = [];
+      const receivedMessages: Message[] = [];
 
       // Subscribe to messages
-      await bus!.subscribe((message) => {
+      bus!.onMessage((message: Message) => {
         receivedMessages.push(message);
       });
 
