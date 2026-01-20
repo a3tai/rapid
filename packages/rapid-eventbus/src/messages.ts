@@ -17,6 +17,8 @@ export const MessageType = z.enum([
   'learning', // Sharing a tip/pattern learned
   'coordination', // Claiming a resource/file to avoid conflicts
   'heartbeat', // I'm alive signal
+  'approval_request', // Human-in-the-loop approval request
+  'approval_response', // Response to an approval request
 ]);
 
 export type MessageType = z.infer<typeof MessageType>;
@@ -118,6 +120,8 @@ export const MESSAGE_TYPE_ICONS: Record<MessageType, string> = {
   learning: '📚',
   coordination: '🔒',
   heartbeat: '💓',
+  approval_request: '🔔',
+  approval_response: '✔️',
 };
 
 /**
