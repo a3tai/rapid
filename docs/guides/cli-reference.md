@@ -176,11 +176,11 @@ rapid stop [options]
 
 ### Options
 
-| Option      | Default | Description                 |
-| ----------- | ------- | --------------------------- |
-| `--remove`  | `false` | Remove container after stop |
-| `--volumes` | `false` | Also remove volumes         |
-| `--force`   | `false` | Force stop (SIGKILL)        |
+| Option              | Default | Description                              |
+| ------------------- | ------- | ---------------------------------------- |
+| `--remove`          | `false` | Remove containers and volumes            |
+| `--services-only`   | `false` | Only stop services, not the dev container |
+| `--prune-worktrees` | `false` | Automatically clean up merged worktrees  |
 
 ### Examples
 
@@ -188,14 +188,97 @@ rapid stop [options]
 # Normal stop
 rapid stop
 
-# Stop and remove container
+# Stop and remove containers
 rapid stop --remove
 
-# Stop, remove container and volumes
-rapid stop --remove --volumes
+# Stop only services, keep container
+rapid stop --services-only
 
-# Force stop
-rapid stop --force
+# Stop and clean up merged worktrees
+rapid stop --prune-worktrees
+```
+
+---
+
+## rapid approve
+
+Handle human-in-the-loop (HITL) approval requests from agents.
+
+```bash
+rapid approve <subcommand> [options]
+```
+
+### Subcommands
+
+| Subcommand | Description                  |
+| ---------- | ---------------------------- |
+| `list`     | List pending approval requests |
+| `approve`  | Approve a specific request    |
+| `reject`   | Reject a request              |
+| `defer`    | Defer a decision              |
+
+### Options
+
+| Option            | Description                |
+| ----------------- | -------------------------- |
+| `-r, --reason`    | Provide reason for decision |
+
+### Examples
+
+```bash
+# List pending approvals
+rapid approve list
+
+# Approve a request
+rapid approve abc123 approve
+
+# Reject with reason
+rapid approve abc123 reject --reason "Security concern"
+
+# Defer decision
+rapid approve abc123 defer --reason "Awaiting more context"
+```
+
+---
+
+## rapid worktree
+
+Manage git worktrees for isolated agent environments.
+
+```bash
+rapid worktree <subcommand> [options]
+```
+
+### Subcommands
+
+| Subcommand | Description             |
+| ---------- | ----------------------- |
+| `list`     | List active worktrees   |
+| `spawn`    | Create a new worktree   |
+| `remove`   | Remove a worktree       |
+
+### Options
+
+| Option            | Description                   |
+| ----------------- | ----------------------------- |
+| `--json`          | Output in JSON format         |
+| `--no-checkout`   | Create branch without checkout |
+| `--force`         | Force removal without safety checks |
+
+### Examples
+
+```bash
+# List all worktrees
+rapid worktree list
+
+# Create a worktree for test-writer persona
+rapid worktree spawn test-writer feat/tests
+
+# Remove a worktree
+rapid worktree remove feat/tests
+
+# List worktrees as JSON
+rapid worktree list --json
 ```
 
 ---
