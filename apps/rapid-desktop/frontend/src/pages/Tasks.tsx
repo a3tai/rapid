@@ -3,6 +3,7 @@ import { clsx } from 'clsx'
 import { formatDistanceToNow } from 'date-fns'
 import { useTasks, useAppStore, type Task } from '../stores/app'
 import { useWails } from '../hooks/useWails'
+import { useToast } from '../components/Toast'
 
 type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'blocked'
 
@@ -18,6 +19,7 @@ export function TasksPage() {
   const [viewMode, setViewMode] = useState<'board' | 'list'>('board')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const { createTask } = useWails()
+  const toast = useToast()
 
   const tasksByStatus = COLUMNS.reduce((acc, col) => {
     acc[col.id] = tasks.filter((t) => t.status === col.id)
@@ -91,7 +93,16 @@ export function TasksPage() {
       {showCreateModal && (
         <CreateTaskModal
           onClose={() => setShowCreateModal(false)}
-          onCreate={createTask}
+          onCreate={async (title, description, priority, tags) => {
+            try {
+              const result = await createTask(title, description, priority, tags)
+              toast.success('Task Created', `"${title}" has been added to the board`)
+              return result
+            } catch (err) {
+              toast.error('Failed to Create Task', err instanceof Error ? err.message : 'Unknown error')
+              throw err
+            }
+          }}
         />
       )}
     </div>

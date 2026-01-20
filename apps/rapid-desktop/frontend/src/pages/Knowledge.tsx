@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { clsx } from 'clsx'
 import { formatDistanceToNow } from 'date-fns'
 import { useData } from '../hooks/useData'
+import { useToast } from '../components/Toast'
 
 interface KnowledgeEntry {
   key: string
@@ -27,6 +28,7 @@ const MEMORY_TYPES = ['all', 'episodic', 'semantic', 'procedural', 'decision_tra
 
 export function KnowledgePage() {
   const { callTool } = useData()
+  const toast = useToast()
   const [entries, setEntries] = useState<KnowledgeEntry[]>([])
   const [stats, setStats] = useState<ContextStats | null>(null)
   const [filter, setFilter] = useState<typeof MEMORY_TYPES[number]>('all')
@@ -99,9 +101,11 @@ export function KnowledgePage() {
   const handleForget = async (key: string) => {
     try {
       await callTool('context_forget', { key })
+      toast.success('Knowledge Removed', `"${key}" has been forgotten`)
       await fetchData()
       setSelectedEntry(null)
     } catch (err) {
+      toast.error('Failed to Remove', err instanceof Error ? err.message : 'Unknown error')
       console.error('Failed to forget:', err)
     }
   }
@@ -304,14 +308,20 @@ export function KnowledgePage() {
         <AddKnowledgeModal
           onClose={() => setShowAddModal(false)}
           onAdd={async (key, value, memoryType, tags) => {
-            await callTool('context_learn', {
-              key,
-              value,
-              memoryType,
-              tags,
-              confidence: 0.8,
-            })
-            await fetchData()
+            try {
+              await callTool('context_learn', {
+                key,
+                value,
+                memoryType,
+                tags,
+                confidence: 0.8,
+              })
+              toast.success('Knowledge Added', `"${key}" has been stored`)
+              await fetchData()
+            } catch (err) {
+              toast.error('Failed to Add', err instanceof Error ? err.message : 'Unknown error')
+              throw err
+            }
           }}
         />
       )}

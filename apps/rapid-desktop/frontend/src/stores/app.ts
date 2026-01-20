@@ -74,7 +74,7 @@ interface AppState {
   suggestions: Suggestion[]
 
   // UI state
-  activeView: 'dashboard' | 'agents' | 'tasks' | 'events' | 'knowledge' | 'approvals' | 'config'
+  activeView: 'dashboard' | 'agents' | 'tasks' | 'events' | 'knowledge' | 'suggestions' | 'approvals' | 'config'
   selectedAgent: string | null
   selectedTask: string | null
 

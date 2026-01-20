@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { clsx } from 'clsx'
 import { useAgents, useAppStore } from '../stores/app'
 import { useWails } from '../hooks/useWails'
+import { useToast } from '../components/Toast'
 
 const PERSONAS = [
   { id: 'orchestrator', name: 'Orchestrator', description: 'Coordinates tasks between agents' },
@@ -16,6 +17,26 @@ export function AgentsPage() {
   const setSelectedAgent = useAppStore((s) => s.setSelectedAgent)
   const { spawnAgent, stopAgent } = useWails()
   const [showSpawnModal, setShowSpawnModal] = useState(false)
+  const toast = useToast()
+
+  const handleStopAgent = async (agentId: string, agentName: string) => {
+    try {
+      await stopAgent(agentId)
+      toast.success('Agent Stopped', `${agentName} has been terminated`)
+    } catch (err) {
+      toast.error('Failed to Stop Agent', err instanceof Error ? err.message : 'Unknown error')
+    }
+  }
+
+  const handleSpawnAgent = async (persona: string, worktree: string) => {
+    try {
+      await spawnAgent(persona, worktree)
+      toast.success('Agent Spawned', `${persona} agent started on ${worktree}`)
+    } catch (err) {
+      toast.error('Failed to Spawn Agent', err instanceof Error ? err.message : 'Unknown error')
+      throw err
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -57,7 +78,7 @@ export function AgentsPage() {
               agent={agent}
               isSelected={selectedAgent === agent.id}
               onSelect={() => setSelectedAgent(agent.id === selectedAgent ? null : agent.id)}
-              onStop={() => stopAgent(agent.id)}
+              onStop={() => handleStopAgent(agent.id, agent.name)}
             />
           ))
         )}
@@ -67,7 +88,7 @@ export function AgentsPage() {
       {showSpawnModal && (
         <SpawnModal
           onClose={() => setShowSpawnModal(false)}
-          onSpawn={spawnAgent}
+          onSpawn={handleSpawnAgent}
         />
       )}
     </div>

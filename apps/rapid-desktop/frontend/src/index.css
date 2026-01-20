@@ -70,6 +70,14 @@
   .badge-neutral {
     @apply bg-rapid-border text-rapid-muted;
   }
+
+  .badge-primary {
+    @apply bg-blue-500/20 text-blue-400;
+  }
+
+  .badge-secondary {
+    @apply bg-purple-500/20 text-purple-400;
+  }
 }
 
 @layer utilities {
@@ -88,4 +96,69 @@
   .status-dot-offline {
     @apply bg-rapid-muted;
   }
+
+  /* Animations */
+  .animate-fade-in {
+    animation: fade-in 0.2s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.2s ease-out;
+  }
+
+  .animate-pulse-slow {
+    animation: pulse-slow 2s ease-in-out infinite;
+  }
+
+  .animate-spin-slow {
+    animation: spin 3s linear infinite;
+  }
+}
+
+/* Keyframe animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-rapid-border rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-rapid-muted;
 }

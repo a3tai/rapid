@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { clsx } from 'clsx'
+import { Skeleton } from '../components/Skeleton'
 
 export function ConfigPage() {
   const [config, setConfig] = useState<Record<string, unknown> | null>(null)
@@ -57,8 +58,43 @@ export function ConfigPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-rapid-muted">Loading configuration...</div>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <Skeleton height={24} width={180} className="mb-2" />
+            <Skeleton height={14} width={220} />
+          </div>
+          <Skeleton height={40} width={140} />
+        </div>
+        <div className="flex gap-1 border-b border-rapid-border pb-2">
+          <Skeleton height={32} width={80} />
+          <Skeleton height={32} width={80} />
+          <Skeleton height={32} width={60} />
+          <Skeleton height={32} width={60} />
+        </div>
+        <div className="card p-6 space-y-6">
+          <div>
+            <Skeleton height={20} width={80} className="mb-4" />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Skeleton height={14} width={60} className="mb-2" />
+                <Skeleton height={40} width="100%" />
+              </div>
+              <div>
+                <Skeleton height={14} width={100} className="mb-2" />
+                <Skeleton height={40} width="100%" />
+              </div>
+            </div>
+          </div>
+          <div className="border-t border-rapid-border pt-6">
+            <Skeleton height={20} width={80} className="mb-4" />
+            <div className="space-y-4">
+              <Skeleton height={20} width={180} />
+              <Skeleton height={40} width={200} />
+              <Skeleton height={20} width={180} />
+            </div>
+          </div>
+        </div>
       </div>
     )
   }

@@ -10,6 +10,7 @@ const viewTitles: Record<string, { title: string; subtitle?: string }> = {
   events: { title: 'Event Bus', subtitle: 'Agent communication' },
   approvals: { title: 'Approvals', subtitle: 'Security authorizations' },
   knowledge: { title: 'Knowledge', subtitle: 'Context engine' },
+  suggestions: { title: 'Suggestions', subtitle: 'Team proposals and voting' },
   config: { title: 'Configuration', subtitle: 'Project settings' },
 }
 
