@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { clsx } from 'clsx'
 import { useActiveView, useAppStore, useAgents, useTasks } from '../stores/app'
+import { ConnectionStatusBadge } from './ConnectionStatus'
 import { useToast } from './Toast'
 
 const viewTitles: Record<string, { title: string; subtitle?: string }> = {
@@ -86,6 +87,9 @@ export function Header() {
 
       {/* Right: Stats and actions */}
       <div className="flex items-center gap-4 wails-no-drag">
+        {/* Connection status */}
+        <ConnectionStatusBadge />
+
         {/* Quick stats */}
         <div className="flex items-center gap-3 text-sm">
           <button

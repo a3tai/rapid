@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAppStore, useActiveView, useDaemonStatus } from './stores/app'
 import { useData, useDataPolling, useMcpStatus } from './hooks/useData'
+import { useWebSocketSync } from './hooks/useWebSocketSync'
 import { Sidebar } from './components/Sidebar'
 import { Header } from './components/Header'
 import { CommandPalette, useCommandPalette } from './components/CommandPalette'
@@ -33,6 +34,9 @@ function App() {
 
   // Poll for updates
   useDataPolling(5000)
+
+  // Sync WebSocket events to store
+  useWebSocketSync()
 
   // Render active view
   const renderView = () => {

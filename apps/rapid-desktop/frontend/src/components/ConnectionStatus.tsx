@@ -27,9 +27,10 @@ export function ConnectionStatus({
       return
     }
 
+    const lastUpdate = status.lastUpdate
     const updateDisplay = () => {
       const now = Date.now()
-      const diff = now - status.lastUpdate
+      const diff = now - lastUpdate
       const seconds = Math.floor(diff / 1000)
       const minutes = Math.floor(seconds / 60)
 
