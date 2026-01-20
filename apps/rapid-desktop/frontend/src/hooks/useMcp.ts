@@ -259,6 +259,63 @@ export function useMcp() {
   }, [callTool, fetchTasks, setError])
 
   /**
+   * Fetch approval requests from event bus or backend
+   */
+  const fetchApprovals = useCallback(async () => {
+    try {
+      // Try to fetch from MCP, falls back to empty if not available
+      const result = await callTool('approval_list', {
+        status: 'all',
+        limit: 50,
+      })
+      const data = result.structuredContent as { approvals?: Array<any> }
+      // Return approvals if available, empty array otherwise
+      return data?.approvals || []
+    } catch (err) {
+      console.warn('Failed to fetch approvals:', err)
+      return []
+    }
+  }, [callTool])
+
+  /**
+   * Approve an approval request
+   */
+  const approveRequest = useCallback(async (
+    requestId: string,
+    reason?: string
+  ) => {
+    try {
+      await callTool('approval_respond', {
+        id: requestId,
+        decision: 'approved',
+        reason,
+      })
+    } catch (err) {
+      setError(`Failed to approve request: ${err}`)
+      throw err
+    }
+  }, [callTool, setError])
+
+  /**
+   * Reject an approval request
+   */
+  const rejectRequest = useCallback(async (
+    requestId: string,
+    reason?: string
+  ) => {
+    try {
+      await callTool('approval_respond', {
+        id: requestId,
+        decision: 'rejected',
+        reason,
+      })
+    } catch (err) {
+      setError(`Failed to reject request: ${err}`)
+      throw err
+    }
+  }, [callTool, setError])
+
+  /**
    * Spawn a new agent
    */
   const spawnAgent = useCallback(async (persona: string, worktree: string) => {
@@ -350,6 +407,9 @@ export function useMcp() {
     createTask,
     updateTaskStatus,
     completeTask,
+    fetchApprovals,
+    approveRequest,
+    rejectRequest,
     spawnAgent,
     stopAgent,
     sendMessage,

@@ -394,3 +394,71 @@ func (a *App) pollAndBroadcast(sub *WebSocketSubscription) {
 		}
 	}
 }
+
+// SendMessage sends a message to an agent or broadcasts to all agents
+func (a *App) SendMessage(targetAgent string, messageType string, content string) (string, error) {
+	if messageType != "coordination" && messageType != "discovery" && messageType != "completion" &&
+	   messageType != "error" && messageType != "question" && messageType != "learning" {
+		return "", fmt.Errorf("invalid message type: %s", messageType)
+	}
+
+	if content == "" {
+		return "", fmt.Errorf("message content cannot be empty")
+	}
+
+	messageID := fmt.Sprintf("msg-%d", time.Now().UnixNano())
+
+	// Create message structure
+	messagePayload := map[string]interface{}{
+		"id":        messageID,
+		"type":      messageType,
+		"fromAgent": map[string]string{"id": "orchestrator", "name": "orchestrator"},
+		"timestamp": time.Now().Format(time.RFC3339),
+		"content":   content,
+		"target":    targetAgent, // "all" for broadcast or specific agent ID
+	}
+
+	// Send via RPC to daemon (if available)
+	// This would integrate with the actual event bus on the daemon
+	_, err := a.rpcCall("message.send", messagePayload)
+	if err != nil {
+		// Fall back to local event emission
+		runtime.EventsEmit(a.ctx, "rapid:message:sent", map[string]interface{}{
+			"type": messageType,
+			"data": messagePayload,
+		})
+	}
+
+	// Also emit locally for immediate UI update
+	runtime.EventsEmit(a.ctx, "rapid:messages", map[string]interface{}{
+		"type": "message",
+		"data": messagePayload,
+	})
+
+	return messageID, nil
+}
+
+// GetChatHistory retrieves chat history with a specific agent or all messages
+func (a *App) GetChatHistory(agentID string, limit int) ([]Message, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+
+	messages, err := a.GetMessages(limit)
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter by agent if not "all"
+	if agentID != "all" && agentID != "" {
+		var filtered []Message
+		for _, msg := range messages {
+			if msg.FromAgent.ID == agentID || msg.FromAgent.Name == agentID {
+				filtered = append(filtered, msg)
+			}
+		}
+		return filtered, nil
+	}
+
+	return messages, nil
+}

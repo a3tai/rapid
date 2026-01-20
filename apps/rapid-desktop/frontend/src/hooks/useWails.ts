@@ -39,6 +39,18 @@ declare global {
             timestamp: string
             payload: Record<string, unknown>
           }>>
+          SendMessage: (
+            targetAgent: string,
+            messageType: string,
+            content: string
+          ) => Promise<string>
+          GetChatHistory: (agentId: string, limit: number) => Promise<Array<{
+            id: string
+            type: string
+            fromAgent: { id: string; name: string }
+            timestamp: string
+            payload: Record<string, unknown>
+          }>>
           Subscribe: (eventType: string) => Promise<string>
           Unsubscribe: (subId: string) => Promise<void>
           CreateTask: (
@@ -294,6 +306,44 @@ export function useWails() {
     }
   }, [setError])
 
+  // Send message to agent
+  const sendMessage = useCallback(async (
+    targetAgent: string,
+    messageType: string,
+    content: string
+  ) => {
+    if (!isWailsEnv()) {
+      console.log('Would send message:', { targetAgent, messageType, content })
+      return `msg-${Date.now()}`
+    }
+
+    try {
+      const messageId = await window.go.main.App.SendMessage(targetAgent, messageType, content)
+      await fetchMessages()
+      return messageId
+    } catch (err) {
+      setError(`Failed to send message: ${err}`)
+      throw err
+    }
+  }, [fetchMessages, setError])
+
+  // Get chat history
+  const getChatHistory = useCallback(async (agentId: string, limit: number = 50) => {
+    if (!isWailsEnv()) {
+      // Return mock data
+      const mockMessages: Message[] = []
+      return mockMessages
+    }
+
+    try {
+      const history = await window.go.main.App.GetChatHistory(agentId, limit)
+      return history as Message[]
+    } catch (err) {
+      setError(`Failed to get chat history: ${err}`)
+      return []
+    }
+  }, [setError])
+
   // Initialize data on mount
   const initialize = useCallback(async () => {
     setConnecting(true)
@@ -317,6 +367,8 @@ export function useWails() {
     fetchMessages,
     subscribe,
     unsubscribe,
+    sendMessage,
+    getChatHistory,
     createTask,
     spawnAgent,
     stopAgent,
