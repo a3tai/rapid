@@ -3,12 +3,13 @@ import { clsx } from 'clsx'
 import { formatDistanceToNow } from 'date-fns'
 import { useTasks, useAppStore, type Task } from '../stores/app'
 import { useWails } from '../hooks/useWails'
+import { useMcp } from '../hooks/useMcp'
 import { useToast } from '../components/Toast'
 
 // Re-export useState for use in component functions
 export { useState }
 
-type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'blocked'
+type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'blocked' | 'cancelled'
 
 const COLUMNS: { id: TaskStatus; label: string; color: string }[] = [
   { id: 'pending', label: 'Pending', color: 'bg-rapid-muted' },
@@ -31,6 +32,7 @@ export function TasksPage() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set())
   const { createTask } = useWails()
+  const { updateTaskStatus } = useMcp()
   const toast = useToast()
 
   // Apply filters
@@ -100,11 +102,16 @@ export function TasksPage() {
     setSelectedTasks(new Set())
   }
 
-  const bulkChangeStatus = (newStatus: TaskStatus) => {
-    // This would call backend to update multiple tasks
-    // For now, just show feedback
-    toast.success('Bulk Action', `Updated ${selectedTasks.size} tasks to ${newStatus}`)
-    deselectAll()
+  const bulkChangeStatus = async (newStatus: TaskStatus) => {
+    try {
+      const taskIds = Array.from(selectedTasks)
+      const updates = taskIds.map(id => updateTaskStatus(id, newStatus))
+      await Promise.all(updates)
+      toast.success('Bulk Action', `Updated ${selectedTasks.size} tasks to ${newStatus}`)
+      deselectAll()
+    } catch (err) {
+      toast.error('Bulk Status Update Failed', err instanceof Error ? err.message : 'Unknown error')
+    }
   }
 
   const bulkDelete = () => {
@@ -374,6 +381,7 @@ function TaskColumn({ column, tasks }: TaskColumnProps) {
 function TaskCard({ task }: { task: Task }) {
   const setSelectedTask = useAppStore((s) => s.setSelectedTask)
   const toast = useToast()
+  const { updateTaskStatus } = useMcp()
   const [isChangingStatus, setIsChangingStatus] = useState(false)
 
   const priorityColors = {
@@ -388,17 +396,21 @@ function TaskCard({ task }: { task: Task }) {
     in_progress: { icon: '⚡', label: 'In Progress', color: 'text-yellow-400' },
     completed: { icon: '✓', label: 'Completed', color: 'text-green-400' },
     blocked: { icon: '🚫', label: 'Blocked', color: 'text-red-400' },
+    cancelled: { icon: '✕', label: 'Cancelled', color: 'text-gray-400' },
   }
 
-  const handleStatusChange = (newStatus: TaskStatus) => {
+  const handleStatusChange = async (newStatus: TaskStatus) => {
     if (newStatus === task.status) return
 
     setIsChangingStatus(true)
-    // Simulate backend call with delay
-    setTimeout(() => {
-      toast.success('Status Updated', `Task moved to ${statusIndicators[newStatus].label}`)
+    try {
+      await updateTaskStatus(task.id, newStatus)
+      toast.success('Status Updated', `Task moved to ${statusIndicators[newStatus as keyof typeof statusIndicators]?.label || newStatus}`)
+    } catch (err) {
+      toast.error('Status Update Failed', err instanceof Error ? err.message : 'Unknown error')
+    } finally {
       setIsChangingStatus(false)
-    }, 300)
+    }
   }
 
   const status = statusIndicators[task.status as TaskStatus]
@@ -484,6 +496,7 @@ function TaskCard({ task }: { task: Task }) {
 function TaskList({ tasks, selectedTasks, onToggleSelect }: { tasks: Task[]; selectedTasks?: Set<string>; onToggleSelect?: (id: string) => void }) {
   const [statusChanging, setStatusChanging] = useState<Set<string>>(new Set())
   const toast = useToast()
+  const { updateTaskStatus } = useMcp()
 
   const statusBadge = {
     pending: 'badge-neutral',
@@ -500,21 +513,24 @@ function TaskList({ tasks, selectedTasks, onToggleSelect }: { tasks: Task[]; sel
     low: 'badge-neutral',
   }
 
-  const handleStatusChange = (taskId: string, newStatus: TaskStatus) => {
+  const handleStatusChange = async (taskId: string, newStatus: TaskStatus) => {
     const task = tasks.find((t) => t.id === taskId)
     if (!task || newStatus === task.status) return
 
     setStatusChanging((prev) => new Set([...prev, taskId]))
 
-    // Simulate backend call with delay
-    setTimeout(() => {
+    try {
+      await updateTaskStatus(taskId, newStatus)
       toast.success('Status Updated', `"${task.title}" moved to ${newStatus.replace('_', ' ')}`)
+    } catch (err) {
+      toast.error('Status Update Failed', err instanceof Error ? err.message : 'Unknown error')
+    } finally {
       setStatusChanging((prev) => {
         const next = new Set(prev)
         next.delete(taskId)
         return next
       })
-    }, 300)
+    }
   }
 
   return (

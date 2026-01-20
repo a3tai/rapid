@@ -221,6 +221,44 @@ export function useMcp() {
   }, [callTool, fetchTasks, setError])
 
   /**
+   * Update task status
+   */
+  const updateTaskStatus = useCallback(async (
+    taskId: string,
+    status: 'pending' | 'in_progress' | 'completed' | 'blocked' | 'cancelled'
+  ) => {
+    try {
+      await callTool('task_update', {
+        id: taskId,
+        status,
+      })
+      await fetchTasks()
+    } catch (err) {
+      setError(`Failed to update task: ${err}`)
+      throw err
+    }
+  }, [callTool, fetchTasks, setError])
+
+  /**
+   * Mark task as complete
+   */
+  const completeTask = useCallback(async (
+    taskId: string,
+    summary?: string
+  ) => {
+    try {
+      await callTool('task_complete', {
+        id: taskId,
+        summary,
+      })
+      await fetchTasks()
+    } catch (err) {
+      setError(`Failed to complete task: ${err}`)
+      throw err
+    }
+  }, [callTool, fetchTasks, setError])
+
+  /**
    * Spawn a new agent
    */
   const spawnAgent = useCallback(async (persona: string, worktree: string) => {
@@ -310,6 +348,8 @@ export function useMcp() {
     fetchTasks,
     fetchMessages,
     createTask,
+    updateTaskStatus,
+    completeTask,
     spawnAgent,
     stopAgent,
     sendMessage,

@@ -7,20 +7,33 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
+
+// WebSocketSubscription represents a subscription to real-time updates
+type WebSocketSubscription struct {
+	ID        string
+	EventType string // 'agents', 'tasks', 'messages', 'status'
+	Channel   chan interface{}
+}
 
 // App struct for Wails binding
 type App struct {
-	ctx        context.Context
-	socketPath string
+	ctx           context.Context
+	socketPath    string
+	subscriptions map[string]*WebSocketSubscription
+	subMutex      sync.RWMutex
 }
 
 // NewApp creates a new App application struct
 func NewApp() *App {
 	homeDir, _ := os.UserHomeDir()
 	return &App{
-		socketPath: filepath.Join(homeDir, ".rapid", "rapid.sock"),
+		socketPath:    filepath.Join(homeDir, ".rapid", "rapid.sock"),
+		subscriptions: make(map[string]*WebSocketSubscription),
 	}
 }
 
@@ -289,4 +302,95 @@ func (a *App) SaveConfig(config map[string]interface{}) error {
 	}
 
 	return nil
+}
+
+// Subscribe creates a WebSocket subscription for real-time updates
+// Returns a subscription ID that can be used to unsubscribe
+func (a *App) Subscribe(eventType string) (string, error) {
+	if eventType != "agents" && eventType != "tasks" && eventType != "messages" && eventType != "status" {
+		return "", fmt.Errorf("invalid event type: %s", eventType)
+	}
+
+	subID := fmt.Sprintf("%s-%d", eventType, time.Now().UnixNano())
+	subscription := &WebSocketSubscription{
+		ID:        subID,
+		EventType: eventType,
+		Channel:   make(chan interface{}, 100), // Buffered channel
+	}
+
+	a.subMutex.Lock()
+	a.subscriptions[subID] = subscription
+	a.subMutex.Unlock()
+
+	// Start polling for updates in background
+	go a.pollAndBroadcast(subscription)
+
+	return subID, nil
+}
+
+// Unsubscribe removes a WebSocket subscription
+func (a *App) Unsubscribe(subID string) error {
+	a.subMutex.Lock()
+	sub, exists := a.subscriptions[subID]
+	if !exists {
+		a.subMutex.Unlock()
+		return fmt.Errorf("subscription not found: %s", subID)
+	}
+	delete(a.subscriptions, subID)
+	a.subMutex.Unlock()
+
+	close(sub.Channel)
+	return nil
+}
+
+// pollAndBroadcast polls daemon for updates and broadcasts via Wails events
+func (a *App) pollAndBroadcast(sub *WebSocketSubscription) {
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	var lastData interface{}
+
+	for {
+		select {
+		case <-ticker.C:
+			var data interface{}
+			var err error
+
+			switch sub.EventType {
+			case "agents":
+				data, err = a.GetAgents()
+			case "tasks":
+				// Fetch tasks with status filter empty to get all
+				data, err = a.GetTasks("")
+			case "messages":
+				data, err = a.GetMessages(20)
+			case "status":
+				data, err = a.GetDaemonStatus()
+			}
+
+			if err == nil && data != nil {
+				// Only emit if data changed to avoid flooding
+				dataJSON, _ := json.Marshal(data)
+				lastDataJSON, _ := json.Marshal(lastData)
+
+				if string(dataJSON) != string(lastDataJSON) {
+					lastData = data
+
+					// Emit Wails event
+					eventData := map[string]interface{}{
+						"type": sub.EventType,
+						"data": data,
+					}
+					runtime.EventsEmit(a.ctx, "rapid:"+sub.EventType, eventData)
+
+					// Also try to send on channel for compatibility
+					select {
+					case sub.Channel <- data:
+					default:
+						// Channel full, skip
+					}
+				}
+			}
+		}
+	}
 }

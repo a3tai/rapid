@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAppStore, useActiveView, useDaemonStatus } from './stores/app'
 import { useData, useDataPolling, useMcpStatus } from './hooks/useData'
 import { useWebSocketSync } from './hooks/useWebSocketSync'
+import { useWailsEvents } from './hooks/useWailsEvents'
 import { Sidebar } from './components/Sidebar'
 import { Header } from './components/Header'
 import { CommandPalette, useCommandPalette } from './components/CommandPalette'
@@ -25,6 +26,9 @@ function App() {
   const commandPalette = useCommandPalette()
   const [spawnAgentModal, setSpawnAgentModal] = useState<{ isOpen: boolean; type?: 'worker' | 'orchestrator' }>({ isOpen: false })
 
+  // Enable Wails event listening if available
+  useWailsEvents()
+
   // Initialize data on mount
   useEffect(() => {
     initialize()
@@ -35,7 +39,7 @@ function App() {
   // Poll for updates
   useDataPolling(5000)
 
-  // Sync WebSocket events to store
+  // Sync WebSocket events to store (for non-Wails environments)
   useWebSocketSync()
 
   // Render active view

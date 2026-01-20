@@ -39,6 +39,8 @@ declare global {
             timestamp: string
             payload: Record<string, unknown>
           }>>
+          Subscribe: (eventType: string) => Promise<string>
+          Unsubscribe: (subId: string) => Promise<void>
           CreateTask: (
             title: string,
             description: string,
@@ -261,6 +263,37 @@ export function useWails() {
     }
   }, [fetchAgents, setError])
 
+  // Subscribe to real-time updates
+  const subscribe = useCallback(async (eventType: string) => {
+    if (!isWailsEnv()) {
+      console.log('Would subscribe to:', eventType)
+      return `sub-${eventType}-mock-${Date.now()}`
+    }
+
+    try {
+      const subId = await window.go.main.App.Subscribe(eventType)
+      return subId
+    } catch (err) {
+      setError(`Failed to subscribe: ${err}`)
+      throw err
+    }
+  }, [setError])
+
+  // Unsubscribe from real-time updates
+  const unsubscribe = useCallback(async (subId: string) => {
+    if (!isWailsEnv()) {
+      console.log('Would unsubscribe:', subId)
+      return
+    }
+
+    try {
+      await window.go.main.App.Unsubscribe(subId)
+    } catch (err) {
+      setError(`Failed to unsubscribe: ${err}`)
+      throw err
+    }
+  }, [setError])
+
   // Initialize data on mount
   const initialize = useCallback(async () => {
     setConnecting(true)
@@ -282,6 +315,8 @@ export function useWails() {
     fetchAgents,
     fetchTasks,
     fetchMessages,
+    subscribe,
+    unsubscribe,
     createTask,
     spawnAgent,
     stopAgent,
