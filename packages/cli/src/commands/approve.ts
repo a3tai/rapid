@@ -72,10 +72,11 @@ approveCommand
 
     try {
       const bus = await getOrCreateBus();
-      const messages = await bus.getMessages({
+      const result = await bus.getMessages({
         types: ['approval_request'],
         limit: 100,
       });
+      const messages = result.messages;
 
       spinner.stop();
       console.log();
@@ -89,7 +90,7 @@ approveCommand
         return;
       }
 
-      messages.forEach((msg, index) => {
+      messages.forEach((msg, index: number) => {
         const requestPayload = msg.payload as Record<string, unknown> & {
           request_id?: string;
           action?: string;
@@ -134,14 +135,13 @@ approveCommand
       const bus = await getOrCreateBus();
 
       // Send approval response via event bus
-      await bus.send({
-        type: 'approval_response',
-        fromAgent: {
+      await bus.sendMessage(
+        'approval_response',
+        {
           id: `human-${Date.now()}`,
           name: 'human-reviewer',
         },
-        priority: 'high',
-        payload: {
+        {
           title: 'Approval Decision',
           content: `Approved request ${requestId}`,
           actionable: false,
@@ -150,7 +150,8 @@ approveCommand
             decision: 'approved',
           },
         },
-      });
+        'high'
+      );
 
       spinner.succeed('Approval sent');
       console.log();
@@ -179,14 +180,13 @@ approveCommand
       const bus = await getOrCreateBus();
 
       // Send rejection response via event bus
-      await bus.send({
-        type: 'approval_response',
-        fromAgent: {
+      await bus.sendMessage(
+        'approval_response',
+        {
           id: `human-${Date.now()}`,
           name: 'human-reviewer',
         },
-        priority: 'high',
-        payload: {
+        {
           title: 'Approval Decision',
           content: `Rejected request ${requestId}${options.reason ? ': ' + options.reason : ''}`,
           actionable: false,
@@ -196,7 +196,8 @@ approveCommand
             reason: options.reason,
           },
         },
-      });
+        'high'
+      );
 
       spinner.succeed('Rejection sent');
       console.log();
