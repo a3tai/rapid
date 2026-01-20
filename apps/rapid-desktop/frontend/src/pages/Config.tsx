@@ -384,18 +384,127 @@ interface McpSettingsProps {
 }
 
 function McpSettings({ servers }: McpSettingsProps) {
+  const [mcpStatus, setMcpStatus] = useState<{
+    connected: boolean
+    toolCount: number
+    checking: boolean
+    lastChecked: Date | null
+  }>({
+    connected: false,
+    toolCount: 0,
+    checking: false,
+    lastChecked: null,
+  })
+
+  const checkMcpConnection = async () => {
+    setMcpStatus(prev => ({ ...prev, checking: true }))
+    try {
+      const endpoint = import.meta.env.VITE_MCP_URL || 'http://localhost:3100/mcp'
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'tools/list',
+          params: {},
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setMcpStatus({
+          connected: true,
+          toolCount: data.result?.tools?.length || 0,
+          checking: false,
+          lastChecked: new Date(),
+        })
+      } else {
+        setMcpStatus({
+          connected: false,
+          toolCount: 0,
+          checking: false,
+          lastChecked: new Date(),
+        })
+      }
+    } catch {
+      setMcpStatus({
+        connected: false,
+        toolCount: 0,
+        checking: false,
+        lastChecked: new Date(),
+      })
+    }
+  }
+
+  // Check on mount
+  useEffect(() => {
+    checkMcpConnection()
+  }, [])
+
   return (
     <div>
-      <p className="text-sm text-rapid-muted mb-6">
-        MCP server configuration and health status
+      {/* MCP Server Status */}
+      <div className="mb-6 p-4 bg-rapid-bg rounded-lg border border-rapid-border">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <div className={clsx(
+              'w-3 h-3 rounded-full',
+              mcpStatus.checking && 'bg-yellow-400 animate-pulse',
+              !mcpStatus.checking && mcpStatus.connected && 'bg-green-400',
+              !mcpStatus.checking && !mcpStatus.connected && 'bg-red-400'
+            )} />
+            <span className="font-medium">RAPID MCP Server</span>
+          </div>
+          <button
+            onClick={checkMcpConnection}
+            disabled={mcpStatus.checking}
+            className="btn btn-sm flex items-center gap-1.5 disabled:opacity-50"
+          >
+            <svg
+              className={clsx('w-4 h-4', mcpStatus.checking && 'animate-spin')}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+            {mcpStatus.checking ? 'Checking...' : 'Check'}
+          </button>
+        </div>
+        <div className="grid grid-cols-3 gap-4 text-sm">
+          <div>
+            <span className="text-rapid-muted">Status: </span>
+            <span className={mcpStatus.connected ? 'text-green-400' : 'text-red-400'}>
+              {mcpStatus.checking ? 'Checking...' : mcpStatus.connected ? 'Connected' : 'Disconnected'}
+            </span>
+          </div>
+          <div>
+            <span className="text-rapid-muted">Tools: </span>
+            <span>{mcpStatus.toolCount}</span>
+          </div>
+          <div>
+            <span className="text-rapid-muted">Last Check: </span>
+            <span>{mcpStatus.lastChecked ? mcpStatus.lastChecked.toLocaleTimeString() : 'Never'}</span>
+          </div>
+        </div>
+      </div>
+
+      <p className="text-sm text-rapid-muted mb-4">
+        Configured MCP servers from rapid.json
       </p>
 
       {!Object.keys(servers).length ? (
         <div className="text-center py-8 text-rapid-muted">
-          <p>No MCP servers configured</p>
+          <p>No MCP servers configured in rapid.json</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {Object.entries(servers).map(([name, config]) => (
             <div
               key={name}
@@ -414,10 +523,7 @@ function McpSettings({ servers }: McpSettingsProps) {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="status-dot status-dot-active" />
-                <span className="text-sm text-green-400">Connected</span>
-              </div>
+              <span className="badge badge-neutral text-xs">Configured</span>
             </div>
           ))}
         </div>
