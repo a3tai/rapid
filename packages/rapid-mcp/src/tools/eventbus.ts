@@ -195,6 +195,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
         includeAssignedTasks?: boolean;
       };
 
+      const projectId = await getProjectId(context.projectDir);
       const bus = await getEventBus(projectId);
       const busMode = bus instanceof EventBus ? 'redis' : 'in-memory';
 
@@ -376,6 +377,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
         actionable?: boolean;
       };
 
+      const projectId = await getProjectId(context.projectDir);
       const bus = await getEventBus(projectId);
       const fromAgent: AgentInfo = { id: agentId, name: agentName, worktree };
 
@@ -454,6 +456,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
         onlyActionable?: boolean;
       };
 
+      const projectId = await getProjectId(context.projectDir);
       const bus = await getEventBus(projectId);
       const historyOptions: {
         hours: number;
@@ -574,6 +577,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
         onlyActionable?: boolean;
       };
 
+      const projectId = await getProjectId(context.projectDir);
       const bus = await getEventBus(projectId);
       const historyOptions: {
         hours: number;
@@ -658,6 +662,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
     async (args) => {
       const { maxAgeSeconds } = args as { maxAgeSeconds?: number };
 
+      const projectId = await getProjectId(context.projectDir);
       const bus = await getEventBus(projectId);
 
       // Use maxAgeSeconds for full EventBus, InMemoryEventBus ignores it
@@ -699,6 +704,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
       },
     },
     async () => {
+      const projectId = await getProjectId(context.projectDir);
       const bus = await getEventBus(projectId);
       const stats = await bus.getStats();
       const mode = bus instanceof EventBus ? 'redis' : 'in-memory';
@@ -744,6 +750,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
     async (args) => {
       const { agentId } = args as { agentId: string };
 
+      const projectId = await getProjectId(context.projectDir);
       const bus = await getEventBus(projectId);
       await bus.heartbeat(agentId);
 
@@ -819,6 +826,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
         cleanupStale?: boolean;
       };
 
+      const projectId = await getProjectId(context.projectDir);
       const bus = await getEventBus(projectId);
       const threshold = staleThresholdSeconds ?? 60;
 
@@ -943,6 +951,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
         orchestratorId?: string;
       };
 
+      const projectId = await getProjectId(context.projectDir);
       const bus = await getEventBus(projectId);
       const threshold = staleThresholdSeconds ?? 120;
       const isDryRun = dryRun ?? false;
@@ -1111,6 +1120,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
         onlyActionable?: boolean;
       };
 
+      const projectId = await getProjectId(context.projectDir);
       const bus = await getEventBus(projectId);
 
       // Only Redis EventBus supports blocking wait
@@ -1245,6 +1255,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
         staleThresholdSeconds?: number;
       };
 
+      const projectId = await getProjectId(context.projectDir);
       const bus = await getEventBus(projectId);
       const threshold = staleThresholdSeconds ?? 60;
       const degradedThreshold = threshold * 2; // 2x threshold = degraded
