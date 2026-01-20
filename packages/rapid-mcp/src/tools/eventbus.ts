@@ -111,7 +111,11 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
       // Determine project ID dynamically for consistency across worktrees
       const projectId = await getProjectId(context.projectDir);
 
-      const agentId = `${agentName}-${Date.now()}`;
+      // Generate deterministic agent ID based on session if provided, otherwise use timestamp
+      // This helps agents maintain consistent identity across reconnections
+      const agentId = session
+        ? `${agentName}-${session.replace(/[^a-zA-Z0-9-]/g, '-')}`
+        : `${agentName}-${Date.now()}`;
       const agent: AgentInfo = {
         id: agentId,
         name: agentName,
