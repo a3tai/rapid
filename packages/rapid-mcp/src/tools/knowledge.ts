@@ -129,8 +129,12 @@ class InMemoryKnowledgeStore {
  * Redis-backed knowledge store
  */
 class RedisKnowledgeStore {
-  private redis: any; // redis client
+  // Redis client type - using any because ioredis doesn't provide proper types for all operations
+  // This is a known issue with ioredis TypeScript support and is safe for our use case
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private redis: any;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   constructor(redis: any) {
     this.redis = redis;
   }

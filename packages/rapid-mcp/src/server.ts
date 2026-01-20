@@ -125,12 +125,15 @@ export async function runHttp(server: McpServer, port: number = 3100): Promise<v
   app.use(json());
 
   // Create HTTP transport for MCP
+  // StreamableHTTPServerTransport is from MCP SDK and implements Transport interface,
+  // but doesn't have proper TypeScript exports. Using type assertion here is safe.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const httpTransport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => randomUUID(),
-  });
+  }) as any;
 
   // Connect the server to the transport
-  await server.connect(httpTransport as unknown as Transport);
+  await server.connect(httpTransport as Transport);
 
   // Mount at /mcp - handle both GET (SSE) and POST (JSON-RPC)
   app.all('/mcp', async (req, res) => {

@@ -222,7 +222,7 @@ export function registerTaskWatchTools(server: McpServer, context: ServerContext
           count: limited.length,
           nextCheck,
         };
-      } catch (error) {
+      } catch {
         return {
           tasks: [],
           count: 0,
