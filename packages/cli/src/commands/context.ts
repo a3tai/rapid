@@ -344,6 +344,41 @@ contextCommand
     }
   });
 
+// Subcommand: Stats
+contextCommand
+  .command('stats')
+  .description('Show context engine statistics')
+  .action(async () => {
+    const spinner = ora('Gathering statistics...').start();
+    try {
+      const engine = createContextEngine({
+        projectDir: process.cwd(),
+      });
+
+      const stats = await engine.getStats();
+
+      spinner.succeed('Statistics retrieved');
+      console.log();
+      console.log(`  ${logger.brand('✓')} Context Engine Statistics`);
+      console.log(`    Total Entries: ${stats.totalEntries}`);
+      console.log(`    By Memory Type:`);
+      console.log(`      Episodic: ${stats.byMemoryType.episodic}`);
+      console.log(`      Semantic: ${stats.byMemoryType.semantic}`);
+      console.log(`      Procedural: ${stats.byMemoryType.procedural}`);
+      console.log(`      Decision Trace: ${stats.byMemoryType.decision_trace}`);
+      if (stats.oldestEntry) {
+        console.log(`    Oldest Entry: ${stats.oldestEntry}`);
+      }
+      if (stats.mostAccessed) {
+        console.log(`    Most Accessed: ${stats.mostAccessed}`);
+      }
+      console.log();
+    } catch (error) {
+      spinner.fail(error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
 // Default action
 contextCommand.action(() => {
   contextCommand.help();
