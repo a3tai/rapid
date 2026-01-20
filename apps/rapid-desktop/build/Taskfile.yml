@@ -13,13 +13,13 @@ tasks:
     summary: Runs the frontend in development mode
     dir: '{{.ROOT_DIR}}/frontend'
     cmds:
-      - npm run dev
+      - pnpm run dev
 
   build:frontend:
     summary: Builds the frontend
     dir: '{{.ROOT_DIR}}/frontend'
     cmds:
-      - npm run build
+      - pnpm run build
 
   update:build-assets:
     summary: Updates build assets from config

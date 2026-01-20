@@ -9,8 +9,8 @@ tasks:
     summary: Build the application for Linux
     dir: '{{.ROOT_DIR}}'
     cmds:
-      - cd frontend && npm install && npm run build
-      - go build -tags desktop -ldflags="-s -w" -o {{.BIN_DIR}}/{{.APP_NAME}} .
+      - cd frontend && pnpm install && pnpm run build
+      - go build -tags desktop -o {{.BIN_DIR}}/{{.APP_NAME}} .
 
   run:
     summary: Run the Linux application
