@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { clsx } from 'clsx'
 import { formatDistanceToNow } from 'date-fns'
 import { useData } from '../hooks/useData'
+import { useToast } from '../components/Toast'
 
 interface ApprovalRequest {
   id: string
@@ -26,6 +27,7 @@ const RISK_COLORS = {
 
 export function ApprovalsPage() {
   const { callTool } = useData()
+  const toast = useToast()
   const [requests, setRequests] = useState<ApprovalRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'pending' | 'resolved'>('pending')
@@ -93,14 +95,17 @@ export function ApprovalsPage() {
 
   const handleApprove = async (id: string) => {
     setProcessingId(id)
+    const request = requests.find((r) => r.id === id)
     try {
       // await callTool('approve_request', { id, decision: 'approved' })
       setRequests((prev) =>
         prev.map((r) => (r.id === id ? { ...r, status: 'approved' } : r))
       )
       setSelectedRequest(null)
+      toast.success('Request Approved', request?.action || 'Action has been authorized')
     } catch (err) {
       console.error('Failed to approve:', err)
+      toast.error('Approval Failed', 'Could not process the approval request')
     } finally {
       setProcessingId(null)
     }
@@ -108,14 +113,17 @@ export function ApprovalsPage() {
 
   const handleReject = async (id: string) => {
     setProcessingId(id)
+    const request = requests.find((r) => r.id === id)
     try {
       // await callTool('approve_request', { id, decision: 'rejected' })
       setRequests((prev) =>
         prev.map((r) => (r.id === id ? { ...r, status: 'rejected' } : r))
       )
       setSelectedRequest(null)
+      toast.warning('Request Rejected', request?.action || 'Action has been denied')
     } catch (err) {
       console.error('Failed to reject:', err)
+      toast.error('Rejection Failed', 'Could not process the rejection')
     } finally {
       setProcessingId(null)
     }
