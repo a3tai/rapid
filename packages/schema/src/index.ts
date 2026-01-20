@@ -634,6 +634,15 @@ export interface PersonasConfig {
 
   /** Inline persona definitions */
   definitions?: Record<string, PersonaConfig>;
+
+  /** Team configuration for multi-agent spawning */
+  team?: string[];
+
+  /** Automatically spawn team agents on rapid start (default: false) */
+  autoSpawn?: boolean;
+
+  /** Orchestrator persona name (coordinates the team) */
+  orchestrator?: string;
 }
 
 /**

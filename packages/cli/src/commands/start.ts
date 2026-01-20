@@ -169,6 +169,7 @@ export const startCommand = new Command('start')
   .option('--no-container', 'Skip starting the dev container')
   .option('--services-only', 'Only start services, not the dev container')
   .option('--minimal', 'Start only essential services (redis, mcp)')
+  .option('--no-agents', 'Skip spawning team agents')
   .action(async (options) => {
     const spinner = ora('Starting RAPID environment...').start();
 
@@ -322,6 +323,78 @@ export const startCommand = new Command('start')
               }
             }
           }
+        }
+      }
+
+      // ─────────────────────────────────────────────────────────────
+      // Spawn Agent Team if configured
+      // ─────────────────────────────────────────────────────────────
+      if (!options.agents && config.personas?.autoSpawn && config.personas.team && config.personas.team.length > 0) {
+        spinner.start('Spawning agent team...');
+
+        try {
+          // Get MCP server URL from config or use default
+          const rapidMcpConfig = config.mcp?.servers?.rapid;
+          const mcpUrl = rapidMcpConfig?.url || 'http://localhost:3100/mcp';
+
+          // Check if MCP server is available
+          try {
+            const healthCheck = await fetch(mcpUrl.replace('/mcp', '/health'), {
+              method: 'GET',
+              signal: AbortSignal.timeout(2000),
+            }).catch(() => null);
+
+            if (!healthCheck?.ok) {
+              logger.debug('MCP server not responding - skipping team spawn');
+              spinner.stop();
+              return;
+            }
+          } catch {
+            logger.debug('MCP server health check timeout - skipping team spawn');
+            spinner.stop();
+            return;
+          }
+
+          // Spawn each persona in the team
+          for (const personaName of config.personas.team) {
+            try {
+              spinner.text = `Spawning agent: ${personaName}...`;
+              logger.debug(`Spawning persona: ${personaName}`);
+
+              // Make HTTP request to MCP server to spawn persona
+              const response = await fetch(mcpUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  jsonrpc: '2.0',
+                  id: 1,
+                  method: 'tools/call',
+                  params: {
+                    name: 'persona_spawn',
+                    arguments: {
+                      name: personaName,
+                      task: `Team agent initialization for ${config.name || 'project'}`,
+                      background: true,
+                      connectToBus: true,
+                    },
+                  },
+                }),
+              }).catch(() => null);
+
+              if (response?.ok) {
+                const data = await response.json();
+                if (data.result?.structuredContent?.agentId) {
+                  logger.debug(`Spawned ${personaName} as ${data.result.structuredContent.agentId}`);
+                }
+              }
+            } catch (error) {
+              logger.debug(`Failed to spawn persona ${personaName}: ${error}`);
+            }
+          }
+
+          servicesStarted.push(`Agent Team (${config.personas.team.length} personas ready)`);
+        } catch (error) {
+          logger.debug(`Failed to spawn agent team: ${error}`);
         }
       }
 

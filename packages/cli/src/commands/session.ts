@@ -152,11 +152,80 @@ export const sessionCommand = new Command('session')
             process.exit(1);
           }
 
-          // TODO: Implement PTY attach
-          logger.info('Session attach is not yet implemented');
-          logger.info(`Session ${session.name} is running with PID ${session.pid}`);
-
+          // Implement PTY attach using system tools
           await client.disconnect();
+
+          if (!session.pid) {
+            logger.error('Session has no PID - cannot attach');
+            process.exit(1);
+          }
+
+          try {
+            const { execa } = await import('execa');
+
+            // Try to attach using available tools in order of preference:
+            // 1. screen (if available)
+            // 2. tmux (if available)
+            // 3. strace (for monitoring, fallback)
+
+            let attachCmd: string[] | null = null;
+            let attached = false;
+
+            // Try screen first
+            try {
+              await execa('which', ['screen'], { stdio: 'pipe' });
+              attachCmd = ['screen', '-x', `rapid-${session.id.slice(0, 8)}`];
+            } catch {
+              // screen not available
+            }
+
+            // Try tmux if screen not available
+            if (!attachCmd) {
+              try {
+                await execa('which', ['tmux'], { stdio: 'pipe' });
+                attachCmd = ['tmux', 'attach-session', `-t`, `rapid-${session.id.slice(0, 8)}`];
+              } catch {
+                // tmux not available
+              }
+            }
+
+            // If we have a tool, try to attach
+            if (attachCmd) {
+              try {
+                logger.info(`Attaching to session ${session.name}...`);
+                await execa(attachCmd[0], attachCmd.slice(1), {
+                  stdio: 'inherit',
+                  reject: false,
+                });
+                attached = true;
+              } catch {
+                // Attachment failed, will fallback
+              }
+            }
+
+            // If no attachment tool available or attach failed, show status
+            if (!attached) {
+              logger.info(`Session ${session.name} is running with PID ${session.pid}`);
+              logger.info('To attach to the session:');
+
+              // Suggest appropriate command based on available tools
+              try {
+                await execa('which', ['screen'], { stdio: 'pipe' });
+                logger.info(`  screen -x rapid-${session.id.slice(0, 8)}`);
+              } catch {
+                try {
+                  await execa('which', ['tmux'], { stdio: 'pipe' });
+                  logger.info(`  tmux attach-session -t rapid-${session.id.slice(0, 8)}`);
+                } catch {
+                  logger.info(`  Install 'screen' or 'tmux' to attach to sessions`);
+                }
+              }
+            }
+          } catch (error) {
+            logger.error('Failed to attach to session');
+            logger.error(error instanceof Error ? error.message : String(error));
+            process.exit(1);
+          }
         } catch (error) {
           logger.error(error instanceof Error ? error.message : String(error));
           process.exit(1);

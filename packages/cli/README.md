@@ -154,6 +154,79 @@ rapid agent list
 rapid agent info <name>
 ```
 
+### rapid mcp serve
+
+Start the RAPID MCP server for secure execution and inter-agent communication.
+
+```bash
+rapid mcp serve [--http] [--port <port>] [--project <dir>] [--verbose]
+```
+
+**Options:**
+
+- `--http` - Use HTTP transport instead of stdio (recommended)
+- `--port <port>` - HTTP port (default: 3100)
+- `--project <dir>` - Project directory for MCP context
+- `--verbose` - Enable verbose logging
+
+**Features:**
+
+- Secure sandboxed command execution
+- File operations with access controls
+- Secrets management
+- Event bus integration
+- Task management
+- Persona spawning
+
+### rapid bus
+
+Interact with the event bus for agent coordination.
+
+```bash
+rapid bus register [--agent <name>] [--session <id>]
+rapid bus send <type> <message> [--to <agent>] [--priority <level>]
+rapid bus messages [--type <type>] [--limit <n>] [--json]
+rapid bus agents [--json]
+rapid bus status
+```
+
+**Subcommands:**
+
+- `register` - Register current agent on the bus
+- `send` - Broadcast message to all agents
+- `messages` - Retrieve messages with optional filtering
+- `agents` - List active agents
+- `status` - Show event bus health
+
+### rapid plugin
+
+Manage Claude Code plugins and integrations.
+
+```bash
+rapid plugin list
+rapid plugin install <plugin>
+rapid plugin remove <plugin>
+rapid plugin config <plugin> [options]
+```
+
+### rapid checkpoint / rapid rewind
+
+Save and restore project state.
+
+```bash
+# Create a checkpoint
+rapid checkpoint [--message <msg>]
+
+# List checkpoints
+rapid checkpoint list [--json]
+
+# Restore to a checkpoint
+rapid rewind <checkpoint-id>
+
+# Show checkpoint details
+rapid checkpoint show <checkpoint-id> [--diff]
+```
+
 ### Global Options
 
 All commands support:

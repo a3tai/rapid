@@ -457,12 +457,14 @@ export function registerPersonaTools(server: McpServer, context: ServerContext):
       description:
         'Spawn a new AI agent with a specific persona. ' +
         'The agent runs as a subprocess with the persona\'s system prompt and capabilities. ' +
+        'Auto-creates an isolated worktree if worktree parameter not provided. ' +
         'Returns the agent ID for tracking.',
       inputSchema: {
         name: z.string().describe('Persona name to spawn'),
         task: z.string().describe('Task description for the agent'),
         background: z.boolean().default(true).describe('Run in background (default true)'),
         connectToBus: z.boolean().default(true).describe('Register agent with event bus'),
+        worktree: z.string().optional().describe('Git worktree name or branch (auto-generated if not provided)'),
       },
       outputSchema: {
         agentId: z.string(),
@@ -470,16 +472,26 @@ export function registerPersonaTools(server: McpServer, context: ServerContext):
         task: z.string(),
         status: z.string(),
         outputFile: z.string().optional(),
+        worktree: z.string().optional(),
         error: z.string().optional(),
       },
     },
     async (args) => {
-      const { name, task, background = true, connectToBus = true } = args as {
+      const { name, task, background = true, connectToBus = true, worktree: _worktree } = args as {
         name: string;
         task: string;
         background?: boolean;
         connectToBus?: boolean;
+        worktree?: string;
       };
+
+      // Generate worktree if not provided
+      let worktree = _worktree;
+      if (!worktree) {
+        // Generate branch name: {persona}-{timestamp}
+        const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp
+        worktree = `${name}-${timestamp}`;
+      }
 
       const persona = await getPersona(context.projectDir, name);
 
@@ -503,6 +515,30 @@ export function registerPersonaTools(server: McpServer, context: ServerContext):
 
       // Generate UUID for the agent
       const agentId = randomUUID();
+
+      // Create worktree for the agent
+      try {
+        const worktreeDir = join(context.projectDir, '.worktrees', worktree);
+        if (context.verbose) {
+          console.error(`[persona_spawn] Creating worktree '${worktree}' at ${worktreeDir}`);
+        }
+
+        // Create git worktree
+        await execa('git', ['worktree', 'add', '-b', worktree, worktreeDir], {
+          cwd: context.projectDir,
+          reject: false,
+        });
+
+        if (context.verbose) {
+          console.error(`[persona_spawn] Worktree '${worktree}' created successfully`);
+        }
+      } catch (err) {
+        if (context.verbose) {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          console.error(`[persona_spawn] Warning: Failed to create worktree: ${errMsg}`);
+        }
+        // Don't fail the whole spawn, just log the warning
+      }
 
       // Map persona model to Claude model ID
       const modelMap: Record<string, string> = {
@@ -560,8 +596,9 @@ Check bus_messages periodically for coordination messages from other agents.`;
 
         if (background) {
           // Spawn in background, capture output to file
+          const worktreeDir = join(context.projectDir, '.worktrees', worktree);
           const proc = execa('claude', claudeArgs, {
-            cwd: context.projectDir,
+            cwd: worktreeDir,
             detached: true,
             stdio: ['ignore', 'pipe', 'pipe'],
             reject: false,
@@ -570,6 +607,8 @@ Check bus_messages periodically for coordination messages from other agents.`;
               RAPID_AGENT_ID: agentId,
               RAPID_PERSONA: name,
               RAPID_PROJECT_DIR: context.projectDir,
+              RAPID_WORKTREE: worktree,
+              RAPID_WORKTREE_DIR: worktreeDir,
             },
           });
 
@@ -603,14 +642,17 @@ Check bus_messages periodically for coordination messages from other agents.`;
           // Run synchronously and wait for completion
           spawnedAgents.set(agentId, agent);
 
+          const worktreeDir = join(context.projectDir, '.worktrees', worktree);
           const result = await execa('claude', claudeArgs, {
-            cwd: context.projectDir,
+            cwd: worktreeDir,
             reject: false,
             env: {
               ...process.env,
               RAPID_AGENT_ID: agentId,
               RAPID_PERSONA: name,
               RAPID_PROJECT_DIR: context.projectDir,
+              RAPID_WORKTREE: worktree,
+              RAPID_WORKTREE_DIR: worktreeDir,
             },
           });
 
@@ -627,6 +669,7 @@ Check bus_messages periodically for coordination messages from other agents.`;
           task,
           status: agent.status,
           outputFile,
+          worktree,
         };
 
         return {
