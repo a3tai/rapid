@@ -18,7 +18,7 @@ type MessageType = (typeof MESSAGE_TYPES)[number]
 export function ChatPage() {
   const agents = useAgents()
   const messages = useMessages()
-  const { sendMessage, getChatHistory } = useWails()
+  const { sendMessage } = useWails()
 
   const [selectedAgent, setSelectedAgent] = useState<string>('all')
   const [messageContent, setMessageContent] = useState('')
