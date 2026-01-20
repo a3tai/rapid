@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-rapid-bg text-rapid-text;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Wails draggable regions */
+  .wails-drag {
+    --wails-draggable: drag;
+  }
+
+  .wails-no-drag {
+    --wails-draggable: no-drag;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-rapid-surface border border-rapid-border rounded-lg;
+  }
+
+  .card-elevated {
+    @apply bg-rapid-elevated border border-rapid-border rounded-lg shadow-lg;
+  }
+
+  .btn {
+    @apply px-4 py-2 rounded-md font-medium transition-colors duration-150;
+  }
+
+  .btn-primary {
+    @apply bg-rapid-accent text-white hover:bg-blue-600;
+  }
+
+  .btn-secondary {
+    @apply bg-rapid-elevated text-rapid-text border border-rapid-border hover:bg-rapid-border;
+  }
+
+  .btn-ghost {
+    @apply text-rapid-muted hover:text-rapid-text hover:bg-rapid-elevated;
+  }
+
+  .input {
+    @apply bg-rapid-elevated border border-rapid-border rounded-md px-3 py-2 text-rapid-text placeholder-rapid-muted focus:outline-none focus:ring-2 focus:ring-rapid-accent focus:border-transparent;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium;
+  }
+
+  .badge-success {
+    @apply bg-green-500/20 text-green-400;
+  }
+
+  .badge-warning {
+    @apply bg-yellow-500/20 text-yellow-400;
+  }
+
+  .badge-error {
+    @apply bg-red-500/20 text-red-400;
+  }
+
+  .badge-info {
+    @apply bg-cyan-500/20 text-cyan-400;
+  }
+
+  .badge-neutral {
+    @apply bg-rapid-border text-rapid-muted;
+  }
+}
+
+@layer utilities {
+  .status-dot {
+    @apply w-2 h-2 rounded-full;
+  }
+
+  .status-dot-active {
+    @apply bg-green-400 shadow-[0_0_8px_rgba(34,197,94,0.5)];
+  }
+
+  .status-dot-idle {
+    @apply bg-yellow-400;
+  }
+
+  .status-dot-offline {
+    @apply bg-rapid-muted;
+  }
+}
