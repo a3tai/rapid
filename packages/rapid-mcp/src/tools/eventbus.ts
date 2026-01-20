@@ -17,6 +17,7 @@ import {
   type EventBusConfig,
 } from '@a3t/rapid-eventbus';
 import type { ServerContext } from '../server.js';
+import { getProjectId } from '../utils/projectId.js';
 
 // Singleton event bus instance per project
 const busInstances = new Map<string, EventBus | InMemoryEventBus>();
@@ -80,9 +81,6 @@ async function getEventBus(projectId: string): Promise<EventBus | InMemoryEventB
  * Register event bus tools with the MCP server
  */
 export function registerEventBusTools(server: McpServer, context: ServerContext): void {
-  // Get project ID from config or directory
-  const projectId = context.projectDir.split('/').pop() || 'default';
-
   // Tool: Register agent
   server.registerTool(
     'bus_register',
@@ -109,6 +107,9 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
         worktree?: string;
         session?: string;
       };
+
+      // Determine project ID dynamically for consistency across worktrees
+      const projectId = await getProjectId(context.projectDir);
 
       const agentId = `${agentName}-${Date.now()}`;
       const agent: AgentInfo = {

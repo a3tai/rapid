@@ -6,7 +6,7 @@
  */
 
 import { Command } from 'commander';
-import { logger } from '@a3t/rapid-core';
+import { logger, loadConfig } from '@a3t/rapid-core';
 import {
   EventBus,
   InMemoryEventBus,
@@ -27,7 +27,19 @@ export const busCommand = new Command('bus').description(
 // Cached bus instance
 let busInstance: EventBus | InMemoryEventBus | null = null;
 
-function getProjectId(): string {
+async function getProjectId(): Promise<string> {
+  // Try to load rapid.json config to get consistent project root
+  try {
+    const loaded = await loadConfig();
+    if (loaded?.rootDir) {
+      // Use rootDir basename as project ID for consistency across worktrees
+      const baseName = loaded.rootDir.split('/').pop();
+      if (baseName) return baseName;
+    }
+  } catch {
+    // Fall back to cwd if config not found
+  }
+  // Fallback: use current directory name
   return process.cwd().split('/').pop() || 'default';
 }
 
@@ -47,7 +59,7 @@ async function getOrCreateBus(
     if (status.running && status.url) {
       const config: EventBusConfig = {
         redis: { url: status.url },
-        projectId: getProjectId(),
+        projectId: await getProjectId(),
       };
       busInstance = new EventBus(config);
       await busInstance.connect();
@@ -73,6 +85,7 @@ busCommand
 
     try {
       const redisStatus = await getRedisStatus();
+      const projectId = await getProjectId();
 
       spinner.stop();
       console.log();
@@ -80,7 +93,7 @@ busCommand
       console.log(`  ${logger.dim('─'.repeat(32))}`);
       console.log();
 
-      console.log(`  ${chalk.bold('Project:')}    ${getProjectId()}`);
+      console.log(`  ${chalk.bold('Project:')}    ${projectId}`);
 
       if (redisStatus.running) {
         console.log(`    ✓ ${chalk.green('Redis')} ${chalk.dim('(persistent)')}`);
