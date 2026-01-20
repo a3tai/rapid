@@ -22,6 +22,7 @@ import {
   loadDevcontainerConfig,
   getContainerStatus,
   startContainer,
+  loadSecrets,
 } from '@a3t/rapid-core';
 import ora from 'ora';
 import { execa } from 'execa';
@@ -116,7 +117,7 @@ async function getServicesStatus(): Promise<{
  */
 async function startServices(
   dockerDir: string,
-  options: { rebuild?: boolean; services?: string[] }
+  options: { rebuild?: boolean; services?: string[]; secrets?: Record<string, string> }
 ): Promise<{ success: boolean; error?: string }> {
   const composeCmd = await getDockerComposeCmd();
   const composeFile = join(dockerDir, 'docker-compose.yml');
@@ -143,6 +144,7 @@ async function startServices(
       stdio: 'inherit',
       env: {
         ...process.env,
+        ...options.secrets, // Pass secrets to containers
         COMPOSE_PROJECT_NAME: 'rapid-services',
       },
     });
@@ -197,6 +199,22 @@ export const startCommand = new Command('start')
       // Find docker directory
       const dockerDir = findDockerDir();
 
+      // Load secrets from 1Password/Vault to pass to containers
+      let secrets: Record<string, string> = {};
+      if (config.secrets) {
+        spinner.text = 'Loading secrets...';
+        try {
+          secrets = await loadSecrets(config.secrets);
+          const secretCount = Object.keys(secrets).length;
+          if (secretCount > 0) {
+            logger.debug(`Loaded ${secretCount} secrets for containers`);
+          }
+        } catch (error) {
+          logger.debug(`Failed to load secrets: ${error}`);
+          // Continue without secrets - they may be available via other means
+        }
+      }
+
       // ─────────────────────────────────────────────────────────────
       // Start RAPID Services Stack
       // ─────────────────────────────────────────────────────────────
@@ -213,6 +231,7 @@ export const startCommand = new Command('start')
         const result = await startServices(dockerDir, {
           rebuild: options.rebuild,
           services: servicesToStart,
+          secrets,
         });
 
         if (!result.success) {

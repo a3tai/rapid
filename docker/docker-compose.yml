@@ -32,6 +32,11 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379
       - NODE_ENV=production
+      # Secrets passed from host (fetched by rapid start)
+      - CONTEXT7_API_KEY=${CONTEXT7_API_KEY:-}
+      - TAVILY_API_KEY=${TAVILY_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
     depends_on:
       redis:
         condition: service_healthy
