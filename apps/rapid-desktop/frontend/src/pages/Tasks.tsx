@@ -14,17 +14,68 @@ const COLUMNS: { id: TaskStatus; label: string; color: string }[] = [
   { id: 'blocked', label: 'Blocked', color: 'bg-red-400' },
 ]
 
+type SortBy = 'date' | 'priority' | 'status' | 'assignee'
+type SortOrder = 'asc' | 'desc'
+
 export function TasksPage() {
   const tasks = useTasks()
   const [viewMode, setViewMode] = useState<'board' | 'list'>('board')
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [filterStatus, setFilterStatus] = useState<TaskStatus | 'all'>('all')
+  const [filterPriority, setFilterPriority] = useState<'all' | 'urgent' | 'high' | 'normal' | 'low'>('all')
+  const [filterAssignee, setFilterAssignee] = useState<'all' | 'unassigned' | string>('all')
+  const [sortBy, setSortBy] = useState<SortBy>('date')
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
   const { createTask } = useWails()
   const toast = useToast()
+
+  // Apply filters
+  const filteredTasks = tasks.filter((t) => {
+    if (filterStatus !== 'all' && t.status !== filterStatus) return false
+    if (filterPriority !== 'all' && t.priority !== filterPriority) return false
+    if (filterAssignee === 'unassigned' && t.assignedTo) return false
+    if (filterAssignee !== 'all' && filterAssignee !== 'unassigned' && t.assignedTo !== filterAssignee) return false
+    return true
+  })
+
+  // Apply sorting
+  const sortedTasks = [...filteredTasks].sort((a, b) => {
+    let aVal: string | number, bVal: string | number
+
+    switch (sortBy) {
+      case 'date':
+        aVal = new Date(a.updatedAt).getTime()
+        bVal = new Date(b.updatedAt).getTime()
+        break
+      case 'priority':
+        const priorityOrder = { urgent: 0, high: 1, normal: 2, low: 3 }
+        aVal = priorityOrder[a.priority as keyof typeof priorityOrder]
+        bVal = priorityOrder[b.priority as keyof typeof priorityOrder]
+        break
+      case 'status':
+        aVal = a.status
+        bVal = b.status
+        break
+      case 'assignee':
+        aVal = a.assignedTo || 'zzz'
+        bVal = b.assignedTo || 'zzz'
+        break
+      default:
+        return 0
+    }
+
+    if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1
+    if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1
+    return 0
+  })
 
   const tasksByStatus = COLUMNS.reduce((acc, col) => {
     acc[col.id] = tasks.filter((t) => t.status === col.id)
     return acc
   }, {} as Record<TaskStatus, Task[]>)
+
+  // Get unique assignees for filter dropdown
+  const uniqueAssignees = Array.from(new Set(tasks.filter((t) => t.assignedTo).map((t) => t.assignedTo)))
 
   return (
     <div className="space-y-6 h-full flex flex-col">
@@ -74,6 +125,107 @@ export function TasksPage() {
         </div>
       </div>
 
+      {/* Filters and sorting (list view only) */}
+      {viewMode === 'list' && (
+        <div className="card p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium">Filters & Sorting</h3>
+            <button
+              onClick={() => {
+                setFilterStatus('all')
+                setFilterPriority('all')
+                setFilterAssignee('all')
+                setSortBy('date')
+                setSortOrder('desc')
+              }}
+              className="text-xs text-rapid-accent hover:underline"
+            >
+              Reset
+            </button>
+          </div>
+          <div className="grid grid-cols-5 gap-3">
+            {/* Status filter */}
+            <div>
+              <label className="block text-xs font-medium text-rapid-muted mb-1">Status</label>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value as TaskStatus | 'all')}
+                className="input w-full text-sm"
+              >
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+                <option value="blocked">Blocked</option>
+              </select>
+            </div>
+
+            {/* Priority filter */}
+            <div>
+              <label className="block text-xs font-medium text-rapid-muted mb-1">Priority</label>
+              <select
+                value={filterPriority}
+                onChange={(e) => setFilterPriority(e.target.value as any)}
+                className="input w-full text-sm"
+              >
+                <option value="all">All Priorities</option>
+                <option value="urgent">Urgent</option>
+                <option value="high">High</option>
+                <option value="normal">Normal</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+
+            {/* Assignee filter */}
+            <div>
+              <label className="block text-xs font-medium text-rapid-muted mb-1">Assignee</label>
+              <select
+                value={filterAssignee}
+                onChange={(e) => setFilterAssignee(e.target.value)}
+                className="input w-full text-sm"
+              >
+                <option value="all">All Assignees</option>
+                <option value="unassigned">Unassigned</option>
+                {uniqueAssignees.map((assignee) => (
+                  <option key={assignee} value={assignee}>
+                    {assignee}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Sort by */}
+            <div>
+              <label className="block text-xs font-medium text-rapid-muted mb-1">Sort By</label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortBy)}
+                className="input w-full text-sm"
+              >
+                <option value="date">Updated Date</option>
+                <option value="priority">Priority</option>
+                <option value="status">Status</option>
+                <option value="assignee">Assignee</option>
+              </select>
+            </div>
+
+            {/* Sort order */}
+            <div>
+              <label className="block text-xs font-medium text-rapid-muted mb-1">Order</label>
+              <button
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                className={clsx(
+                  'input w-full text-sm flex items-center justify-center gap-1',
+                  'hover:bg-rapid-elevated'
+                )}
+              >
+                {sortOrder === 'asc' ? '↑ Ascending' : '↓ Descending'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Content */}
       {viewMode === 'board' ? (
         <div className="flex-1 grid grid-cols-4 gap-4 overflow-hidden">
@@ -86,7 +238,7 @@ export function TasksPage() {
           ))}
         </div>
       ) : (
-        <TaskList tasks={tasks} />
+        <TaskList tasks={sortedTasks} />
       )}
 
       {/* Create modal */}
