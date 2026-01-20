@@ -43,3 +43,6 @@ coverage/
 *.local
 .cache/
 .eslintcache
+
+# Local Claude code configuration
+.claude/

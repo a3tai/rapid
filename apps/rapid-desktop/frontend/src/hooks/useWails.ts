@@ -152,7 +152,7 @@ export function useWails() {
 
     try {
       const tasks = await window.go.main.App.GetTasks(status)
-      setTasks(tasks as any)
+      setTasks(tasks)
     } catch (err) {
       setError(`Failed to get tasks: ${err}`)
     }
@@ -199,7 +199,7 @@ export function useWails() {
 
     try {
       const messages = await window.go.main.App.GetMessages(limit)
-      setMessages(messages as any)
+      setMessages(messages)
     } catch (err) {
       setError(`Failed to get messages: ${err}`)
     }
