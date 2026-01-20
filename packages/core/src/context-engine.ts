@@ -329,11 +329,78 @@ export class ContextEngine {
   }
 
   /**
+   * Inject relevant context for a task (filters by keywords/tags)
+   * Useful for providing agents with relevant knowledge at task start
+   */
+  async inject(taskKeywords: string[], maxResults: number = 10): Promise<ContextEntry[]> {
+    let results: ContextEntry[] = [];
+
+    // Search for each keyword and collect results
+    for (const keyword of taskKeywords) {
+      const found = await this.search(keyword, { limit: maxResults });
+      results = results.concat(found);
+    }
+
+    // Deduplicate by key and sort by confidence
+    const unique = new Map<string, ContextEntry>();
+    for (const entry of results) {
+      if (!unique.has(entry.key)) {
+        unique.set(entry.key, entry);
+      }
+    }
+
+    const sorted = Array.from(unique.values())
+      .sort((a, b) => b.metadata.confidence - a.metadata.confidence)
+      .slice(0, maxResults);
+
+    logger.debug(`Injected ${sorted.length} relevant context entries for task`);
+
+    return sorted;
+  }
+
+  /**
+   * Consolidate knowledge (move older, low-confidence entries)
+   * Useful for cleaning up context store before archiving
+   */
+  async consolidate(options?: {
+    maxAge?: number; // days
+    minConfidence?: number;
+  }): Promise<{ archived: number; kept: number }> {
+    const now = new Date();
+    const maxAge = options?.maxAge ?? 30; // default 30 days
+    const minConfidence = options?.minConfidence ?? 0.5;
+
+    let archived = 0;
+    let kept = 0;
+
+    for (const [key, entry] of this.entries) {
+      const age = (now.getTime() - new Date(entry.metadata.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+
+      // Archive old, low-confidence entries
+      if (age > maxAge && entry.metadata.confidence < minConfidence) {
+        this.entries.delete(key);
+        archived++;
+      } else {
+        kept++;
+      }
+    }
+
+    if (archived > 0) {
+      await this.saveToFile();
+    }
+
+    logger.debug(`Consolidation: archived ${archived} entries, kept ${kept}`);
+
+    return { archived, kept };
+  }
+
+  /**
    * Clear all context (use with caution)
    */
   async clear(): Promise<void> {
     this.entries.clear();
     logger.warn('ContextEngine cleared all entries');
+    await this.saveToFile();
   }
 
   /**
