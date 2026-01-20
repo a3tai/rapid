@@ -8,8 +8,8 @@ WORKDIR /app
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copy package files
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# Copy package files and tsconfig
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json tsconfig.base.json ./
 COPY packages/daemon/package.json packages/daemon/
 COPY packages/schema/package.json packages/schema/
 COPY packages/core/package.json packages/core/
@@ -26,11 +26,16 @@ COPY packages/runtime packages/runtime
 COPY packages/rapid-eventbus packages/rapid-eventbus
 COPY packages/daemon packages/daemon
 
-RUN pnpm --filter @a3t/rapid-daemon build
+# Build in dependency order
+RUN pnpm --filter @a3t/rapid-schema build && \
+    pnpm --filter @a3t/rapid-eventbus build && \
+    pnpm --filter @a3t/rapid-core build && \
+    pnpm --filter @a3t/rapid-runtime build && \
+    pnpm --filter @a3t/rapid-daemon build
 
 # Expose daemon API port
 EXPOSE 3200
 
 # Run daemon
 ENV NODE_ENV=production
-CMD ["node", "packages/daemon/dist/bin.js"]
+CMD ["node", "packages/daemon/dist/bin.js", "foreground", "--http-port", "3200"]
