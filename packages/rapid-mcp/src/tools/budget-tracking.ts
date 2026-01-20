@@ -89,7 +89,7 @@ export function registerBudgetTrackingTools(server: McpServer, _context: ServerC
             text: JSON.stringify(summary, null, 2),
           },
         ],
-        structuredContent: summary,
+        structuredContent: summary as unknown as Record<string, unknown>,
       };
     }
   );
