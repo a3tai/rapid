@@ -1,5 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import userEvent from '@testing-library/user-event'
 import { ConfigPage } from '../../pages/Config'
