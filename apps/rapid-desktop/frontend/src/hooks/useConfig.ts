@@ -88,10 +88,14 @@ export function useConfig() {
           throw new AppError('Wails not available', 'WAILS_ERROR', 'warning', false)
         }
 
-        // NOTE: SaveConfig not yet implemented in backend
-        // For now, just log that save was attempted
-        console.log('Config save requested (backend method not yet implemented):', updatedConfig)
+        // Convert typed config back to raw format for saving
+        const rawConfig: Record<string, unknown> = {
+          ...updatedConfig,
+        }
 
+        // SaveConfig added to backend but TypeScript types not yet regenerated
+        // Use type assertion to allow calling the method
+        await (window.go.main.App as unknown as { SaveConfig(config: Record<string, unknown>): Promise<void> }).SaveConfig(rawConfig)
         setIsDirty(false)
         setSaving(false)
         return true

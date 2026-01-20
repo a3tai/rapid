@@ -272,3 +272,21 @@ func (a *App) GetConfig() (map[string]interface{}, error) {
 
 	return config, nil
 }
+
+// SaveConfig saves the rapid.json configuration
+func (a *App) SaveConfig(config map[string]interface{}) error {
+	configPath := filepath.Join(".", "rapid.json")
+
+	// Marshal config to JSON with indentation
+	data, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	// Write to file with newline at end
+	if err := os.WriteFile(configPath, append(data, '\n'), 0644); err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+
+	return nil
+}
