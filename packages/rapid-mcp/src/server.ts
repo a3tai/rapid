@@ -131,7 +131,7 @@ export async function runHttp(server: McpServer, port: number = 3100): Promise<v
   // Create HTTP transport for MCP
   // StreamableHTTPServerTransport is from MCP SDK and implements Transport interface,
   // but doesn't have proper TypeScript exports. Using type assertion here is safe.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const httpTransport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => randomUUID(),
   }) as any;
