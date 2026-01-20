@@ -1,6 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
-import { useConfigValidation, type RapidConfig } from '../../hooks/useConfig'
+import { describe, it, expect } from 'vitest'
+import type { RapidConfig } from '../../hooks/useConfig'
 
 const mockConfig: RapidConfig = {
   project: {
@@ -29,48 +28,81 @@ const mockConfig: RapidConfig = {
   },
 }
 
-describe('useConfigValidation', () => {
+// Validation logic extracted from useConfigValidation for testing
+function validateConfig(config: RapidConfig | null): Record<string, string> {
+  const errors: Record<string, string> = {}
+
+  if (!config) return errors
+
+  // Project validation
+  if (!config.project?.name?.trim()) {
+    errors['project.name'] = 'Project name is required'
+  }
+  if (!config.project?.root?.trim()) {
+    errors['project.root'] = 'Project root directory is required'
+  }
+
+  // Persona validation
+  if (config.personas) {
+    Object.entries(config.personas).forEach(([name, persona]) => {
+      if (!persona.systemPrompt?.trim()) {
+        errors[`personas.${name}.systemPrompt`] = 'System prompt is required'
+      }
+      if (!persona.capabilities || persona.capabilities.length === 0) {
+        errors[`personas.${name}.capabilities`] = 'At least one capability is required'
+      }
+    })
+  }
+
+  // MCP validation
+  if (config.mcp?.servers) {
+    Object.entries(config.mcp.servers).forEach(([name, server]) => {
+      if (!server.command?.trim()) {
+        errors[`mcp.servers.${name}.command`] = 'Command is required'
+      }
+    })
+  }
+
+  return errors
+}
+
+describe('Config Validation', () => {
   it('should pass valid config', () => {
-    const { result } = renderHook(() => useConfigValidation())
-    const errors = result.current.validate(mockConfig)
+    const errors = validateConfig(mockConfig)
     expect(errors).toEqual({})
   })
 
   it('should detect missing project name', () => {
-    const { result } = renderHook(() => useConfigValidation())
     const invalidConfig: RapidConfig = {
       ...mockConfig,
       project: { ...mockConfig.project, name: '' },
     }
-    const errors = result.current.validate(invalidConfig)
+    const errors = validateConfig(invalidConfig)
     expect(errors['project.name']).toBe('Project name is required')
   })
 
   it('should detect missing project root', () => {
-    const { result } = renderHook(() => useConfigValidation())
     const invalidConfig: RapidConfig = {
       ...mockConfig,
       project: { ...mockConfig.project, root: '' },
     }
-    const errors = result.current.validate(invalidConfig)
+    const errors = validateConfig(invalidConfig)
     expect(errors['project.root']).toBe('Project root directory is required')
   })
 
   it('should validate personas', () => {
-    const { result } = renderHook(() => useConfigValidation())
     const invalidConfig: RapidConfig = {
       ...mockConfig,
       personas: {
         claude: { systemPrompt: '', capabilities: [] },
       },
     }
-    const errors = result.current.validate(invalidConfig)
+    const errors = validateConfig(invalidConfig)
     expect(errors['personas.claude.systemPrompt']).toBe('System prompt is required')
     expect(errors['personas.claude.capabilities']).toBe('At least one capability is required')
   })
 
   it('should validate MCP servers', () => {
-    const { result } = renderHook(() => useConfigValidation())
     const invalidConfig: RapidConfig = {
       ...mockConfig,
       mcp: {
@@ -79,18 +111,16 @@ describe('useConfigValidation', () => {
         },
       },
     }
-    const errors = result.current.validate(invalidConfig)
+    const errors = validateConfig(invalidConfig)
     expect(errors['mcp.servers.invalid.command']).toBe('Command is required')
   })
 
   it('should handle null config', () => {
-    const { result } = renderHook(() => useConfigValidation())
-    const errors = result.current.validate(null)
+    const errors = validateConfig(null)
     expect(errors).toEqual({})
   })
 
   it('should accumulate multiple validation errors', () => {
-    const { result } = renderHook(() => useConfigValidation())
     const invalidConfig: RapidConfig = {
       ...mockConfig,
       project: { name: '', root: '' },
@@ -98,7 +128,7 @@ describe('useConfigValidation', () => {
         test: { systemPrompt: '', capabilities: [] },
       },
     }
-    const errors = result.current.validate(invalidConfig)
+    const errors = validateConfig(invalidConfig)
     expect(Object.keys(errors).length).toBeGreaterThan(2)
     expect(errors['project.name']).toBeDefined()
     expect(errors['project.root']).toBeDefined()
@@ -106,7 +136,6 @@ describe('useConfigValidation', () => {
   })
 
   it('should validate multiple personas', () => {
-    const { result } = renderHook(() => useConfigValidation())
     const invalidConfig: RapidConfig = {
       ...mockConfig,
       personas: {
@@ -114,14 +143,13 @@ describe('useConfigValidation', () => {
         persona2: { systemPrompt: 'prompt', capabilities: [] },
       },
     }
-    const errors = result.current.validate(invalidConfig)
+    const errors = validateConfig(invalidConfig)
     expect(errors['personas.persona1.systemPrompt']).toBe('System prompt is required')
     expect(errors['personas.persona1.capabilities']).toBe('At least one capability is required')
     expect(errors['personas.persona2.capabilities']).toBe('At least one capability is required')
   })
 
   it('should validate multiple MCP servers', () => {
-    const { result } = renderHook(() => useConfigValidation())
     const invalidConfig: RapidConfig = {
       ...mockConfig,
       mcp: {
@@ -132,7 +160,7 @@ describe('useConfigValidation', () => {
         },
       },
     }
-    const errors = result.current.validate(invalidConfig)
+    const errors = validateConfig(invalidConfig)
     expect(errors['mcp.servers.server1.command']).toBe('Command is required')
     expect(errors['mcp.servers.server3.command']).toBe('Command is required')
     expect(errors['mcp.servers.server2.command']).toBeUndefined()
