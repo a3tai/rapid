@@ -154,8 +154,69 @@ NEVER commit files containing secrets (.env, credentials, API keys).
 └── ...
 ```
 
+## Multi-Agent Coordination
+
+<coordination>
+RAPID supports multiple AI agents working together via an event bus:
+
+### Event Bus Communication
+
+1. **Register on startup**: Use `bus_register` to join the event bus
+   ```
+   bus_register(agentName: "worker", worktree: "main")
+   ```
+
+2. **Send messages**: Communicate with other agents via `bus_send`
+   - Types: `discovery`, `error`, `completion`, `question`, `coordination`, `heartbeat`
+   - Include actionable content for coordination messages
+
+3. **Poll for messages**: Use `bus_poll` to receive messages from other agents
+   - Poll regularly to stay responsive
+   - React to coordination messages from orchestrator
+
+### Task Claiming Workflow
+
+1. **Check available tasks**: Use `task_list` with status filter
+   ```
+   task_list(status: "pending")
+   ```
+
+2. **Claim a task**: Use `task_claim` with your agent ID
+   ```
+   task_claim(id: "task-id", agentId: "worker-123")
+   ```
+   - First come, first served - tasks can only be claimed once
+   - Check capabilities match before claiming
+
+3. **Report progress**: Send progress updates via event bus
+   ```
+   bus_send(type: "coordination", title: "Progress update", ...)
+   ```
+
+4. **Complete task**: Use `task_complete` when done
+   ```
+   task_complete(id: "task-id", summary: "What was accomplished")
+   ```
+
+### Agent Roles
+
+- **Orchestrator**: Creates tasks, coordinates workers, monitors progress
+- **Worker**: Claims and executes tasks, reports completion
+- **Designer**: Handles research, architecture, documentation tasks
+
+### Best Practices
+
+1. Always register on the event bus when starting
+2. Poll regularly for new messages and tasks
+3. Claim only tasks matching your capabilities
+4. Report task completion promptly
+5. Send heartbeats to indicate you're still active
+</coordination>
+
 ## Getting Started
 
 1. Review the project structure
 2. Check `rapid.json` for configuration
 3. Follow the RAPID methodology above when making changes
+4. Register on the event bus if working in multi-agent mode
+5. Check for pending tasks and claim work
