@@ -3,6 +3,7 @@
  */
 
 import chalk from 'chalk';
+import { RAPIDError, type ErrorSeverity } from './errors.js';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -52,9 +53,53 @@ export const logger = {
     }
   },
 
-  error(message: string, ...args: unknown[]): void {
+  error(message: string | Error | RAPIDError, ...args: unknown[]): void {
     if (shouldLog('error')) {
-      console.error(chalk.red('✗'), message, ...args);
+      if (message instanceof RAPIDError) {
+        console.error(chalk.red('✗'), message.getFormattedMessage());
+        if (message.getRecoverySuggestions()) {
+          console.error(message.getRecoverySuggestions());
+        }
+        if (message.context.metadata) {
+          console.error(chalk.dim('Metadata:'), JSON.stringify(message.context.metadata, null, 2));
+        }
+      } else if (message instanceof Error) {
+        console.error(chalk.red('✗'), message.message, ...args);
+        if (message.stack && currentLevel === 'debug') {
+          console.error(chalk.dim(message.stack));
+        }
+      } else {
+        console.error(chalk.red('✗'), message, ...args);
+      }
+    }
+  },
+
+  /**
+   * Log error with proper severity level
+   */
+  errorWithSeverity(error: Error | RAPIDError, severity: ErrorSeverity = 'error'): void {
+    const logLevel = severity === 'critical' ? 'error' : severity === 'error' ? 'error' : severity === 'warn' ? 'warn' : 'debug';
+    if (shouldLog(logLevel)) {
+      const icon = {
+        critical: chalk.red('❌'),
+        error: chalk.red('✗'),
+        warn: chalk.yellow('⚠'),
+        info: chalk.blue('ℹ'),
+      }[severity];
+
+      if (error instanceof RAPIDError) {
+        console.error(icon, `[${severity.toUpperCase()}]`, error.getFormattedMessage());
+        if (error.getRecoverySuggestions()) {
+          console.error(error.getRecoverySuggestions());
+        }
+      } else if (error instanceof Error) {
+        console.error(icon, `[${severity.toUpperCase()}]`, error.message);
+        if (currentLevel === 'debug' && error.stack) {
+          console.error(chalk.dim(error.stack));
+        }
+      } else {
+        console.error(icon, `[${severity.toUpperCase()}]`, String(error));
+      }
     }
   },
 

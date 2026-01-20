@@ -83,31 +83,37 @@ busCommand
       console.log(`  ${chalk.bold('Project:')}    ${getProjectId()}`);
 
       if (redisStatus.running) {
-        console.log(`  ${chalk.bold('Mode:')}       ${chalk.green('Redis (persistent)')}`);
-        console.log(`  ${chalk.bold('URL:')}        ${redisStatus.url}`);
-        console.log(`  ${chalk.bold('Container:')} ${redisStatus.containerId}`);
+        console.log(`    ✓ ${chalk.green('Redis')} ${chalk.dim('(persistent)')}`);
+        console.log(`    ${chalk.dim('URL:')}        ${redisStatus.url}`);
+        console.log(`    ${chalk.dim('Container:')} ${redisStatus.containerId}`);
 
         // Get bus stats
         try {
           const bus = await getOrCreateBus();
           const stats = await bus.getStats();
           console.log();
-          console.log(`  ${chalk.bold('Messages:')}   ${stats.messageCount}`);
-          console.log(`  ${chalk.bold('Agents:')}     ${stats.activeAgents}`);
+          console.log(`    ${chalk.dim('Messages:')}   ${stats.messageCount}`);
+          console.log(`    ${chalk.dim('Agents:')}     ${stats.activeAgents}`);
         } catch {
           // Stats not available
         }
       } else if (redisStatus.containerId) {
-        console.log(`  ${chalk.bold('Mode:')}       ${chalk.yellow('Stopped')}`);
-        console.log(`  ${chalk.bold('Container:')} ${redisStatus.containerId} (stopped)`);
-        console.log();
-        console.log(chalk.dim('  Run `rapid dev` - event bus starts automatically.'));
+        console.log(`    ○ ${chalk.yellow('Stopped')}`);
+        console.log(`    ${chalk.dim('Container:')} ${redisStatus.containerId}`);
       } else {
-        console.log(`  ${chalk.bold('Mode:')}       ${chalk.dim('Not running')}`);
-        console.log();
-        console.log(chalk.dim('  Run `rapid dev` - event bus starts automatically when enabled.'));
+        console.log(`    ○ ${chalk.dim('Not running')}`);
       }
 
+      console.log();
+      console.log(`  ${logger.brand('Quick Actions')}`);
+      console.log(`  ${logger.dim('─'.repeat(20))}`);
+      if (redisStatus.running) {
+        console.log(`    • rapid bus agents     ${chalk.dim('List connected agents')}`);
+        console.log(`    • rapid bus listen     ${chalk.dim('Watch messages in real-time')}`);
+        console.log(`    • rapid bus history    ${chalk.dim('View message history')}`);
+      } else {
+        console.log(`    • rapid dev            ${chalk.dim('Start development (auto-starts bus)')}`);
+      }
       console.log();
     } catch (error) {
       spinner.fail('Failed to get bus status');

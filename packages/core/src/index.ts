@@ -65,6 +65,23 @@ export {
 // Logger
 export { logger, setLogLevel, getLogLevel, type LogLevel } from './logger.js';
 
+// Errors - Standardized error types with context enrichment
+export {
+  RAPIDError,
+  ConfigError,
+  ContainerError,
+  CommandError,
+  ValidationError,
+  FileError,
+  NetworkError,
+  TimeoutError,
+  AuthError,
+  isRAPIDError,
+  toRAPIDError,
+  type ErrorSeverity,
+  type ErrorContext,
+} from './errors.js';
+
 // Container
 export {
   hasDevcontainerCli,
