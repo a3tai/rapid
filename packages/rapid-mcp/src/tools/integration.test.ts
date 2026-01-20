@@ -514,16 +514,16 @@ describe('Event Bus and Task Coordination Integration', () => {
 
       expect(claim1.claimed).toBe(true);
       expect(claim2.claimed).toBe(true);
-      expect(claim3.claimed).toBe(false); // worker1 should be busy? No, mock allows
+      expect(claim3.claimed).toBe(true); // worker1 can claim multiple tasks in mock
 
-      // Actually claim3 should succeed since our mock doesn't track busy workers
-      // In real implementation, you might want to limit concurrent claims
+      // Our mock doesn't track busy workers - in real implementation,
+      // you might want to limit concurrent claims per worker
 
       // Verify assignments
       const worker1Tasks = await taskManager.list({ assignedTo: worker1.id });
       const worker2Tasks = await taskManager.list({ assignedTo: worker2.id });
 
-      expect(worker1Tasks.length).toBeGreaterThanOrEqual(1);
+      expect(worker1Tasks.length).toBeGreaterThanOrEqual(2); // worker1 has 2 tasks
       expect(worker2Tasks).toHaveLength(1);
     });
 
