@@ -24,6 +24,55 @@ export interface ErrorContext {
 }
 
 /**
+ * Options for error subclasses that extend ConfigError, ContainerError, etc.
+ */
+export interface ErrorSubclassOptions extends Partial<ErrorContext> {
+  code?: string;
+  severity?: ErrorSeverity;
+  recoveryTips?: string[];
+  originalError?: Error;
+}
+
+/**
+ * Options for CommandError
+ */
+export interface CommandErrorOptions extends ErrorSubclassOptions {
+  exitCode?: number;
+  stdout?: string;
+  stderr?: string;
+}
+
+/**
+ * Options for ValidationError
+ */
+export interface ValidationErrorOptions extends ErrorSubclassOptions {
+  field?: string;
+  value?: unknown;
+}
+
+/**
+ * Options for FileError
+ */
+export interface FileErrorOptions extends ErrorSubclassOptions {
+  path?: string;
+}
+
+/**
+ * Options for NetworkError
+ */
+export interface NetworkErrorOptions extends ErrorSubclassOptions {
+  statusCode?: number;
+  url?: string;
+}
+
+/**
+ * Options for AuthError
+ */
+export interface AuthErrorOptions extends ErrorSubclassOptions {
+  provider?: string;
+}
+
+/**
  * Base RAPIDError class with enhanced context and recovery info
  */
 export class RAPIDError extends Error {
@@ -116,7 +165,7 @@ export class RAPIDError extends Error {
  * Configuration-related errors
  */
 export class ConfigError extends RAPIDError {
-  constructor(message: string, options?: any) {
+  constructor(message: string, options?: ErrorSubclassOptions) {
     super(message, {
       code: 'CONFIG_ERROR',
       severity: 'error',
@@ -131,7 +180,7 @@ export class ConfigError extends RAPIDError {
  * Container/Docker-related errors
  */
 export class ContainerError extends RAPIDError {
-  constructor(message: string, options?: any) {
+  constructor(message: string, options?: ErrorSubclassOptions) {
     super(message, {
       code: 'CONTAINER_ERROR',
       severity: 'error',
@@ -146,11 +195,11 @@ export class ContainerError extends RAPIDError {
  * Command execution errors
  */
 export class CommandError extends RAPIDError {
-  public readonly exitCode?: number;
-  public readonly stdout?: string;
-  public readonly stderr?: string;
+  public readonly exitCode: number | undefined;
+  public readonly stdout: string | undefined;
+  public readonly stderr: string | undefined;
 
-  constructor(message: string, options?: any) {
+  constructor(message: string, options?: CommandErrorOptions) {
     const { exitCode, stdout, stderr, ...baseOptions } = options || {};
     super(message, {
       code: 'COMMAND_ERROR',
@@ -178,10 +227,10 @@ export class CommandError extends RAPIDError {
  * Validation/input errors
  */
 export class ValidationError extends RAPIDError {
-  public readonly field?: string;
-  public readonly value?: unknown;
+  public readonly field: string | undefined;
+  public readonly value: unknown;
 
-  constructor(message: string, options?: any) {
+  constructor(message: string, options?: ValidationErrorOptions) {
     const { field, value, ...baseOptions } = options || {};
     super(message, {
       code: 'VALIDATION_ERROR',
@@ -207,9 +256,9 @@ export class ValidationError extends RAPIDError {
  * File system errors
  */
 export class FileError extends RAPIDError {
-  public readonly path?: string;
+  public readonly path: string | undefined;
 
-  constructor(message: string, options?: any) {
+  constructor(message: string, options?: FileErrorOptions) {
     const { path, ...baseOptions } = options || {};
     super(message, {
       code: 'FILE_ERROR',
@@ -233,10 +282,10 @@ export class FileError extends RAPIDError {
  * Network/HTTP errors
  */
 export class NetworkError extends RAPIDError {
-  public readonly statusCode?: number;
-  public readonly url?: string;
+  public readonly statusCode: number | undefined;
+  public readonly url: string | undefined;
 
-  constructor(message: string, options?: any) {
+  constructor(message: string, options?: NetworkErrorOptions) {
     const { statusCode, url, ...baseOptions } = options || {};
     super(message, {
       code: 'NETWORK_ERROR',
@@ -264,7 +313,7 @@ export class NetworkError extends RAPIDError {
 export class TimeoutError extends RAPIDError {
   public readonly timeoutMs: number;
 
-  constructor(message: string, timeoutMs: number, options?: any) {
+  constructor(message: string, timeoutMs: number, options?: ErrorSubclassOptions) {
     super(message, {
       code: 'TIMEOUT_ERROR',
       severity: 'warn',
@@ -287,9 +336,9 @@ export class TimeoutError extends RAPIDError {
  * Authentication errors
  */
 export class AuthError extends RAPIDError {
-  public readonly provider?: string;
+  public readonly provider: string | undefined;
 
-  constructor(message: string, options?: any) {
+  constructor(message: string, options?: AuthErrorOptions) {
     const { provider, ...baseOptions } = options || {};
     super(message, {
       code: 'AUTH_ERROR',
@@ -321,7 +370,7 @@ export function isRAPIDError(error: unknown): error is RAPIDError {
  */
 export function toRAPIDError(
   error: unknown,
-  options?: any
+  options?: ErrorSubclassOptions
 ): RAPIDError {
   if (isRAPIDError(error)) {
     return error;
