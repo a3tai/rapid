@@ -15,6 +15,7 @@ import { KnowledgePage } from './pages/Knowledge'
 import { Suggestions } from './pages/Suggestions'
 import { ApprovalsPage } from './pages/Approvals'
 import { ConfigPage } from './pages/Config'
+import { ChatPage } from './pages/Chat'
 
 function App() {
   const activeView = useActiveView()
@@ -53,6 +54,8 @@ function App() {
         return <TasksPage />
       case 'events':
         return <EventsPage />
+      case 'chat':
+        return <ChatPage />
       case 'knowledge':
         return <KnowledgePage />
       case 'suggestions':

@@ -94,11 +94,11 @@ export function ApprovalsPage() {
   }, [fetchApprovals, toast])
 
   useEffect(() => {
-    handleFetchRequests()
+    fetchRequests()
     // Poll for new requests
-    const interval = setInterval(handleFetchRequests, 10000)
+    const interval = setInterval(fetchRequests, 10000)
     return () => clearInterval(interval)
-  }, [handleFetchRequests])
+  }, [fetchRequests])
 
   const { approveRequest, rejectRequest } = useMcp()
 
@@ -117,7 +117,7 @@ export function ApprovalsPage() {
       toast.success('Request Approved', request?.action || 'Action has been authorized')
 
       // Refresh list after approval
-      await handleFetchRequests()
+      await fetchRequests()
     } catch (err) {
       console.error('Failed to approve:', err)
       toast.error('Approval Failed', err instanceof Error ? err.message : 'Could not process the approval request')
@@ -141,7 +141,7 @@ export function ApprovalsPage() {
       toast.warning('Request Rejected', request?.action || 'Action has been denied')
 
       // Refresh list after rejection
-      await handleFetchRequests()
+      await fetchRequests()
     } catch (err) {
       console.error('Failed to reject:', err)
       toast.error('Rejection Failed', err instanceof Error ? err.message : 'Could not process the rejection')

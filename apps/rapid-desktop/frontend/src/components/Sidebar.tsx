@@ -39,6 +39,15 @@ const navItems = [
     ),
   },
   {
+    id: 'chat' as const,
+    label: 'Chat',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 20.59c5.165 0 9-3.075 9-6.876 0-3.8-3.835-6.875-9-6.875-5.164 0-9 3.075-9 6.875 0 1.238.29 2.41.843 3.41C2.969 18.745 1 19.962 1 21.5c0 .828.39 1.608 1.073 2.178 1.224.985 3.5.323 4.967-1.482 1.465 1.805 3.74 2.467 4.96 1.482z" />
+      </svg>
+    ),
+  },
+  {
     id: 'approvals' as const,
     label: 'Approvals',
     icon: (

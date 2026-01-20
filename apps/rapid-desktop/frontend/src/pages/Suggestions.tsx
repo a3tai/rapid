@@ -1,5 +1,8 @@
+import { useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { useSuggestions } from '../stores/app'
+import { useMcp } from '../hooks/useMcp'
+import { useToast } from '../components/Toast'
 import type { Suggestion } from '../stores/app'
 
 function SuggestionBadge({ category }: { category: string }) {
@@ -27,8 +30,42 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
+  const { submitVote, overrideSuggestion } = useMcp()
+  const toast = useToast()
+  const [votingId, setVotingId] = useState<string | null>(null)
+  const [showOverride, setShowOverride] = useState(false)
+  const [overrideReason, setOverrideReason] = useState('')
+
   const totalVotes = suggestion.approveCount + suggestion.rejectCount + suggestion.abstainCount
   const approvePercent = totalVotes > 0 ? Math.round((suggestion.approveCount / totalVotes) * 100) : 0
+
+  const handleVote = async (vote: 'approve' | 'reject' | 'abstain') => {
+    setVotingId(vote)
+    try {
+      await submitVote(suggestion.id, vote)
+      toast.success('Vote Submitted', `You voted to ${vote} this suggestion`)
+    } catch (err) {
+      toast.error('Vote Failed', err instanceof Error ? err.message : 'Could not submit vote')
+    } finally {
+      setVotingId(null)
+    }
+  }
+
+  const handleOverride = async (decision: 'approved' | 'vetoed') => {
+    if (!overrideReason.trim()) {
+      toast.error('Reason Required', 'Please provide a reason for your decision')
+      return
+    }
+
+    try {
+      await overrideSuggestion(suggestion.id, decision, overrideReason)
+      toast.success(`Orchestrator ${decision}`, `Suggestion has been ${decision}`)
+      setShowOverride(false)
+      setOverrideReason('')
+    } catch (err) {
+      toast.error('Override Failed', err instanceof Error ? err.message : 'Could not process override')
+    }
+  }
 
   return (
     <div className="card bg-rapid-elevated p-4 space-y-3">
@@ -90,6 +127,77 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
             Orchestrator {suggestion.orchestratorDecision.decision === 'approved' ? '✓ Approved' : '✗ Vetoed'}
           </div>
           <p className="text-rapid-muted">{suggestion.orchestratorDecision.reason}</p>
+        </div>
+      )}
+
+      {/* Voting buttons - for voting/proposed status */}
+      {(suggestion.status === 'voting' || suggestion.status === 'proposed') && !suggestion.orchestratorDecision && (
+        <div className="flex gap-2 pt-2 border-t border-rapid-border">
+          <button
+            onClick={() => handleVote('approve')}
+            disabled={votingId !== null}
+            className="flex-1 px-3 py-2 text-sm rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500/20 disabled:opacity-50 transition-colors"
+            title="Vote to approve"
+          >
+            {votingId === 'approve' ? '...' : '✓ Approve'}
+          </button>
+          <button
+            onClick={() => handleVote('abstain')}
+            disabled={votingId !== null}
+            className="flex-1 px-3 py-2 text-sm rounded-lg bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 disabled:opacity-50 transition-colors"
+            title="Abstain from voting"
+          >
+            {votingId === 'abstain' ? '...' : '~ Abstain'}
+          </button>
+          <button
+            onClick={() => handleVote('reject')}
+            disabled={votingId !== null}
+            className="flex-1 px-3 py-2 text-sm rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 disabled:opacity-50 transition-colors"
+            title="Vote to reject"
+          >
+            {votingId === 'reject' ? '...' : '✗ Reject'}
+          </button>
+          <button
+            onClick={() => setShowOverride(!showOverride)}
+            className="flex-1 px-3 py-2 text-sm rounded-lg bg-rapid-border text-rapid-muted hover:bg-rapid-elevated transition-colors"
+            title="Orchestrator override"
+          >
+            ⚡ Override
+          </button>
+        </div>
+      )}
+
+      {/* Orchestrator override form */}
+      {showOverride && !suggestion.orchestratorDecision && (
+        <div className="bg-rapid-base p-3 rounded-lg border border-rapid-border space-y-2">
+          <label className="block text-sm font-medium">Override Decision</label>
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleOverride('approved')}
+              className="flex-1 px-2 py-2 text-sm rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-colors"
+            >
+              ✓ Approve
+            </button>
+            <button
+              onClick={() => handleOverride('vetoed')}
+              className="flex-1 px-2 py-2 text-sm rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
+            >
+              ✗ Veto
+            </button>
+          </div>
+          <textarea
+            value={overrideReason}
+            onChange={(e) => setOverrideReason(e.target.value)}
+            placeholder="Reason for override..."
+            className="input w-full text-sm resize-none"
+            rows={2}
+          />
+          <button
+            onClick={() => setShowOverride(false)}
+            className="w-full px-2 py-1 text-xs rounded-lg bg-rapid-border text-rapid-muted hover:bg-rapid-elevated transition-colors"
+          >
+            Cancel
+          </button>
         </div>
       )}
     </div>

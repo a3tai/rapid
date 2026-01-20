@@ -316,6 +316,54 @@ export function useMcp() {
   }, [callTool, setError])
 
   /**
+   * Submit a vote on a suggestion
+   */
+  const submitVote = useCallback(async (
+    suggestionId: string,
+    vote: 'approve' | 'reject' | 'abstain'
+  ) => {
+    try {
+      await callTool('bus_send', {
+        type: 'vote',
+        agentId: sessionId.current || 'desktop-ui',
+        agentName: 'desktop-ui',
+        title: `Vote: ${vote}`,
+        content: `Voted ${vote} on suggestion ${suggestionId}`,
+        targetSuggestion: suggestionId,
+        voteValue: vote,
+      })
+    } catch (err) {
+      setError(`Failed to submit vote: ${err}`)
+      throw err
+    }
+  }, [callTool, setError])
+
+  /**
+   * Override a suggestion as orchestrator (approve or veto)
+   */
+  const overrideSuggestion = useCallback(async (
+    suggestionId: string,
+    decision: 'approved' | 'vetoed',
+    reason: string
+  ) => {
+    try {
+      await callTool('bus_send', {
+        type: 'coordination',
+        agentId: sessionId.current || 'desktop-ui',
+        agentName: 'orchestrator',
+        title: `Orchestrator ${decision}`,
+        content: `${decision}: ${reason}`,
+        targetSuggestion: suggestionId,
+        decision,
+        reason,
+      })
+    } catch (err) {
+      setError(`Failed to override suggestion: ${err}`)
+      throw err
+    }
+  }, [callTool, setError])
+
+  /**
    * Spawn a new agent
    */
   const spawnAgent = useCallback(async (persona: string, worktree: string) => {
@@ -410,6 +458,8 @@ export function useMcp() {
     fetchApprovals,
     approveRequest,
     rejectRequest,
+    submitVote,
+    overrideSuggestion,
     spawnAgent,
     stopAgent,
     sendMessage,
