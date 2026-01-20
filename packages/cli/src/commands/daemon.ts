@@ -134,21 +134,26 @@ export const daemonCommand = new Command('daemon')
           console.log();
 
           if (running && pid) {
-            console.log(`  ${logger.brand('●')} Running`);
-            console.log(`  ${logger.dim('PID:')}     ${pid}`);
-            console.log(`  ${logger.dim('Socket:')}  ${DEFAULT_SOCKET_PATH}`);
+            console.log(`    ✓ ${logger.brand('Running')}`);
+            console.log(`    ${logger.dim('PID:')}     ${pid}`);
+            console.log(`    ${logger.dim('Socket:')}  ${DEFAULT_SOCKET_PATH}`);
           } else if (pid) {
-            console.log(`  ${logger.dim('○')} Stopped (stale PID file)`);
+            console.log(`    ○ ${logger.dim('Stopped')} (stale PID file)`);
           } else {
-            console.log(`  ${logger.dim('○')} Stopped`);
+            console.log(`    ○ ${logger.dim('Stopped')}`);
           }
 
           console.log();
-
-          if (!running) {
-            logger.info('Run `rapid daemon start` to start the daemon');
-            console.log();
+          console.log(`  ${logger.brand('Quick Actions')}`);
+          console.log(`  ${logger.dim('─'.repeat(20))}`);
+          if (running) {
+            console.log(`    • rapid daemon stop      ${logger.dim('Stop the daemon')}`);
+            console.log(`    • rapid daemon restart   ${logger.dim('Restart the daemon')}`);
+          } else {
+            console.log(`    • rapid daemon start     ${logger.dim('Start the daemon')}`);
+            console.log(`    • rapid start            ${logger.dim('Start full environment')}`);
           }
+          console.log();
         } catch (error) {
           logger.error(error instanceof Error ? error.message : String(error));
           process.exit(1);
