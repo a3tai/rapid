@@ -1,12 +1,14 @@
 import { clsx } from 'clsx'
 import { formatDistanceToNow } from 'date-fns'
-import { useAgents, useTasks, useMessages, useDaemonStatus } from '../stores/app'
-import type { Task, Message } from '../stores/app'
+import { useAgents, useTasks, useMessages, useSuggestions, useDaemonStatus } from '../stores/app'
+import type { Task, Message, Suggestion } from '../stores/app'
+import { SecurityPanel } from '../components/SecurityPanel'
 
 export function Dashboard() {
   const agents = useAgents()
   const tasks = useTasks()
   const messages = useMessages()
+  const suggestions = useSuggestions()
   const daemonStatus = useDaemonStatus()
 
   const taskStats = {
@@ -14,6 +16,10 @@ export function Dashboard() {
     pending: tasks.filter((t) => t.status === 'pending').length,
     inProgress: tasks.filter((t) => t.status === 'in_progress').length,
     completed: tasks.filter((t) => t.status === 'completed').length,
+  }
+
+  const suggestionStats = {
+    voting: suggestions.filter((s) => s.status === 'proposed' || s.status === 'voting').length,
   }
 
   return (
@@ -63,79 +69,109 @@ export function Dashboard() {
       </div>
 
       {/* Main content grid */}
-      <div className="grid grid-cols-3 gap-6">
-        {/* Agents panel */}
-        <div className="card p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold">Active Agents</h2>
-            <span className="badge badge-neutral">{agents.length}</span>
-          </div>
-          <div className="space-y-2">
-            {agents.length === 0 ? (
-              <div className="text-center py-8 text-rapid-muted">
-                No agents active
-              </div>
-            ) : (
-              agents.map((agent) => (
-                <div
-                  key={agent.id}
-                  className="flex items-center justify-between p-3 bg-rapid-elevated rounded-lg"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="status-dot status-dot-active" />
-                    <div>
-                      <div className="font-medium text-sm">{agent.name}</div>
-                      <div className="text-xs text-rapid-muted">{agent.id}</div>
-                    </div>
-                  </div>
-                  {agent.worktree && (
-                    <span className="badge badge-info font-mono text-xs">
-                      {agent.worktree}
-                    </span>
-                  )}
+      <div className="grid grid-cols-4 gap-6">
+        {/* Left column - Agents and Tasks */}
+        <div className="col-span-2 space-y-6">
+          {/* Agents panel */}
+          <div className="card p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold">Active Agents</h2>
+              <span className="badge badge-neutral">{agents.length}</span>
+            </div>
+            <div className="space-y-2">
+              {agents.length === 0 ? (
+                <div className="text-center py-8 text-rapid-muted">
+                  No agents active
                 </div>
-              ))
-            )}
+              ) : (
+                agents.map((agent) => (
+                  <div
+                    key={agent.id}
+                    className="flex items-center justify-between p-3 bg-rapid-elevated rounded-lg"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="status-dot status-dot-active" />
+                      <div>
+                        <div className="font-medium text-sm">{agent.name}</div>
+                        <div className="text-xs text-rapid-muted">{agent.id}</div>
+                      </div>
+                    </div>
+                    {agent.worktree && (
+                      <span className="badge badge-info font-mono text-xs">
+                        {agent.worktree}
+                      </span>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Recent tasks panel */}
+          <div className="card p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold">Recent Tasks</h2>
+              <span className="badge badge-neutral">{tasks.length}</span>
+            </div>
+            <div className="space-y-2">
+              {tasks.length === 0 ? (
+                <div className="text-center py-8 text-rapid-muted">
+                  No tasks yet
+                </div>
+              ) : (
+                tasks.slice(0, 5).map((task) => (
+                  <TaskRow key={task.id} task={task} />
+                ))
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Recent tasks panel */}
-        <div className="card p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold">Recent Tasks</h2>
-            <span className="badge badge-neutral">{tasks.length}</span>
+        {/* Right column - Event Feed and Suggestions */}
+        <div className="col-span-2 space-y-6">
+          {/* Event feed panel */}
+          <div className="card p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold">Event Feed</h2>
+              <span className="badge badge-neutral">{messages.length}</span>
+            </div>
+            <div className="space-y-2">
+              {messages.length === 0 ? (
+                <div className="text-center py-8 text-rapid-muted">
+                  No events yet
+                </div>
+              ) : (
+                messages.slice(0, 5).map((message) => (
+                  <MessageRow key={message.id} message={message} />
+                ))
+              )}
+            </div>
           </div>
-          <div className="space-y-2">
-            {tasks.length === 0 ? (
-              <div className="text-center py-8 text-rapid-muted">
-                No tasks yet
-              </div>
-            ) : (
-              tasks.slice(0, 5).map((task) => (
-                <TaskRow key={task.id} task={task} />
-              ))
-            )}
-          </div>
-        </div>
 
-        {/* Event feed panel */}
-        <div className="card p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold">Event Feed</h2>
-            <span className="badge badge-neutral">{messages.length}</span>
-          </div>
-          <div className="space-y-2">
-            {messages.length === 0 ? (
-              <div className="text-center py-8 text-rapid-muted">
-                No events yet
-              </div>
-            ) : (
-              messages.slice(0, 5).map((message) => (
-                <MessageRow key={message.id} message={message} />
-              ))
-            )}
+          {/* Suggestions panel */}
+          <div className="card p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold">Active Suggestions</h2>
+              <span className="badge badge-warning">{suggestionStats.voting}</span>
+            </div>
+            <div className="space-y-2">
+              {suggestions.length === 0 ? (
+                <div className="text-center py-8 text-rapid-muted">
+                  No suggestions yet
+                </div>
+              ) : (
+                suggestions.slice(0, 3).map((suggestion) => (
+                  <SuggestionRow key={suggestion.id} suggestion={suggestion} />
+                ))
+              )}
+            </div>
           </div>
         </div>
+      </div>
+
+      {/* Security panel */}
+      <div className="card p-4">
+        <SecurityPanel />
       </div>
     </div>
   )
@@ -213,7 +249,7 @@ function TaskRow({ task }: { task: Task }) {
 }
 
 function MessageRow({ message }: { message: Message }) {
-  const typeIcon = {
+  const typeIcon: Record<string, string> = {
     discovery: '🔍',
     error: '❌',
     completion: '✅',
@@ -221,9 +257,11 @@ function MessageRow({ message }: { message: Message }) {
     learning: '📚',
     coordination: '🔄',
     heartbeat: '💓',
+    suggestion: '💭',
+    vote: '🗳️',
   }
 
-  const typeBadge = {
+  const typeBadge: Record<string, string> = {
     discovery: 'badge-info',
     error: 'badge-error',
     completion: 'badge-success',
@@ -231,6 +269,8 @@ function MessageRow({ message }: { message: Message }) {
     learning: 'badge-info',
     coordination: 'badge-neutral',
     heartbeat: 'badge-neutral',
+    suggestion: 'badge-primary',
+    vote: 'badge-secondary',
   }
 
   return (
@@ -249,6 +289,53 @@ function MessageRow({ message }: { message: Message }) {
           </div>
           <div className="text-xs text-rapid-muted mt-1">
             {formatDistanceToNow(new Date(message.timestamp), { addSuffix: true })}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SuggestionRow({ suggestion }: { suggestion: Suggestion }) {
+  const categoryBadge = {
+    feature: 'badge-primary',
+    fix: 'badge-error',
+    improvement: 'badge-info',
+    refactor: 'badge-warning',
+    docs: 'badge-secondary',
+  }
+
+  const statusIcon = {
+    proposed: '💭',
+    voting: '🗳️',
+    approved: '✅',
+    rejected: '❌',
+    orchestrator_approved: '✅',
+    orchestrator_vetoed: '❌',
+    implemented: '🚀',
+  }
+
+  const totalVotes = suggestion.approveCount + suggestion.rejectCount + suggestion.abstainCount
+  const approvePercent = totalVotes > 0 ? Math.round((suggestion.approveCount / totalVotes) * 100) : 0
+
+  return (
+    <div className="p-3 bg-rapid-elevated rounded-lg">
+      <div className="flex items-start gap-2">
+        <span className="text-sm">{statusIcon[suggestion.status]}</span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-medium text-sm truncate">{suggestion.title}</span>
+            <span className={clsx('badge text-xs', categoryBadge[suggestion.category])}>
+              {suggestion.category}
+            </span>
+          </div>
+          {(suggestion.status === 'proposed' || suggestion.status === 'voting') && totalVotes > 0 && (
+            <div className="text-xs text-rapid-muted">
+              {approvePercent}% ({suggestion.approveCount}✓ {suggestion.rejectCount}✗)
+            </div>
+          )}
+          <div className="text-xs text-rapid-muted mt-1">
+            {suggestion.proposedByName} • {formatDistanceToNow(new Date(suggestion.createdAt), { addSuffix: true })}
           </div>
         </div>
       </div>

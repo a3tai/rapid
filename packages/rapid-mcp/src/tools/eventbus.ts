@@ -263,7 +263,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
       const inProgressTasks = assignedTasks.filter((t) => t.status === 'in_progress');
 
       if (inProgressTasks.length > 0) {
-        nextActions.push(`Continue working on: ${inProgressTasks[0].title}`);
+        nextActions.push(`Continue working on: ${inProgressTasks[0]!.title}`);
         nextActions.push('Send progress updates with bus_send (type: coordination)');
         nextActions.push('Mark complete with task_complete when done');
       } else if (currentRole === 'orchestrator') {
@@ -422,13 +422,17 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
       title: 'Get Messages',
       description:
         'Get recent messages from the event bus. Use brief=true to save context. ' +
-        'Use since parameter for efficient polling (only get new messages).',
+        'Use since parameter for efficient polling (only get new messages). ' +
+        'Use forAgent to filter messages addressed to a specific agent.',
       inputSchema: {
         limit: z.number().default(5).describe('Maximum messages to return (default: 5, max: 20)'),
         since: z.string().optional().describe('ISO timestamp - only return messages after this time'),
         types: z.array(MessageType).optional().describe('Filter by message types'),
         brief: z.boolean().default(true).describe('Return summaries only (saves context)'),
         maxContentLength: z.number().default(200).describe('Truncate content to this length'),
+        forAgent: z.string().optional().describe('Only return messages addressed to this agent ID (includes broadcasts unless excludeBroadcasts=true)'),
+        excludeBroadcasts: z.boolean().default(false).describe('When forAgent is set, exclude broadcast messages (messages with no toAgents)'),
+        onlyActionable: z.boolean().default(false).describe('Only return messages that require action'),
       },
       outputSchema: {
         messages: z.array(z.any()),
@@ -438,21 +442,40 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
       },
     },
     async (args) => {
-      const { limit, since, types, brief, maxContentLength } = args as {
+      const { limit, since, types, brief, maxContentLength, forAgent, excludeBroadcasts, onlyActionable } = args as {
         limit?: number;
         since?: string;
         types?: z.infer<typeof MessageType>[];
         brief?: boolean;
         maxContentLength?: number;
+        forAgent?: string;
+        excludeBroadcasts?: boolean;
+        onlyActionable?: boolean;
       };
 
       const bus = await getEventBus(projectId);
-      const historyOptions: { hours: number; types?: z.infer<typeof MessageType>[] } = {
+      const historyOptions: {
+        hours: number;
+        types?: z.infer<typeof MessageType>[];
+        forAgent?: string;
+        excludeBroadcasts?: boolean;
+        onlyActionable?: boolean;
+      } = {
         hours: 1, // Always get last hour, filter by 'since' if provided
       };
       if (types !== undefined) {
         historyOptions.types = types;
       }
+      if (forAgent !== undefined) {
+        historyOptions.forAgent = forAgent;
+        if (excludeBroadcasts !== undefined) {
+          historyOptions.excludeBroadcasts = excludeBroadcasts;
+        }
+      }
+      if (onlyActionable !== undefined) {
+        historyOptions.onlyActionable = onlyActionable;
+      }
+
       let messages = await bus.getHistory(historyOptions);
 
       // Filter by 'since' timestamp if provided
@@ -525,10 +548,14 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
       title: 'Poll New Messages',
       description:
         'Efficiently poll for new messages since last check. Returns only new messages. ' +
-        'Pass the returned cursor to subsequent calls for continuous polling.',
+        'Pass the returned cursor to subsequent calls for continuous polling. ' +
+        'Use forAgent to only receive messages addressed to you.',
       inputSchema: {
         cursor: z.string().optional().describe('Timestamp cursor from previous poll'),
         limit: z.number().default(5).describe('Max messages per poll (default: 5)'),
+        forAgent: z.string().optional().describe('Only return messages addressed to this agent ID'),
+        excludeBroadcasts: z.boolean().default(false).describe('Exclude broadcast messages when forAgent is set'),
+        onlyActionable: z.boolean().default(false).describe('Only return messages requiring action'),
       },
       outputSchema: {
         messages: z.array(z.any()),
@@ -538,10 +565,33 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
       },
     },
     async (args) => {
-      const { cursor, limit } = args as { cursor?: string; limit?: number };
+      const { cursor, limit, forAgent, excludeBroadcasts, onlyActionable } = args as {
+        cursor?: string;
+        limit?: number;
+        forAgent?: string;
+        excludeBroadcasts?: boolean;
+        onlyActionable?: boolean;
+      };
 
       const bus = await getEventBus(projectId);
-      let messages = await bus.getHistory({ hours: 1 });
+      const historyOptions: {
+        hours: number;
+        forAgent?: string;
+        excludeBroadcasts?: boolean;
+        onlyActionable?: boolean;
+      } = { hours: 1 };
+
+      if (forAgent !== undefined) {
+        historyOptions.forAgent = forAgent;
+        if (excludeBroadcasts !== undefined) {
+          historyOptions.excludeBroadcasts = excludeBroadcasts;
+        }
+      }
+      if (onlyActionable !== undefined) {
+        historyOptions.onlyActionable = onlyActionable;
+      }
+
+      let messages = await bus.getHistory(historyOptions);
 
       // Filter to only messages after cursor
       if (cursor) {
@@ -559,6 +609,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
         title: m.payload.title,
         preview: m.payload.content.slice(0, 100) + (m.payload.content.length > 100 ? '...' : ''),
         actionable: m.payload.actionable,
+        toAgents: m.toAgents,
       }));
 
       // New cursor is newest message time, or current time if no messages
@@ -815,7 +866,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
         activeAgents: activeAgents.map((a) => ({
           id: a.id,
           name: a.name,
-          worktree: a.worktree,
+          ...(a.worktree && { worktree: a.worktree }),
         })),
       };
 
@@ -823,7 +874,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
         output.staleAgents = staleAgents.map((a) => ({
           id: a.id,
           name: a.name,
-          worktree: a.worktree,
+          ...(a.worktree && { worktree: a.worktree }),
         }));
       }
 
@@ -956,7 +1007,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
 
           // Update task in array
           task.status = 'pending';
-          task.assignedTo = undefined;
+          delete (task as { assignedTo?: string }).assignedTo;
           task.updatedAt = new Date().toISOString();
         }
 
@@ -1016,6 +1067,128 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
       return {
         content: [{ type: 'text', text: JSON.stringify(output, null, 2) }],
         structuredContent: output,
+      };
+    }
+  );
+
+  // Tool: Wait for new messages (blocking)
+  server.registerTool(
+    'bus_wait',
+    {
+      title: 'Wait for Message',
+      description:
+        'Efficiently wait for new messages using Redis blocking read. ' +
+        'This is more efficient than polling and saves tokens. ' +
+        'Returns when a message arrives or timeout expires. ' +
+        'Use this instead of repeated bus_poll calls when idle.',
+      inputSchema: {
+        cursor: z
+          .string()
+          .default('$')
+          .describe("Stream cursor ('$' for only new messages, or cursor from previous call)"),
+        timeoutSeconds: z
+          .number()
+          .default(30)
+          .describe('Max seconds to wait (0 = forever, default: 30, max: 60)'),
+        forAgent: z.string().optional().describe('Only return messages addressed to this agent'),
+        types: z.array(MessageType).optional().describe('Filter by message types'),
+        onlyActionable: z.boolean().default(false).describe('Only return actionable messages'),
+      },
+      outputSchema: {
+        message: z.any().nullable().describe('The received message, or null if timed out'),
+        cursor: z.string().describe('Cursor for next wait call'),
+        timedOut: z.boolean().describe('True if no message received within timeout'),
+        mode: z.string().describe('Bus mode (redis or in-memory)'),
+      },
+    },
+    async (args) => {
+      const { cursor, timeoutSeconds, forAgent, types, onlyActionable } = args as {
+        cursor?: string;
+        timeoutSeconds?: number;
+        forAgent?: string;
+        types?: z.infer<typeof MessageType>[];
+        onlyActionable?: boolean;
+      };
+
+      const bus = await getEventBus(projectId);
+
+      // Only Redis EventBus supports blocking wait
+      if (!(bus instanceof EventBus)) {
+        // Fall back to polling for in-memory bus
+        const historyOptions: {
+          hours: number;
+          types?: z.infer<typeof MessageType>[];
+          forAgent?: string;
+          onlyActionable?: boolean;
+        } = { hours: 1 };
+
+        if (types) historyOptions.types = types;
+        if (forAgent) historyOptions.forAgent = forAgent;
+        if (onlyActionable) historyOptions.onlyActionable = onlyActionable;
+
+        const messages = await bus.getHistory(historyOptions);
+        const newestMessage = messages[0];
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                message: newestMessage || null,
+                cursor: cursor || '$',
+                timedOut: !newestMessage,
+                mode: 'in-memory (polling fallback)',
+              }),
+            },
+          ],
+          structuredContent: {
+            message: newestMessage || null,
+            cursor: cursor || '$',
+            timedOut: !newestMessage,
+            mode: 'in-memory',
+          },
+        };
+      }
+
+      // Cap timeout at 60 seconds to prevent very long waits
+      const effectiveTimeout = Math.min(Math.max((timeoutSeconds ?? 30) * 1000, 1000), 60000);
+
+      // Build options object, only including defined values
+      const waitOptions: {
+        types?: z.infer<typeof MessageType>[];
+        forAgent?: string;
+        onlyActionable?: boolean;
+      } = {};
+      if (types) waitOptions.types = types;
+      if (forAgent) waitOptions.forAgent = forAgent;
+      if (onlyActionable !== undefined) waitOptions.onlyActionable = onlyActionable;
+
+      const result = await bus.waitForMessage(cursor || '$', effectiveTimeout, waitOptions);
+
+      if (context.verbose) {
+        console.error(
+          `[bus_wait] ${result.timedOut ? 'Timed out' : 'Got message'} (cursor: ${result.cursor})`
+        );
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              message: result.message,
+              cursor: result.cursor,
+              timedOut: result.timedOut,
+              mode: 'redis',
+            }),
+          },
+        ],
+        structuredContent: {
+          message: result.message,
+          cursor: result.cursor,
+          timedOut: result.timedOut,
+          mode: 'redis',
+        },
       };
     }
   );
@@ -1122,7 +1295,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
           id: agent.id,
           name: agent.name,
           status,
-          worktree: agent.worktree,
+          ...(agent.worktree && { worktree: agent.worktree }),
         };
 
         // Add message counts if requested

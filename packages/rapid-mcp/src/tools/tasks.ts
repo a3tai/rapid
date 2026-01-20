@@ -13,7 +13,14 @@ import { randomUUID } from 'node:crypto';
 import type { ServerContext } from '../server.js';
 
 // Task status enum
-const TaskStatusSchema = z.enum(['pending', 'in_progress', 'completed', 'blocked', 'cancelled']);
+const TaskStatusSchema = z.enum([
+  'pending',
+  'pending_approval',
+  'in_progress',
+  'completed',
+  'blocked',
+  'cancelled',
+]);
 type TaskStatus = z.infer<typeof TaskStatusSchema>;
 
 // Task priority enum
@@ -46,6 +53,12 @@ const TaskSchema = z.object({
   errorCode: z.string().optional(), // Error code if failed
   canRetry: z.boolean().optional(), // Whether task can be retried
   attemptNumber: z.number().optional(), // Current attempt number
+  // Human-in-the-Loop Approval fields
+  requiresApproval: z.boolean().optional(), // Whether task needs human approval
+  approvalType: z.enum(['before_claim', 'before_commit', 'before_deploy']).optional(), // When approval is needed
+  approvedBy: z.string().optional(), // User/agent who approved
+  approvedAt: z.string().optional(), // When approved (ISO8601)
+  approvalReason: z.string().optional(), // Why approval is required
 });
 
 type Task = z.infer<typeof TaskSchema>;
@@ -112,6 +125,10 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
         requiredCapabilities: z.array(z.string()).optional().describe('Required agent capabilities (e.g., ["read", "write", "bash"])'),
         estimatedDuration: z.number().optional().describe('Estimated seconds to complete'),
         dependencies: z.array(z.string()).optional().describe('Task IDs that must complete first'),
+        // Human-in-the-Loop approval fields
+        requiresApproval: z.boolean().optional().describe('Whether task requires human approval before work can begin'),
+        approvalType: z.enum(['before_claim', 'before_commit', 'before_deploy']).optional().describe('When approval is needed'),
+        approvalReason: z.string().optional().describe('Reason why approval is required'),
       },
       outputSchema: {
         task: TaskSchema,
@@ -131,6 +148,9 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
         requiredCapabilities,
         estimatedDuration,
         dependencies,
+        requiresApproval,
+        approvalType,
+        approvalReason,
       } = args as {
         title: string;
         description?: string;
@@ -143,14 +163,19 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
         requiredCapabilities?: string[];
         estimatedDuration?: number;
         dependencies?: string[];
+        requiresApproval?: boolean;
+        approvalType?: 'before_claim' | 'before_commit' | 'before_deploy';
+        approvalReason?: string;
       };
 
       const now = new Date().toISOString();
+      const initialStatus = requiresApproval ? 'pending_approval' : 'pending';
+
       const task: Task = {
         id: randomUUID(),
         title,
         description,
-        status: 'pending',
+        status: initialStatus,
         priority,
         createdAt: now,
         updatedAt: now,
@@ -163,6 +188,9 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
         estimatedDuration,
         dependencies,
         attemptNumber: 1,
+        requiresApproval,
+        approvalType,
+        approvalReason,
       };
 
       tasks.set(task.id, task);
@@ -757,11 +785,12 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
           const claimDeadlineTime = new Date(task.claimDeadline).getTime();
           if (now > claimDeadlineTime) {
             // Claim timeout: agent claimed but never started working
-            timedOut.push({
+            const timeout: { taskId: string; reason: string; wasAssignedTo?: string } = {
               taskId: task.id,
               reason: 'claim_timeout',
-              wasAssignedTo: task.assignedTo,
-            });
+            };
+            if (task.assignedTo) timeout.wasAssignedTo = task.assignedTo;
+            timedOut.push(timeout);
             task.status = 'pending';
             task.assignedTo = undefined;
             task.claimedAt = undefined;
@@ -780,11 +809,12 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
 
           if (timeSinceProgress > progressTimeoutSeconds) {
             // Progress timeout: no updates from agent
-            timedOut.push({
+            const timeout: { taskId: string; reason: string; wasAssignedTo?: string } = {
               taskId: task.id,
               reason: `progress_timeout_${Math.floor(timeSinceProgress)}s`,
-              wasAssignedTo: task.assignedTo,
-            });
+            };
+            if (task.assignedTo) timeout.wasAssignedTo = task.assignedTo;
+            timedOut.push(timeout);
             task.status = 'pending';
             task.assignedTo = undefined;
             task.claimedAt = undefined;
@@ -813,6 +843,156 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
       return {
         content: [{ type: 'text', text: JSON.stringify({ timedOut, count: timedOut.length }, null, 2) }],
         structuredContent: { timedOut, count: timedOut.length },
+      };
+    }
+  );
+
+  // Tool: Approve pending task
+  server.registerTool(
+    'task_approve',
+    {
+      title: 'Approve Task',
+      description: 'Approve a task that requires human-in-the-loop approval. Transitions task from pending_approval to pending status.',
+      inputSchema: {
+        taskId: z.string().describe('Task ID to approve'),
+        approvedBy: z.string().describe('User or agent ID approving the task'),
+      },
+      outputSchema: {
+        task: TaskSchema.optional(),
+        approved: z.boolean(),
+        message: z.string(),
+      },
+    },
+    async (args) => {
+      const { taskId, approvedBy } = args as { taskId: string; approvedBy: string };
+
+      const task = tasks.get(taskId);
+      if (!task) {
+        return {
+          content: [{ type: 'text', text: JSON.stringify({ approved: false, message: `Task ${taskId} not found` }, null, 2) }],
+          structuredContent: { approved: false, message: `Task ${taskId} not found` },
+        };
+      }
+
+      if (task.status !== 'pending_approval') {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                { approved: false, message: `Task is in ${task.status} status, not pending_approval` },
+                null,
+                2
+              ),
+            },
+          ],
+          structuredContent: {
+            approved: false,
+            message: `Task is in ${task.status} status, not pending_approval`,
+          },
+        };
+      }
+
+      // Approve the task
+      task.status = 'pending';
+      task.approvedBy = approvedBy;
+      task.approvedAt = new Date().toISOString();
+      task.updatedAt = new Date().toISOString();
+
+      await saveTasks();
+
+      if (context.verbose) {
+        console.error(`[task_approve] Task ${taskId} approved by ${approvedBy}`);
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              { task, approved: true, message: `Task ${taskId} approved successfully` },
+              null,
+              2
+            ),
+          },
+        ],
+        structuredContent: { task, approved: true, message: `Task ${taskId} approved successfully` },
+      };
+    }
+  );
+
+  // Tool: Reject pending task
+  server.registerTool(
+    'task_reject',
+    {
+      title: 'Reject Task',
+      description: 'Reject a task that requires human-in-the-loop approval. Cancels the task.',
+      inputSchema: {
+        taskId: z.string().describe('Task ID to reject'),
+        rejectedBy: z.string().describe('User or agent ID rejecting the task'),
+        reason: z.string().describe('Reason for rejection'),
+      },
+      outputSchema: {
+        task: TaskSchema.optional(),
+        rejected: z.boolean(),
+        message: z.string(),
+      },
+    },
+    async (args) => {
+      const { taskId, rejectedBy, reason } = args as { taskId: string; rejectedBy: string; reason: string };
+
+      const task = tasks.get(taskId);
+      if (!task) {
+        return {
+          content: [{ type: 'text', text: JSON.stringify({ rejected: false, message: `Task ${taskId} not found` }, null, 2) }],
+          structuredContent: { rejected: false, message: `Task ${taskId} not found` },
+        };
+      }
+
+      if (task.status !== 'pending_approval') {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                { rejected: false, message: `Task is in ${task.status} status, not pending_approval` },
+                null,
+                2
+              ),
+            },
+          ],
+          structuredContent: {
+            rejected: false,
+            message: `Task is in ${task.status} status, not pending_approval`,
+          },
+        };
+      }
+
+      // Reject the task
+      task.status = 'cancelled';
+      task.updatedAt = new Date().toISOString();
+      if (!task.metadata) task.metadata = {};
+      task.metadata.rejectedBy = rejectedBy;
+      task.metadata.rejectionReason = reason;
+
+      await saveTasks();
+
+      if (context.verbose) {
+        console.error(`[task_reject] Task ${taskId} rejected by ${rejectedBy}: ${reason}`);
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              { task, rejected: true, message: `Task ${taskId} rejected: ${reason}` },
+              null,
+              2
+            ),
+          },
+        ],
+        structuredContent: { task, rejected: true, message: `Task ${taskId} rejected: ${reason}` },
       };
     }
   );

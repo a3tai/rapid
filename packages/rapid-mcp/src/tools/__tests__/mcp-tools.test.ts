@@ -12,7 +12,7 @@
  * Target: 80%+ code coverage for all tools
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 // ============================================================================
 // SECURE_EXEC TOOL TESTS
@@ -779,13 +779,16 @@ describe('Task Tools', () => {
     });
 
     it('should update task metadata', () => {
-      const task = { id: 'uuid', metadata: {} };
-      task.metadata = { progress: 0.5 };
+      const task = { id: 'uuid', metadata: { progress: 0 } };
+      task.metadata.progress = 0.5;
       expect(task.metadata.progress).toBe(0.5);
     });
 
     it('should update assignedTo', () => {
-      const task = { id: 'uuid', assignedTo: undefined };
+      const task: { id: string; assignedTo: string | undefined; status?: string } = {
+        id: 'uuid',
+        assignedTo: undefined
+      };
       task.assignedTo = 'agent-1';
       expect(task.assignedTo).toBe('agent-1');
     });
@@ -801,7 +804,11 @@ describe('Task Tools', () => {
 
   describe('task_claim Tool', () => {
     it('should claim pending task', () => {
-      const task = { id: 'uuid', status: 'pending', assignedTo: undefined };
+      const task: { id: string; status: string; assignedTo: string | undefined; claimedAt?: string } = {
+        id: 'uuid',
+        status: 'pending',
+        assignedTo: undefined
+      };
       task.assignedTo = 'agent-1';
       task.status = 'in_progress';
       task.claimedAt = new Date().toISOString();
@@ -853,7 +860,7 @@ describe('Task Tools', () => {
     });
 
     it('should store result data', () => {
-      const task = {
+      const task: { id: string; status: string; result: { output: string; filesChanged: number } } = {
         id: 'uuid',
         status: 'completed',
         result: { output: 'success', filesChanged: 5 },
@@ -863,16 +870,20 @@ describe('Task Tools', () => {
     });
 
     it('should clear assignedTo', () => {
-      const task = { id: 'uuid', assignedTo: 'agent-1' };
+      const task: { id: string; assignedTo: string | undefined } = {
+        id: 'uuid',
+        assignedTo: 'agent-1'
+      };
       task.assignedTo = undefined;
       expect(task.assignedTo).toBeUndefined();
     });
 
     it('should update updatedAt', () => {
-      const before = Date.now();
+      const timeBeforeTest = Date.now();
       const task = { updatedAt: new Date().toISOString() };
-      const after = Date.now();
-      expect(new Date(task.updatedAt).getTime()).toBeGreaterThanOrEqual(before);
+      const timeAfterTest = Date.now();
+      expect(new Date(task.updatedAt).getTime()).toBeGreaterThanOrEqual(timeBeforeTest);
+      expect(new Date(task.updatedAt).getTime()).toBeLessThanOrEqual(timeAfterTest + 1000);
     });
 
     it('should store completion summary in metadata', () => {
@@ -1057,7 +1068,7 @@ describe('Event Bus Tools', () => {
     });
 
     it('should return new messages since cursor', () => {
-      const messages = [];
+      const messages: unknown[] = [];
       expect(Array.isArray(messages)).toBe(true);
     });
 
@@ -1320,7 +1331,6 @@ describe('MCP Tools Integration', () => {
 
   it('should enable security checks on spawned agents', () => {
     const agent = { personaName: 'security-reviewer' };
-    const checkType = 'sast';
     expect([agent.personaName]).toContain('security-reviewer');
   });
 });

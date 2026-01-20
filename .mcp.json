@@ -10,6 +10,11 @@
       "type": "http",
       "url": "https://mcp.tavily.com/mcp",
       "headers": { "Authorization": "Bearer ${TAVILY_API_KEY}" }
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["@playwright/mcp"]
     }
   }
 }

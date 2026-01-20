@@ -22,13 +22,33 @@ export interface Task {
 
 export interface Message {
   id: string
-  type: 'discovery' | 'error' | 'completion' | 'question' | 'learning' | 'coordination' | 'heartbeat'
+  type: 'discovery' | 'error' | 'completion' | 'question' | 'learning' | 'coordination' | 'heartbeat' | 'suggestion' | 'vote'
   fromAgent: Agent
   timestamp: string
   payload: {
     title?: string
     content?: string
     [key: string]: unknown
+  }
+}
+
+export interface Suggestion {
+  id: string
+  title: string
+  description: string
+  category: 'feature' | 'fix' | 'improvement' | 'refactor' | 'docs'
+  proposedBy: string
+  proposedByName: string
+  status: 'proposed' | 'voting' | 'approved' | 'rejected' | 'orchestrator_approved' | 'orchestrator_vetoed' | 'implemented'
+  createdAt: string
+  votingEndsAt?: string
+  approveCount: number
+  rejectCount: number
+  abstainCount: number
+  orchestratorDecision?: {
+    decision: 'approved' | 'vetoed'
+    reason: string
+    decidedAt: string
   }
 }
 
@@ -51,9 +71,10 @@ interface AppState {
   agents: Agent[]
   tasks: Task[]
   messages: Message[]
+  suggestions: Suggestion[]
 
   // UI state
-  activeView: 'dashboard' | 'agents' | 'tasks' | 'events' | 'config'
+  activeView: 'dashboard' | 'agents' | 'tasks' | 'events' | 'knowledge' | 'config'
   selectedAgent: string | null
   selectedTask: string | null
 
@@ -63,6 +84,8 @@ interface AppState {
   setTasks: (tasks: Task[]) => void
   setMessages: (messages: Message[]) => void
   addMessage: (message: Message) => void
+  setSuggestions: (suggestions: Suggestion[]) => void
+  addSuggestion: (suggestion: Suggestion) => void
   setActiveView: (view: AppState['activeView']) => void
   setSelectedAgent: (id: string | null) => void
   setSelectedTask: (id: string | null) => void
@@ -78,6 +101,7 @@ export const useAppStore = create<AppState>((set) => ({
   agents: [],
   tasks: [],
   messages: [],
+  suggestions: [],
   activeView: 'dashboard',
   selectedAgent: null,
   selectedTask: null,
@@ -91,6 +115,11 @@ export const useAppStore = create<AppState>((set) => ({
     set((state) => ({
       messages: [message, ...state.messages].slice(0, 100), // Keep last 100
     })),
+  setSuggestions: (suggestions) => set({ suggestions }),
+  addSuggestion: (suggestion) =>
+    set((state) => ({
+      suggestions: [suggestion, ...state.suggestions].slice(0, 50), // Keep last 50
+    })),
   setActiveView: (activeView) => set({ activeView }),
   setSelectedAgent: (selectedAgent) => set({ selectedAgent }),
   setSelectedTask: (selectedTask) => set({ selectedTask }),
@@ -102,5 +131,6 @@ export const useAppStore = create<AppState>((set) => ({
 export const useAgents = () => useAppStore((state) => state.agents)
 export const useTasks = () => useAppStore((state) => state.tasks)
 export const useMessages = () => useAppStore((state) => state.messages)
+export const useSuggestions = () => useAppStore((state) => state.suggestions)
 export const useDaemonStatus = () => useAppStore((state) => state.daemonStatus)
 export const useActiveView = () => useAppStore((state) => state.activeView)

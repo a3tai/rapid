@@ -30,6 +30,9 @@ import { sessionCommand } from './commands/session.js';
 import { pluginCommand } from './commands/plugin.js';
 import { rewindCommand } from './commands/rewind.js';
 import { approveCommand } from './commands/approve.js';
+import { stopAllCommand } from './commands/stop-all.js';
+import { cleanupCommand } from './commands/cleanup.js';
+import { suggestCommand } from './commands/suggest.js';
 import { updateChecker } from './utils/update-checker.js';
 
 // Read version from package.json
@@ -91,6 +94,9 @@ program.addCommand(sessionCommand);
 program.addCommand(pluginCommand);
 program.addCommand(rewindCommand);
 program.addCommand(approveCommand);
+program.addCommand(stopAllCommand);
+program.addCommand(cleanupCommand);
+program.addCommand(suggestCommand);
 
 // Default action - show help
 program.action(() => {

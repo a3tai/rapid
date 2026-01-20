@@ -589,15 +589,15 @@ export function registerDependencyTools(server: McpServer, context: ServerContex
         };
       }
 
-      const task = tasks[taskIndex];
+      const task = tasks[taskIndex]!;
 
       // Check for circular dependency
       if (validateCircular !== false) {
-        const testTask = {
+        const testTask: Task = {
           ...task,
           dependencies: [...(task.dependencies || []), dependsOn],
         };
-        const testTasks = [...tasks.slice(0, taskIndex), testTask, ...tasks.slice(taskIndex + 1)];
+        const testTasks: Task[] = [...tasks.slice(0, taskIndex), testTask, ...tasks.slice(taskIndex + 1)];
         const graph = buildDependencyGraph(testTasks);
         const cycle = detectCircularDependency(graph, taskId);
 
@@ -635,7 +635,7 @@ export function registerDependencyTools(server: McpServer, context: ServerContex
       const output = {
         success: true,
         taskId,
-        dependencies: task.dependencies,
+        dependencies: task.dependencies!,
       };
 
       if (context.verbose) {
@@ -687,7 +687,7 @@ export function registerDependencyTools(server: McpServer, context: ServerContex
         };
       }
 
-      const task = tasks[taskIndex];
+      const task = tasks[taskIndex]!;
 
       if (task.dependencies) {
         const index = task.dependencies.indexOf(dependsOn);

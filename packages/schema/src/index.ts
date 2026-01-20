@@ -55,6 +55,9 @@ export interface RapidConfig {
 
   /** Skills/commands configuration */
   skills?: SkillsConfig;
+
+  /** Unified security configuration */
+  security?: SecurityConfig;
 }
 
 /**
@@ -677,6 +680,157 @@ export interface SkillsConfig {
 
   /** Inline skill definitions */
   definitions?: Record<string, SkillConfig>;
+}
+
+// ============================================================================
+// SECURITY CONFIGURATION
+// ============================================================================
+
+/**
+ * Agent roles for access control
+ */
+export type AgentRole = 'orchestrator' | 'worker' | 'designer' | 'reviewer' | 'devops' | 'admin';
+
+/**
+ * Human approval action patterns
+ */
+export interface ApprovalAction {
+  /** Action pattern (supports wildcards: *, ?) */
+  pattern: string;
+
+  /** Require human approval for this action */
+  requireApproval: boolean;
+
+  /** Roles that can perform this action without approval */
+  exemptRoles?: AgentRole[];
+
+  /** Description shown in approval request */
+  description?: string;
+}
+
+/**
+ * Human-in-the-loop approval configuration
+ */
+export interface HumanApprovalConfig {
+  /** Enable human approval workflow (default: false) */
+  enabled?: boolean;
+
+  /** Actions requiring human approval (patterns support wildcards) */
+  requiredActions?: string[];
+
+  /** Detailed action configurations */
+  actions?: ApprovalAction[];
+
+  /** Approval request timeout in seconds (default: 300) */
+  timeout?: number;
+
+  /** What happens on timeout: 'deny' or 'allow' (default: 'deny') */
+  timeoutBehavior?: 'deny' | 'allow';
+
+  /** Notification channels for approval requests */
+  notify?: ApprovalNotifyConfig;
+}
+
+/**
+ * Approval notification configuration
+ */
+export interface ApprovalNotifyConfig {
+  /** Send to event bus (default: true) */
+  eventBus?: boolean;
+
+  /** Send desktop notification via Wails (default: true) */
+  desktop?: boolean;
+
+  /** Webhook URL for external notifications */
+  webhook?: string;
+}
+
+/**
+ * Tool-level access control (TBAC - Task-Based Access Control)
+ */
+export interface ToolAclConfig {
+  /** Tool name or pattern */
+  tool: string;
+
+  /** Roles allowed to use this tool */
+  allowedRoles?: AgentRole[];
+
+  /** Roles denied from using this tool */
+  deniedRoles?: AgentRole[];
+
+  /** Patterns requiring approval (e.g., ['*.env', '*.key'] for write_file) */
+  requireApprovalFor?: string[];
+
+  /** Always require approval for this tool */
+  alwaysRequireApproval?: boolean;
+
+  /** Maximum calls per minute (rate limiting) */
+  rateLimit?: number;
+}
+
+/**
+ * Audit trail configuration
+ */
+export interface AuditConfig {
+  /** Enable audit logging (default: true) */
+  enabled?: boolean;
+
+  /** Events to log */
+  events?: AuditEventType[];
+
+  /** Log destination: file, eventBus, or both (default: 'both') */
+  destination?: 'file' | 'eventBus' | 'both';
+
+  /** Path to audit log file (default: '.rapid/audit.jsonl') */
+  logFile?: string;
+
+  /** Log retention in days (default: 30) */
+  retentionDays?: number;
+}
+
+/**
+ * Types of events to audit
+ */
+export type AuditEventType =
+  | 'tool_call'
+  | 'approval_request'
+  | 'approval_response'
+  | 'secret_access'
+  | 'sandbox_violation'
+  | 'budget_alert'
+  | 'agent_spawn'
+  | 'agent_terminate';
+
+/**
+ * Unified security configuration
+ */
+export interface SecurityConfig {
+  /** Human-in-the-loop approval configuration */
+  humanApproval?: HumanApprovalConfig;
+
+  /** Tool-level access control list */
+  toolAcls?: ToolAclConfig[];
+
+  /** Audit trail configuration */
+  audit?: AuditConfig;
+
+  /** Override sandbox settings (inherits from top-level sandbox if not set) */
+  sandbox?: SandboxConfig;
+
+  /** Override gateway budgets (inherits from top-level gateway if not set) */
+  budgets?: GatewayBudgetConfig;
+
+  /** Per-agent budget limits in USD */
+  perAgentBudget?: number;
+
+  /** Per-session budget limits in USD */
+  perSessionBudget?: number;
+
+  /** Block all network access by default (strict mode) */
+  strictMode?: boolean;
+
+  /** Trust level for the environment: 'development', 'staging', 'production' */
+  trustLevel?: 'development' | 'staging' | 'production';
 }
 
 /**

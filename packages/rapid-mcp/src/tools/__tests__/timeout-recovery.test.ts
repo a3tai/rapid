@@ -151,11 +151,9 @@ describe('Task Timeout Recovery', () => {
     it('should retry task with increasing delays between attempts', async () => {
       const retryAttempts: number[] = [];
       const attemptDelays: number[] = [];
-      let currentAttempt = 0;
 
       const taskWithRetry = async (maxAttempts = 3) => {
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
-          currentAttempt = attempt;
           retryAttempts.push(attempt);
 
           if (attempt > 0) {
@@ -210,6 +208,7 @@ describe('Task Timeout Recovery', () => {
             // Prefer workers with exact capability match over others
             const aExactMatch = a.capabilities.length === requiredCaps.length;
             const bExactMatch = b.capabilities.length === requiredCaps.length;
+            if (bExactMatch === aExactMatch) return 0;
             return bExactMatch ? 1 : -1;
           })[0];
       };
@@ -289,8 +288,8 @@ describe('Task Timeout Recovery', () => {
       });
 
       expect(task.history).toHaveLength(3);
-      expect(task.history[2].event).toBe('timeout_recovered');
-      expect(task.history[0].event).toBe('created');
+      expect(task.history?.[2]?.event).toBe('timeout_recovered');
+      expect(task.history?.[0]?.event).toBe('created');
     });
   });
 
@@ -321,14 +320,17 @@ describe('Task Timeout Recovery', () => {
       ];
 
       // Redistribute tasks to workers with capacity
-      const redistributed = failedWorkerTasks.map((taskId, index) => {
+      const redistributed = failedWorkerTasks.map((taskId) => {
         const targetWorker = availableWorkers.sort((a, b) => a.currentLoad - b.currentLoad)[0];
+        if (!targetWorker) {
+          throw new Error('No available workers for redistribution');
+        }
         targetWorker.currentLoad += 1;
         return { taskId, assignedTo: targetWorker.id };
       });
 
       expect(redistributed).toHaveLength(3);
-      expect(redistributed[0].assignedTo).toBeDefined();
+      expect(redistributed?.[0]?.assignedTo).toBeDefined();
 
       // All tasks should be reassigned
       const allReassigned = redistributed.every((r) => r.assignedTo);
@@ -342,16 +344,14 @@ describe('Task Timeout Recovery', () => {
         { id: 'task-3', status: 'pending', priority: 'high' },
       ];
 
-      const failedWorkerIds = ['worker-1', 'worker-2'];
-
       // Filter out tasks assigned to failed workers (none in this case)
       const tasksToReassign = pendingTasks.filter((t) => t.status === 'pending');
 
       // Sort by priority
-      tasksToReassign.sort((a, b) => (a.priority === 'high' ? -1 : 1));
+      tasksToReassign.sort((a) => (a.priority === 'high' ? -1 : 1));
 
       expect(tasksToReassign).toHaveLength(3);
-      expect(tasksToReassign[0].priority).toBe('high');
+      expect(tasksToReassign?.[0]?.priority).toBe('high');
     });
   });
 

@@ -2,7 +2,7 @@
  * Test suite for Phase 1 Task Assignment Protocol implementation
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { z } from 'zod';
 
 // Mock task schema for testing
@@ -146,6 +146,7 @@ describe('Phase 1: Task Assignment Protocol', () => {
 
       // Attempt claim from different agent
       const agentCapabilities = ['read', 'write', 'bash'];
+      // @ts-expect-error - Intentionally checking false condition (status is in_progress, not pending)
       const canClaim = task.status === 'pending' && agentCapabilities.every(
         (cap) => task.requiredCapabilities!.includes(cap)
       );

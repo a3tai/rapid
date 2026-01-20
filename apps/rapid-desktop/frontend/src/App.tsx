@@ -1,24 +1,29 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useAppStore, useActiveView, useDaemonStatus } from './stores/app'
-import { useWails, useDataPolling } from './hooks/useWails'
+import { useData, useDataPolling, useMcpStatus } from './hooks/useData'
 import { Sidebar } from './components/Sidebar'
 import { Header } from './components/Header'
 import { Dashboard } from './pages/Dashboard'
 import { AgentsPage } from './pages/Agents'
 import { TasksPage } from './pages/Tasks'
 import { EventsPage } from './pages/Events'
+import { KnowledgePage } from './pages/Knowledge'
 import { ConfigPage } from './pages/Config'
 
 function App() {
   const activeView = useActiveView()
   const daemonStatus = useDaemonStatus()
   const isConnecting = useAppStore((s) => s.isConnecting)
-  const { initialize } = useWails()
+  const { initialize, isWails, mcpEndpoint } = useData()
+  const { checkConnection } = useMcpStatus()
+  const [mcpStatus, setMcpStatus] = useState<{ connected: boolean; toolCount: number } | null>(null)
 
   // Initialize data on mount
   useEffect(() => {
     initialize()
-  }, [initialize])
+    // Check MCP connection
+    checkConnection().then(setMcpStatus)
+  }, [initialize, checkConnection])
 
   // Poll for updates
   useDataPolling(5000)
@@ -34,6 +39,8 @@ function App() {
         return <TasksPage />
       case 'events':
         return <EventsPage />
+      case 'knowledge':
+        return <KnowledgePage />
       case 'config':
         return <ConfigPage />
       default:
@@ -71,6 +78,24 @@ function App() {
         <main className="flex-1 overflow-auto p-6">
           {renderView()}
         </main>
+
+        {/* Status bar */}
+        <div className="h-6 bg-rapid-surface border-t border-rapid-border px-4 flex items-center justify-between text-xs text-rapid-muted">
+          <div className="flex items-center gap-4">
+            <span className="flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full ${mcpStatus?.connected ? 'bg-green-400' : 'bg-red-400'}`} />
+              {isWails ? 'Wails' : mcpStatus?.connected ? 'MCP' : 'Mock Data'}
+            </span>
+            {mcpStatus?.connected && (
+              <span>{mcpStatus.toolCount} tools available</span>
+            )}
+          </div>
+          <div className="flex items-center gap-4">
+            {!isWails && (
+              <span className="font-mono text-[10px] opacity-60">{mcpEndpoint}</span>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )

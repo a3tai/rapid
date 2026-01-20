@@ -5,7 +5,7 @@
  * orchestrator and worker agents using the event bus and task system.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { z } from 'zod';
 
 // Mock schemas matching the real implementations
@@ -241,9 +241,9 @@ class MockTaskManager {
     const task = this.tasks.get(taskId);
     if (task) {
       task.status = 'pending';
-      task.assignedTo = undefined;
-      task.claimedAt = undefined;
-      task.claimDeadline = undefined;
+      delete task.assignedTo;
+      delete task.claimedAt;
+      delete task.claimDeadline;
       task.updatedAt = new Date().toISOString();
       task.metadata = { ...task.metadata, releaseReason: reason };
     }
@@ -386,8 +386,8 @@ describe('Event Bus and Task Coordination Integration', () => {
       expect(completionMessages.length).toBeGreaterThan(0);
 
       const lastCompletion = completionMessages[completionMessages.length - 1];
-      expect(lastCompletion.payload.taskId).toBe(task.id);
-      expect(lastCompletion.fromAgent.id).toBe(worker1.id);
+      expect(lastCompletion?.payload?.taskId).toBe(task.id);
+      expect(lastCompletion?.fromAgent?.id).toBe(worker1.id);
     });
   });
 
@@ -414,7 +414,7 @@ describe('Event Bus and Task Coordination Integration', () => {
       // Check for timed out tasks (1 minute threshold)
       const timedOut = await taskManager.getTimedOutTasks(60000);
       expect(timedOut).toHaveLength(1);
-      expect(timedOut[0].id).toBe(task.id);
+      expect(timedOut?.[0]?.id).toBe(task.id);
 
       // Release the timed out task
       await taskManager.release(task.id, 'progress_timeout');
@@ -436,7 +436,7 @@ describe('Event Bus and Task Coordination Integration', () => {
 
       const staleAgents = await eventBus.getStaleAgents(60000); // 1 minute threshold
       expect(staleAgents).toHaveLength(1);
-      expect(staleAgents[0].id).toBe(worker1.id);
+      expect(staleAgents?.[0]?.id).toBe(worker1.id);
     });
   });
 
@@ -683,7 +683,7 @@ describe('Event Bus and Task Coordination Integration', () => {
       // All agents should be able to retrieve the message
       const messages = await eventBus.getMessages({ types: ['coordination'] });
       expect(messages).toHaveLength(1);
-      expect(messages[0].fromAgent.id).toBe(orchestrator.id);
+      expect(messages?.[0]?.fromAgent?.id).toBe(orchestrator.id);
     });
 
     it('should filter messages by type', async () => {
@@ -749,7 +749,7 @@ describe('Event Bus and Task Coordination Integration', () => {
       // Get messages since first one
       const recentMessages = await eventBus.getMessages({ since: beforeSecond });
       expect(recentMessages).toHaveLength(1);
-      expect(recentMessages[0].payload.title).toBe('New message');
+      expect(recentMessages?.[0]?.payload?.title).toBe('New message');
     });
   });
 

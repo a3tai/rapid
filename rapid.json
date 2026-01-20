@@ -55,8 +55,98 @@
         "type": "remote",
         "url": "https://mcp.tavily.com/mcp",
         "headers": { "Authorization": "Bearer ${TAVILY_API_KEY}" }
+      },
+      "playwright": {
+        "enabled": true,
+        "type": "stdio",
+        "command": "npx",
+        "args": ["@playwright/mcp"]
       }
     }
   },
-  "eventBus": { "enabled": true }
+  "eventBus": { "enabled": true },
+  "security": {
+    "trustLevel": "development",
+    "strictMode": false,
+    "humanApproval": {
+      "enabled": false,
+      "timeout": 300,
+      "timeoutBehavior": "deny",
+      "actions": [
+        {
+          "pattern": "delete_*",
+          "requireApproval": true,
+          "description": "Deletion operations require approval"
+        },
+        {
+          "pattern": "*deploy*",
+          "requireApproval": true,
+          "exemptRoles": ["devops", "orchestrator"],
+          "description": "Deployment operations require approval"
+        }
+      ],
+      "notify": {
+        "eventBus": true,
+        "desktop": true
+      }
+    },
+    "toolAcls": [
+      {
+        "tool": "secure_exec",
+        "allowedRoles": ["worker", "orchestrator"],
+        "alwaysRequireApproval": false,
+        "rateLimit": 100
+      },
+      {
+        "tool": "write_file",
+        "allowedRoles": ["worker", "orchestrator", "designer"],
+        "requireApprovalFor": ["*.env", "*.key", "*credentials*", "*secret*"],
+        "rateLimit": 50
+      },
+      {
+        "tool": "read_file",
+        "allowedRoles": ["worker", "orchestrator", "designer", "reviewer"],
+        "rateLimit": 200
+      },
+      {
+        "tool": "get_secret",
+        "allowedRoles": ["worker", "orchestrator"],
+        "alwaysRequireApproval": false,
+        "rateLimit": 20
+      },
+      {
+        "tool": "delete_file",
+        "allowedRoles": ["worker", "orchestrator"],
+        "alwaysRequireApproval": true,
+        "rateLimit": 5
+      }
+    ],
+    "audit": {
+      "enabled": true,
+      "events": ["tool_call", "approval_request", "approval_response", "secret_access", "sandbox_violation", "budget_alert"],
+      "destination": "both",
+      "logFile": ".rapid/audit.jsonl",
+      "retentionDays": 30
+    },
+    "perAgentBudget": 50,
+    "perSessionBudget": 500,
+    "sandbox": {
+      "enabled": true,
+      "mode": "auto",
+      "network": {
+        "enabled": true,
+        "allowedDomains": ["*.github.com", "*.npm.org", "registry.npmjs.org", "api.github.com"],
+        "proxyPort": 8888,
+        "socksPort": 1080
+      },
+      "filesystem": {
+        "readOnlyRoot": true,
+        "writePaths": [".rapid", "node_modules"]
+      }
+    },
+    "budgets": {
+      "enabled": true,
+      "alerts": [0.5, 0.75, 0.9]
+    }
+  }
 }

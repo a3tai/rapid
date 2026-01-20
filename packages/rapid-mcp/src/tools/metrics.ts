@@ -131,7 +131,7 @@ function recordEvent(event: Omit<MetricEvent, 'timestamp'>): void {
 function percentile(sortedArr: number[], p: number): number {
   if (sortedArr.length === 0) return 0;
   const index = Math.ceil((p / 100) * sortedArr.length) - 1;
-  return sortedArr[Math.max(0, index)];
+  return sortedArr[Math.max(0, index)] ?? 0;
 }
 
 /**
@@ -198,8 +198,11 @@ function aggregateMetrics(
           };
           byAgentTimes[event.agentId] = [];
         }
-        byAgent[event.agentId].completed++;
-        byAgentTimes[event.agentId].push(event.durationMs);
+        const agent = byAgent[event.agentId];
+        if (agent) {
+          agent.completed++;
+          byAgentTimes[event.agentId]?.push(event.durationMs ?? 0);
+        }
       }
 
       // By tag
@@ -209,8 +212,10 @@ function aggregateMetrics(
             byTag[tag] = { created: 0, completed: 0, avgCompletionTimeMs: 0 };
             byTagTimes[tag] = [];
           }
-          byTag[tag].completed++;
-          byTagTimes[tag].push(event.durationMs);
+          if (byTag[tag]) {
+            byTag[tag].completed++;
+            byTagTimes[tag]?.push(event.durationMs ?? 0);
+          }
         }
       }
     }
@@ -228,7 +233,10 @@ function aggregateMetrics(
           };
           byAgentTimes[event.agentId] = [];
         }
-        byAgent[event.agentId].claimed++;
+        const agent = byAgent[event.agentId];
+        if (agent) {
+          agent.claimed++;
+        }
       }
     }
 
@@ -243,7 +251,10 @@ function aggregateMetrics(
         };
         byAgentTimes[event.agentId] = [];
       }
-      byAgent[event.agentId].failed++;
+      const agent = byAgent[event.agentId];
+      if (agent) {
+        agent.failed++;
+      }
     }
 
     // Track creates by tag
@@ -253,7 +264,9 @@ function aggregateMetrics(
           byTag[tag] = { created: 0, completed: 0, avgCompletionTimeMs: 0 };
           byTagTimes[tag] = [];
         }
-        byTag[tag].created++;
+        if (byTag[tag]) {
+          byTag[tag].created++;
+        }
       }
     }
   }
@@ -274,7 +287,7 @@ function aggregateMetrics(
 
   // Calculate per-agent averages
   for (const [agentId, times] of Object.entries(byAgentTimes)) {
-    if (times.length > 0) {
+    if (times.length > 0 && byAgent[agentId]) {
       byAgent[agentId].avgCompletionTimeMs =
         times.reduce((a, b) => a + b, 0) / times.length;
     }
@@ -282,7 +295,7 @@ function aggregateMetrics(
 
   // Calculate per-tag averages
   for (const [tag, times] of Object.entries(byTagTimes)) {
-    if (times.length > 0) {
+    if (times.length > 0 && byTag[tag]) {
       byTag[tag].avgCompletionTimeMs =
         times.reduce((a, b) => a + b, 0) / times.length;
     }
@@ -434,7 +447,12 @@ export function registerMetricsTools(
         metadata?: Record<string, unknown>;
       };
 
-      recordEvent({ type, taskId, agentId, durationMs, tags, metadata });
+      const event: Omit<MetricEvent, 'timestamp'> = { type, taskId };
+      if (agentId) event.agentId = agentId;
+      if (durationMs !== undefined) event.durationMs = durationMs;
+      if (tags) event.tags = tags;
+      if (metadata) event.metadata = metadata;
+      recordEvent(event);
 
       if (context.verbose) {
         console.error(
@@ -586,7 +604,7 @@ export function registerMetricsTools(
         }
       });
 
-      const topPerformer = agents.length > 0 ? agents[0].agentId : undefined;
+      const topPerformer = agents.length > 0 ? agents[0]?.agentId : undefined;
 
       const output = {
         agents,

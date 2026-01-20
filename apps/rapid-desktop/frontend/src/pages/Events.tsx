@@ -188,6 +188,16 @@ function MessageItem({ message }: { message: Message }) {
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
       </svg>
     ),
+    suggestion: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+    vote: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
   }
 
   const typeColor = {
@@ -198,6 +208,8 @@ function MessageItem({ message }: { message: Message }) {
     learning: 'text-purple-400 bg-purple-400/10',
     coordination: 'text-blue-400 bg-blue-400/10',
     heartbeat: 'text-gray-400 bg-gray-400/10',
+    suggestion: 'text-indigo-400 bg-indigo-400/10',
+    vote: 'text-emerald-400 bg-emerald-400/10',
   }
 
   return (
@@ -254,7 +266,7 @@ function MessageItem({ message }: { message: Message }) {
 }
 
 function getTypeBadgeClass(type: Message['type']): string {
-  const classes = {
+  const classes: Record<string, string> = {
     discovery: 'badge-info',
     error: 'badge-error',
     completion: 'badge-success',
@@ -262,6 +274,8 @@ function getTypeBadgeClass(type: Message['type']): string {
     learning: 'bg-purple-500/20 text-purple-400',
     coordination: 'bg-blue-500/20 text-blue-400',
     heartbeat: 'badge-neutral',
+    suggestion: 'bg-indigo-500/20 text-indigo-400',
+    vote: 'bg-emerald-500/20 text-emerald-400',
   }
-  return classes[type]
+  return classes[type] || 'badge-neutral'
 }

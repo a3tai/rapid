@@ -113,7 +113,8 @@ function selectBestWorker(
   // Sort by score descending
   scored.sort((a, b) => b.score - a.score);
 
-  return scored[0].worker;
+  const selected = scored[0];
+  return selected ? selected.worker : null;
 }
 
 /**
@@ -126,7 +127,7 @@ function selectRoundRobin(available: WorkerState[]): WorkerState | null {
   const selected = available[roundRobinIndex];
   roundRobinIndex = (roundRobinIndex + 1) % available.length;
 
-  return selected;
+  return selected ?? null;
 }
 
 /**
@@ -167,17 +168,18 @@ export function registerLoadBalancerTools(
           maxTasks?: number;
         };
 
-      workers.set(agentId, {
+      const worker: WorkerState = {
         agentId,
         name,
-        worktree,
+        ...(worktree && { worktree }),
         capabilities,
         currentTasks: 0,
         maxTasks,
         totalCompleted: 0,
         avgCompletionTimeMs: 0,
         healthy: true,
-      });
+      };
+      workers.set(agentId, worker);
 
       if (context.verbose) {
         console.error(
@@ -342,11 +344,13 @@ export function registerLoadBalancerTools(
         case 'round-robin':
           selected = selectRoundRobin(qualified);
           break;
-        case 'least-loaded':
-          selected = [...qualified].sort(
+        case 'least-loaded': {
+          const sorted = [...qualified].sort(
             (a, b) => a.currentTasks - b.currentTasks
-          )[0];
+          );
+          selected = sorted[0] ?? null;
           break;
+        }
         case 'best':
         default:
           selected = selectBestWorker(

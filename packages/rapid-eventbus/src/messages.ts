@@ -19,6 +19,9 @@ export const MessageType = z.enum([
   'heartbeat', // I'm alive signal
   'approval_request', // Human-in-the-loop approval request
   'approval_response', // Response to an approval request
+  'system_command', // System-level command (shutdown, cleanup, etc)
+  'suggestion', // Agent proposing an idea for group voting
+  'vote', // Agent voting on a suggestion
 ]);
 
 export type MessageType = z.infer<typeof MessageType>;
@@ -122,6 +125,9 @@ export const MESSAGE_TYPE_ICONS: Record<MessageType, string> = {
   heartbeat: '💓',
   approval_request: '🔔',
   approval_response: '✔️',
+  system_command: '⚙️',
+  suggestion: '💭',
+  vote: '🗳️',
 };
 
 /**

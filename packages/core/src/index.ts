@@ -211,3 +211,13 @@ export {
   type BudgetConfig,
   type LiteLLMConfig,
 } from './gateway.js';
+
+// Context Engine
+export {
+  ContextEngine,
+  createContextEngine,
+  type ContextEntry,
+  type ContextEngineConfig,
+  type ContextFilter,
+  type MemoryType,
+} from './context-engine.js';

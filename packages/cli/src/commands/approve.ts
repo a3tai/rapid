@@ -8,6 +8,8 @@
 
 import { Command } from 'commander';
 import { logger } from '@a3t/rapid-core';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import {
   EventBus,
   InMemoryEventBus,
@@ -250,6 +252,132 @@ approveCommand
         `  ${chalk.yellow('⊘')} Request ${requestId} has been deferred`
       );
       console.log(`    Reason: ${options.reason}`);
+      console.log();
+    } catch (error) {
+      spinner.fail(error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
+/**
+ * rapid approve task <task-id>
+ *
+ * Approve a pending task
+ */
+approveCommand
+  .command('task <taskId>')
+  .option('-u, --user <user>', 'User approving the task (default: current user)')
+  .description('Approve a pending task that requires human approval')
+  .action(async (taskId: string, options: { user?: string }) => {
+    const spinner = ora(`Approving task ${taskId}...`).start();
+
+    try {
+      // Try to load and approve the task via the MCP tool
+      // This would be handled by the MCP server, but for CLI we need to access tasks directly
+      const rapidJsonPath = join(process.cwd(), '.rapid', 'tasks.json');
+
+      let tasks = [];
+      try {
+        const content = await readFile(rapidJsonPath, 'utf-8');
+        tasks = JSON.parse(content);
+      } catch {
+        spinner.fail('Could not load tasks file. Is RAPID initialized?');
+        process.exit(1);
+      }
+
+      const taskIndex = tasks.findIndex((t: { id: string }) => t.id === taskId);
+      if (taskIndex === -1) {
+        spinner.fail(`Task ${taskId} not found`);
+        process.exit(1);
+      }
+
+      const task = tasks[taskIndex];
+      if (task.status !== 'pending_approval') {
+        spinner.fail(`Task is in ${task.status} status, not pending_approval`);
+        process.exit(1);
+      }
+
+      // Approve the task
+      const now = new Date().toISOString();
+      task.status = 'pending';
+      task.approvedBy = options.user || 'human-reviewer';
+      task.approvedAt = now;
+      task.updatedAt = now;
+
+      // Save tasks back
+      const { writeFile } = await import('node:fs/promises');
+      await writeFile(rapidJsonPath, JSON.stringify(tasks, null, 2));
+
+      spinner.succeed(`Task ${taskId} approved successfully`);
+      console.log();
+      console.log(`  ${chalk.green('✓')} Task: ${task.title}`);
+      console.log(`    Status: ${chalk.dim('pending_approval')} → ${chalk.green('pending')}`);
+      console.log(`    Approved by: ${task.approvedBy}`);
+      console.log(`    Approved at: ${new Date(task.approvedAt).toLocaleString()}`);
+      console.log();
+      console.log('  Workers can now claim this task.');
+      console.log();
+    } catch (error) {
+      spinner.fail(error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
+/**
+ * rapid approve task reject <task-id>
+ *
+ * Reject a pending task
+ */
+approveCommand
+  .command('task-reject <taskId>')
+  .option('-u, --user <user>', 'User rejecting the task (default: current user)')
+  .option('-r, --reason <reason>', 'Reason for rejection', 'No reason provided')
+  .description('Reject a pending task that requires human approval')
+  .action(async (taskId: string, options: { user?: string; reason?: string }) => {
+    const spinner = ora(`Rejecting task ${taskId}...`).start();
+
+    try {
+      const rapidJsonPath = join(process.cwd(), '.rapid', 'tasks.json');
+
+      let tasks = [];
+      try {
+        const content = await readFile(rapidJsonPath, 'utf-8');
+        tasks = JSON.parse(content);
+      } catch {
+        spinner.fail('Could not load tasks file. Is RAPID initialized?');
+        process.exit(1);
+      }
+
+      const taskIndex = tasks.findIndex((t: { id: string }) => t.id === taskId);
+      if (taskIndex === -1) {
+        spinner.fail(`Task ${taskId} not found`);
+        process.exit(1);
+      }
+
+      const task = tasks[taskIndex];
+      if (task.status !== 'pending_approval') {
+        spinner.fail(`Task is in ${task.status} status, not pending_approval`);
+        process.exit(1);
+      }
+
+      // Reject the task
+      const now = new Date().toISOString();
+      task.status = 'cancelled';
+      task.updatedAt = now;
+      if (!task.metadata) task.metadata = {};
+      task.metadata.rejectedBy = options.user || 'human-reviewer';
+      task.metadata.rejectionReason = options.reason;
+
+      // Save tasks back
+      const { writeFile } = await import('node:fs/promises');
+      await writeFile(rapidJsonPath, JSON.stringify(tasks, null, 2));
+
+      spinner.succeed(`Task ${taskId} rejected`);
+      console.log();
+      console.log(`  ${chalk.red('✗')} Task: ${task.title}`);
+      console.log(`    Status: ${chalk.dim('pending_approval')} → ${chalk.red('cancelled')}`);
+      console.log(`    Rejected by: ${task.metadata.rejectedBy}`);
+      console.log(`    Reason: ${task.metadata.rejectionReason}`);
       console.log();
     } catch (error) {
       spinner.fail(error instanceof Error ? error.message : String(error));

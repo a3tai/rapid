@@ -25,6 +25,8 @@ import { registerMetricsTools } from './tools/metrics.js';
 import { registerKnowledgeTools } from './tools/knowledge.js';
 import { registerSuggestionTools } from './tools/suggestions.js';
 import { registerContextEngineTools } from './tools/context-engine.js';
+import { registerBudgetTrackingTools } from './tools/budget-tracking.js';
+import { registerAuditTrailTools } from './tools/audit-trail.js';
 
 // Import resource implementations
 import { registerConfigResource } from './resources/config.js';
@@ -73,6 +75,8 @@ export function createRapidMcpServer(config: RapidMcpServerConfig): McpServer {
   registerKnowledgeTools(server, context);
   registerSuggestionTools(server, context);
   registerContextEngineTools(server, context);
+  registerBudgetTrackingTools(server, context);
+  registerAuditTrailTools(server, context);
 
   // Register resources
   registerConfigResource(server, context);
