@@ -5,6 +5,7 @@ import type { Task, Suggestion } from '../stores/app'
 import { SecurityPanel } from '../components/SecurityPanel'
 import { ActivityFeed } from '../components/ActivityFeed'
 import { PerformanceMonitor } from '../components/PerformanceMonitor'
+import { ConnectionStatus } from '../components/ConnectionStatus'
 
 export function Dashboard() {
   const agents = useAgents()
@@ -162,8 +163,19 @@ export function Dashboard() {
         <SecurityPanel />
       </div>
 
-      {/* Performance monitor */}
-      <PerformanceMonitor />
+      {/* Bottom grid: Connection status and Performance monitor */}
+      <div className="grid grid-cols-3 gap-6">
+        {/* Connection status */}
+        <div>
+          <h2 className="font-semibold mb-4">Real-time Connection</h2>
+          <ConnectionStatus variant="full" showDataSource showLastUpdate />
+        </div>
+
+        {/* Performance monitor */}
+        <div className="col-span-2">
+          <PerformanceMonitor />
+        </div>
+      </div>
     </div>
   )
 }
