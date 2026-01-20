@@ -1,16 +1,16 @@
 import { clsx } from 'clsx'
 import { formatDistanceToNow } from 'date-fns'
-import { useAgents, useTasks, useMessages, useSuggestions, useDaemonStatus } from '../stores/app'
-import type { Task, Message, Suggestion } from '../stores/app'
+import { useAgents, useTasks, useSuggestions, useDaemonStatus, useAppStore } from '../stores/app'
+import type { Task, Suggestion } from '../stores/app'
 import { SecurityPanel } from '../components/SecurityPanel'
 import { ActivityFeed } from '../components/ActivityFeed'
 
 export function Dashboard() {
   const agents = useAgents()
   const tasks = useTasks()
-  const messages = useMessages()
   const suggestions = useSuggestions()
   const daemonStatus = useDaemonStatus()
+  const setActiveView = useAppStore((s) => s.setActiveView)
 
   const taskStats = {
     total: tasks.length,
@@ -74,7 +74,7 @@ export function Dashboard() {
         {/* Left column - Agents and Tasks */}
         <div className="col-span-2 space-y-6">
           {/* Agents panel */}
-          <div className="card p-4">
+          <div className="card p-4 cursor-pointer hover:border-rapid-accent/50 transition-colors" onClick={() => setActiveView('agents')}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold">Active Agents</h2>
               <span className="badge badge-neutral">{agents.length}</span>
@@ -109,7 +109,7 @@ export function Dashboard() {
           </div>
 
           {/* Recent tasks panel */}
-          <div className="card p-4">
+          <div className="card p-4 cursor-pointer hover:border-rapid-accent/50 transition-colors" onClick={() => setActiveView('tasks')}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold">Recent Tasks</h2>
               <span className="badge badge-neutral">{tasks.length}</span>
@@ -136,7 +136,7 @@ export function Dashboard() {
           </div>
 
           {/* Suggestions panel */}
-          <div className="card p-4">
+          <div className="card p-4 cursor-pointer hover:border-rapid-accent/50 transition-colors" onClick={() => setActiveView('suggestions')}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold">Active Suggestions</h2>
               <span className="badge badge-warning">{suggestionStats.voting}</span>
@@ -230,54 +230,6 @@ function TaskRow({ task }: { task: Task }) {
         <span className={clsx('badge', statusBadge[task.status])}>
           {task.status.replace('_', ' ')}
         </span>
-      </div>
-    </div>
-  )
-}
-
-function MessageRow({ message }: { message: Message }) {
-  const typeIcon: Record<string, string> = {
-    discovery: '🔍',
-    error: '❌',
-    completion: '✅',
-    question: '❓',
-    learning: '📚',
-    coordination: '🔄',
-    heartbeat: '💓',
-    suggestion: '💭',
-    vote: '🗳️',
-  }
-
-  const typeBadge: Record<string, string> = {
-    discovery: 'badge-info',
-    error: 'badge-error',
-    completion: 'badge-success',
-    question: 'badge-warning',
-    learning: 'badge-info',
-    coordination: 'badge-neutral',
-    heartbeat: 'badge-neutral',
-    suggestion: 'badge-primary',
-    vote: 'badge-secondary',
-  }
-
-  return (
-    <div className="p-3 bg-rapid-elevated rounded-lg">
-      <div className="flex items-start gap-2">
-        <span className="text-sm">{typeIcon[message.type]}</span>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-sm">{message.fromAgent.name}</span>
-            <span className={clsx('badge text-xs', typeBadge[message.type])}>
-              {message.type}
-            </span>
-          </div>
-          <div className="text-sm text-rapid-muted truncate mt-0.5">
-            {message.payload.title || message.payload.content}
-          </div>
-          <div className="text-xs text-rapid-muted mt-1">
-            {formatDistanceToNow(new Date(message.timestamp), { addSuffix: true })}
-          </div>
-        </div>
       </div>
     </div>
   )
