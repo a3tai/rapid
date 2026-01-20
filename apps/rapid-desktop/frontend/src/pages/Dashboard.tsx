@@ -4,6 +4,7 @@ import { useAgents, useTasks, useSuggestions, useDaemonStatus, useAppStore } fro
 import type { Task, Suggestion } from '../stores/app'
 import { SecurityPanel } from '../components/SecurityPanel'
 import { ActivityFeed } from '../components/ActivityFeed'
+import { PerformanceMonitor } from '../components/PerformanceMonitor'
 
 export function Dashboard() {
   const agents = useAgents()
@@ -160,6 +161,9 @@ export function Dashboard() {
       <div className="card p-4">
         <SecurityPanel />
       </div>
+
+      {/* Performance monitor */}
+      <PerformanceMonitor />
     </div>
   )
 }
