@@ -162,20 +162,23 @@ export function registerAuditTrailTools(server: McpServer, context: ServerContex
 
       const eventId = `evt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-      logAuditEvent({
+      const auditEntry: AuditLogEntry = {
         timestamp: new Date().toISOString(),
         eventType,
         allowed,
-        agentId,
-        agentRole,
-        toolName,
-        action,
-        reason,
-        durationMs,
-        cost,
         source: 'agent',
-        metadata,
-      });
+      };
+
+      if (agentId) auditEntry.agentId = agentId;
+      if (agentRole) auditEntry.agentRole = agentRole;
+      if (toolName) auditEntry.toolName = toolName;
+      if (action) auditEntry.action = action;
+      if (reason) auditEntry.reason = reason;
+      if (durationMs) auditEntry.durationMs = durationMs;
+      if (cost) auditEntry.cost = cost;
+      if (metadata) auditEntry.metadata = metadata;
+
+      logAuditEvent(auditEntry);
 
       return {
         content: [
@@ -424,12 +427,13 @@ export function registerAuditTrailTools(server: McpServer, context: ServerContex
       const eventsByAgent: Record<string, { count: number; allowed: number }> = {};
       for (const event of filtered) {
         if (event.agentId) {
-          if (!eventsByAgent[event.agentId]) {
-            eventsByAgent[event.agentId] = { count: 0, allowed: 0 };
-          }
-          eventsByAgent[event.agentId].count += 1;
-          if (event.allowed) {
-            eventsByAgent[event.agentId].allowed += 1;
+          eventsByAgent[event.agentId] ??= { count: 0, allowed: 0 };
+          const agent = eventsByAgent[event.agentId];
+          if (agent) {
+            agent.count += 1;
+            if (event.allowed) {
+              agent.allowed += 1;
+            }
           }
         }
       }

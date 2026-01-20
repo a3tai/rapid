@@ -7,34 +7,92 @@ export default {
   theme: {
     extend: {
       colors: {
-        // RAPID color palette - dark theme inspired by docs site
+        // RAPID Design System - Matching docs site
+        // Clean, minimal dark theme with violet-blue accent
         rapid: {
-          bg: '#0a0a0a',
-          surface: '#121212',
-          elevated: '#1a1a1a',
-          border: '#2a2a2a',
-          muted: '#666666',
-          text: '#e5e5e5',
-          accent: '#3b82f6',
-          success: '#22c55e',
-          warning: '#f59e0b',
-          error: '#ef4444',
-          info: '#06b6d4',
+          // Backgrounds
+          bg: 'hsl(240 10% 4%)',        // Main background
+          surface: 'hsl(240 10% 6%)',   // Card/surface background
+          elevated: 'hsl(240 6% 10%)',  // Elevated surfaces
+
+          // Borders
+          border: 'hsl(240 4% 16%)',
+          'border-subtle': 'hsl(240 4% 12%)',
+
+          // Text
+          text: 'hsl(0 0% 98%)',
+          muted: 'hsl(240 5% 55%)',
+
+          // Primary/Brand - Violet-blue
+          accent: 'hsl(245 85% 67%)',
+          'accent-muted': 'hsl(245 60% 50%)',
+          'accent-subtle': 'hsl(245 40% 25%)',
+
+          // Status colors
+          success: 'hsl(142 71% 45%)',
+          warning: 'hsl(45 93% 47%)',
+          error: 'hsl(0 72% 51%)',
+          info: 'hsl(217 91% 60%)',
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        mono: ['JetBrains Mono', 'Menlo', 'Monaco', 'monospace'],
+        // System fonts for body text
+        sans: [
+          '-apple-system',
+          'BlinkMacSystemFont',
+          'Segoe UI',
+          'Roboto',
+          'Helvetica Neue',
+          'Arial',
+          'sans-serif',
+        ],
+        // Berkeley Mono for headings/code (with fallbacks)
+        mono: [
+          'Berkeley Mono',
+          'ui-monospace',
+          'SF Mono',
+          'Menlo',
+          'Monaco',
+          'Cascadia Mono',
+          'monospace',
+        ],
+      },
+      borderRadius: {
+        DEFAULT: '0.5rem',
+        'sm': '0.375rem',
+        'md': '0.5rem',
+        'lg': '0.75rem',
       },
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'fade-in': 'fadeIn 0.2s ease-out',
+        'slide-up': 'slideUp 0.2s ease-out',
+        'glow': 'glow 2s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: {
-          '0%': { opacity: '0', transform: 'translateY(-4px)' },
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        slideUp: {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
+        glow: {
+          '0%, 100%': {
+            boxShadow: '0 0 20px hsl(245 85% 67% / 0.15)',
+          },
+          '50%': {
+            boxShadow: '0 0 30px hsl(245 85% 67% / 0.25)',
+          },
+        },
+      },
+      backdropBlur: {
+        xs: '2px',
+      },
+      boxShadow: {
+        'glow': '0 0 20px hsl(245 85% 67% / 0.15)',
+        'glow-strong': '0 4px 20px hsl(245 85% 67% / 0.3)',
       },
     },
   },

@@ -10,6 +10,10 @@ export function GetAgents() {
   return window['go']['main']['App']['GetAgents']();
 }
 
+export function GetChatHistory(arg1, arg2) {
+  return window['go']['main']['App']['GetChatHistory'](arg1, arg2);
+}
+
 export function GetConfig() {
   return window['go']['main']['App']['GetConfig']();
 }
@@ -30,10 +34,22 @@ export function SaveConfig(arg1) {
   return window['go']['main']['App']['SaveConfig'](arg1);
 }
 
+export function SendMessage(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SendMessage'](arg1, arg2, arg3);
+}
+
 export function SpawnAgent(arg1, arg2) {
   return window['go']['main']['App']['SpawnAgent'](arg1, arg2);
 }
 
 export function StopAgent(arg1) {
   return window['go']['main']['App']['StopAgent'](arg1);
+}
+
+export function Subscribe(arg1) {
+  return window['go']['main']['App']['Subscribe'](arg1);
+}
+
+export function Unsubscribe(arg1) {
+  return window['go']['main']['App']['Unsubscribe'](arg1);
 }

@@ -34,17 +34,50 @@ export const daemonCommand = new Command('daemon')
           const { fileURLToPath } = await import('node:url');
           const { dirname } = await import('node:path');
 
-          // Get path to daemon bin
-          const daemonBin = join(
-            dirname(fileURLToPath(import.meta.url)),
-            '..',
-            '..',
-            'node_modules',
-            '@a3t',
-            'rapid-daemon',
-            'dist',
-            'bin.js'
-          );
+          // Get path to daemon bin - try multiple locations for monorepo compatibility
+          const { existsSync } = await import('node:fs');
+          const possiblePaths = [
+            // Direct node_modules (installed as dependency)
+            join(
+              dirname(fileURLToPath(import.meta.url)),
+              '..',
+              '..',
+              'node_modules',
+              '@a3t',
+              'rapid-daemon',
+              'dist',
+              'bin.js'
+            ),
+            // Monorepo sibling package
+            join(
+              dirname(fileURLToPath(import.meta.url)),
+              '..',
+              '..',
+              '..',
+              'daemon',
+              'dist',
+              'bin.js'
+            ),
+            // Root node_modules (hoisted)
+            join(
+              dirname(fileURLToPath(import.meta.url)),
+              '..',
+              '..',
+              '..',
+              '..',
+              'node_modules',
+              '@a3t',
+              'rapid-daemon',
+              'dist',
+              'bin.js'
+            ),
+          ];
+
+          const daemonBin = possiblePaths.find((p) => existsSync(p));
+          if (!daemonBin) {
+            spinner.fail('Daemon binary not found. Run `pnpm build` first.');
+            process.exit(1);
+          }
 
           const args = ['foreground'];
           if (options.verbose) args.push('--verbose');
@@ -182,17 +215,50 @@ export const daemonCommand = new Command('daemon')
           }
         }
 
-        // Start daemon
-        const daemonBin = join(
-          dirname(fileURLToPath(import.meta.url)),
-          '..',
-          '..',
-          'node_modules',
-          '@a3t',
-          'rapid-daemon',
-          'dist',
-          'bin.js'
-        );
+        // Start daemon - try multiple locations for monorepo compatibility
+        const { existsSync } = await import('node:fs');
+        const possiblePaths = [
+          // Direct node_modules (installed as dependency)
+          join(
+            dirname(fileURLToPath(import.meta.url)),
+            '..',
+            '..',
+            'node_modules',
+            '@a3t',
+            'rapid-daemon',
+            'dist',
+            'bin.js'
+          ),
+          // Monorepo sibling package
+          join(
+            dirname(fileURLToPath(import.meta.url)),
+            '..',
+            '..',
+            '..',
+            'daemon',
+            'dist',
+            'bin.js'
+          ),
+          // Root node_modules (hoisted)
+          join(
+            dirname(fileURLToPath(import.meta.url)),
+            '..',
+            '..',
+            '..',
+            '..',
+            'node_modules',
+            '@a3t',
+            'rapid-daemon',
+            'dist',
+            'bin.js'
+          ),
+        ];
+
+        const daemonBin = possiblePaths.find((p) => existsSync(p));
+        if (!daemonBin) {
+          spinner.fail('Daemon binary not found. Run `pnpm build` first.');
+          process.exit(1);
+        }
 
         const child = spawn(process.execPath, [daemonBin, 'foreground'], {
           detached: true,

@@ -13,7 +13,7 @@
  * Target: 80%+ code coverage for bus.ts
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 // ============================================================================
 // BUS STATUS COMMAND TESTS
@@ -530,7 +530,7 @@ describe('rapid bus command', () => {
         { id: '2', seq: 2 },
         { id: '3', seq: 3 },
       ];
-      expect(messages[0].seq).toBeLessThan(messages[1].seq);
+      expect(messages[0]?.seq).toBeLessThan(messages[1]?.seq ?? 0);
     });
 
     it('should handle multiple agents subscribing to same channel', () => {

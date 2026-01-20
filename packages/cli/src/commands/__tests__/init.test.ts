@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { join } from 'node:path';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -260,7 +260,7 @@ describe('rapid init command', () => {
 
   describe('DevContainer Creation', () => {
     it('should create .devcontainer directory', () => {
-      const createDevcontainerConfig = (template: string) => ({
+      const createDevcontainerConfig = () => ({
         version: '0.263.0',
         image: 'mcr.microsoft.com/devcontainers/base:jammy',
         features: {
@@ -272,7 +272,7 @@ describe('rapid init command', () => {
         remoteUser: 'node',
       });
 
-      const config = createDevcontainerConfig('typescript');
+      const config = createDevcontainerConfig();
 
       expect(config.version).toBeDefined();
       expect(config.image).toBeDefined();

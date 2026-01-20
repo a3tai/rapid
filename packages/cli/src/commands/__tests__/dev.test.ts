@@ -16,7 +16,7 @@
  * Target: 75%+ code coverage for dev.ts
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 // ============================================================================
 // CONFIGURATION LOADING & VALIDATION
@@ -331,14 +331,11 @@ describe('rapid dev - Container Setup', () => {
     });
 
     it('should start Redis if event bus enabled', () => {
-      const eventBusEnabled = true;
       const redisStarted = true;
-      expect(eventBusEnabled && redisStarted).toBe(true);
+      expect(redisStarted).toBe(true);
     });
 
     it('should continue without event bus if startup fails', () => {
-      const eventBusEnabled = true;
-      const redisStarted = false;
       const canContinue = true;
       expect(canContinue).toBe(true);
     });
@@ -357,7 +354,7 @@ describe('rapid dev - Container Setup', () => {
 describe('rapid dev - Worktree Management', () => {
   describe('Worktree Creation', () => {
     it('should create worktree on feature branches', () => {
-      const branch = 'feature/my-feature';
+      const branch: string = 'feature/my-feature';
       const isFeatureBranch = branch !== 'main' && branch !== 'master';
       expect(isFeatureBranch).toBe(true);
     });
@@ -374,7 +371,6 @@ describe('rapid dev - Worktree Management', () => {
     });
 
     it('should create sibling worktree directory', () => {
-      const rootDir = '/project';
       const branch = 'feature-my-feature';
       const worktreeDir = `/project-${branch}`;
       expect(worktreeDir).toContain(branch);
@@ -486,13 +482,11 @@ describe('rapid dev - Tmux Session Management', () => {
     });
 
     it('should use appropriate layout for single agent', () => {
-      const agents = ['claude'];
       const layout = 'tiled'; // Single pane doesn't need complex layout
       expect(layout).toBeTruthy();
     });
 
     it('should use appropriate layout for multi-agent', () => {
-      const agents = ['claude', 'architect'];
       const layout = 'vertical'; // Multiple agents need layout
       expect(layout).toBeTruthy();
     });
@@ -774,7 +768,6 @@ describe('rapid dev - Lima VM Execution', () => {
     });
 
     it('should start Lima instance if not running', () => {
-      const running = false;
       const willStart = true;
       expect(willStart).toBe(true);
     });

@@ -12,7 +12,7 @@
  * Target: 85%+ code coverage for status.ts
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 // ============================================================================
 // CONFIGURATION DETECTION TESTS
@@ -126,8 +126,8 @@ describe('rapid status command', () => {
         { name: 'claude', available: true, version: '1.0.0' },
         { name: 'aider', available: false, reason: 'Not installed' },
       ];
-      expect(agents[0].available).toBe(true);
-      expect(agents[1].available).toBe(false);
+      expect(agents[0]?.available).toBe(true);
+      expect(agents[1]?.available).toBe(false);
     });
 
     it('should detect installed agents', () => {

@@ -199,15 +199,18 @@ export function respondToApproval(approvalId: string, approved: boolean, respond
   pendingApprovals.delete(approvalId);
   pending.resolve(approved);
 
-  logAuditEvent({
+  const event: AuditEvent = {
     timestamp: new Date().toISOString(),
     eventType: 'approval_response',
     toolName: pending.toolName,
     agentId: pending.context.agentId,
     agentRole: pending.context.agentRole,
     allowed: approved,
-    reason: respondedBy ? `${approved ? 'Approved' : 'Denied'} by ${respondedBy}` : undefined,
-  });
+  };
+  if (respondedBy) {
+    event.reason = `${approved ? 'Approved' : 'Denied'} by ${respondedBy}`;
+  }
+  logAuditEvent(event);
 
   return true;
 }
@@ -288,16 +291,19 @@ export function withSecurity<T extends Record<string, unknown>, R>(
     const check = checkToolAccess(toolName, args as Record<string, unknown>, context, config);
 
     if (!check.allowed) {
-      logAuditEvent({
+      const event: AuditEvent = {
         timestamp: new Date().toISOString(),
         eventType: 'violation',
         toolName,
         agentId: context.agentId,
         agentRole: context.agentRole,
         allowed: false,
-        reason: check.reason,
         args: args as Record<string, unknown>,
-      });
+      };
+      if (check.reason) {
+        event.reason = check.reason;
+      }
+      logAuditEvent(event);
       throw new Error(`Access denied: ${check.reason}`);
     }
 

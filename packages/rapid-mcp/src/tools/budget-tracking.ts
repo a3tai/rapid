@@ -24,8 +24,8 @@ export interface BudgetAlert {
 /**
  * Register budget tracking tools with the MCP server
  */
-export function registerBudgetTrackingTools(server: McpServer, context: ServerContext): void {
-  const gatewayManager = new GatewayManager(context.config?.gateway);
+export function registerBudgetTrackingTools(server: McpServer, _context: ServerContext): void {
+  const gatewayManager = new GatewayManager();
 
   /**
    * Get current cost summary
@@ -71,13 +71,16 @@ export function registerBudgetTrackingTools(server: McpServer, context: ServerCo
         ),
       },
     },
-    async (args) => {
+    async (args, _extra) => {
       const { hours, days } = args as {
         hours?: number;
         days?: number;
       };
 
-      const summary = gatewayManager.getCostSummary({ hours, days });
+      const params: Record<string, number> = { limit: 100 };
+      if (hours !== undefined) params.hours = hours;
+      if (days !== undefined) params.days = days;
+      const summary = gatewayManager.getCostSummary(params as any);
 
       return {
         content: [
@@ -86,7 +89,7 @@ export function registerBudgetTrackingTools(server: McpServer, context: ServerCo
             text: JSON.stringify(summary, null, 2),
           },
         ],
-        structuredContent: summary,
+        structuredContent: summary as any,
       };
     }
   );
@@ -123,7 +126,7 @@ export function registerBudgetTrackingTools(server: McpServer, context: ServerCo
     async (args) => {
       const { agentId } = args as { agentId: string };
 
-      const budgetLimit = context.config?.security?.perAgentBudget ?? 50;
+      const budgetLimit = 50;
       const records = gatewayManager.getCostRecords({ agent: agentId, limit: 20 });
       const totalCost = records.reduce((sum, r) => sum + r.cost, 0);
       const percentageUsed = (totalCost / budgetLimit) * 100;
@@ -186,7 +189,7 @@ export function registerBudgetTrackingTools(server: McpServer, context: ServerCo
     async (args) => {
       const { sessionId } = args as { sessionId: string };
 
-      const budgetLimit = context.config?.security?.perSessionBudget ?? 500;
+      const budgetLimit = 500;
       const records = gatewayManager.getCostRecords({ session: sessionId });
       const totalCost = records.reduce((sum, r) => sum + r.cost, 0);
       const percentageUsed = (totalCost / budgetLimit) * 100;
@@ -271,12 +274,11 @@ export function registerBudgetTrackingTools(server: McpServer, context: ServerCo
         limit?: number;
       };
 
-      const records = gatewayManager.getCostRecords({
-        agent: agentId,
-        session: sessionId,
-        model,
-        limit: limit ?? 100,
-      });
+      const queryParams: Record<string, unknown> = { limit: limit ?? 100 };
+      if (agentId !== undefined) queryParams.agent = agentId;
+      if (sessionId !== undefined) queryParams.session = sessionId;
+      if (model !== undefined) queryParams.model = model;
+      const records = gatewayManager.getCostRecords(queryParams as any);
 
       const totalCost = records.reduce((sum, r) => sum + r.cost, 0);
 

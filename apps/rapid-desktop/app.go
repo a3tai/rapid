@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
@@ -329,15 +331,44 @@ func (a *App) CreateTask(title, description, priority string, tags []string) (*T
 
 // SpawnAgent spawns a new agent with a persona
 func (a *App) SpawnAgent(persona, worktree string) error {
-	// Call the daemon to spawn a new agent
-	params := map[string]interface{}{
-		"persona":  persona,
-		"worktree": worktree,
+	// Call MCP server HTTP endpoint to spawn agent
+	mcpURL := os.Getenv("RAPID_MCP_URL")
+	if mcpURL == "" {
+		mcpURL = "http://localhost:3100"
 	}
 
-	result, err := a.rpcCall("persona.spawn", params)
+	// Build MCP tool call request
+	toolCall := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"id":      time.Now().UnixNano(),
+		"params": map[string]interface{}{
+			"name": "persona_spawn",
+			"arguments": map[string]interface{}{
+				"name": persona,
+				"task": fmt.Sprintf("Work on %s branch as %s agent", worktree, persona),
+			},
+		},
+	}
+
+	body, err := json.Marshal(toolCall)
 	if err != nil {
-		return fmt.Errorf("failed to spawn agent: %w", err)
+		return fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	resp, err := http.Post(mcpURL+"/mcp", "application/json", bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("failed to call MCP server: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("MCP server returned status %d", resp.StatusCode)
+	}
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return fmt.Errorf("failed to decode response: %w", err)
 	}
 
 	// Log spawn success

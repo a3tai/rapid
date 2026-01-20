@@ -61,8 +61,20 @@ export const cleanupCommand = new Command('cleanup')
       // 1. Clean up stale agents
       spinner.text = 'Checking for stale agents...';
       const staleThresholdSeconds = parseInt(options.staleThreshold, 10);
-      const _allAgents = await bus.getAgents();
-      const staleAgents = await bus.getStaleAgents(staleThresholdSeconds * 1000);
+
+      // Get all agents (active within a very long time period) to find all registered
+      const allAgents = bus instanceof EventBus
+        ? await bus.getActiveAgents(86400) // 24 hours - get all agents registered in the last day
+        : [];
+
+      // Get recently active agents
+      const activeAgents = bus instanceof EventBus
+        ? await bus.getActiveAgents(staleThresholdSeconds)
+        : [];
+
+      // Stale agents are those in allAgents but not in activeAgents
+      const activeIds = new Set(activeAgents.map((a) => a.id));
+      const staleAgents = allAgents.filter((a) => !activeIds.has(a.id));
 
       if (staleAgents.length > 0) {
         if (options.verbose) {
@@ -71,7 +83,7 @@ export const cleanupCommand = new Command('cleanup')
           );
         }
 
-        if (!options.dryRun) {
+        if (!options.dryRun && bus instanceof EventBus) {
           for (const agent of staleAgents) {
             await bus.unregisterAgent(agent.id);
             cleanedCount++;
@@ -84,12 +96,12 @@ export const cleanupCommand = new Command('cleanup')
 
       // 2. Clean up old tasks
       spinner.text = 'Checking for old completed tasks...';
-      const _taskAgeMs = parseInt(options.taskAge, 10) * 24 * 60 * 60 * 1000;
+      // const taskAgeMs = parseInt(options.taskAge, 10) * 24 * 60 * 60 * 1000;
 
       try {
         const rapidJsonPath = join(process.cwd(), 'rapid.json');
         const content = await readFile(rapidJsonPath, 'utf-8');
-        const _config = JSON.parse(content);
+        JSON.parse(content); // Validate config is valid JSON
 
         // Note: This would need task management tools to be fully implemented
         // For now, we'll just log what would be cleaned

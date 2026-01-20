@@ -6,6 +6,8 @@ export function CreateTask(arg1:string,arg2:string,arg3:string,arg4:Array<string
 
 export function GetAgents():Promise<Array<main.Agent>>;
 
+export function GetChatHistory(arg1:string,arg2:number):Promise<Array<main.Message>>;
+
 export function GetConfig():Promise<Record<string, any>>;
 
 export function GetDaemonStatus():Promise<main.DaemonStatus>;
@@ -16,6 +18,12 @@ export function GetTasks(arg1:string):Promise<Array<main.Task>>;
 
 export function SaveConfig(arg1:Record<string, any>):Promise<void>;
 
+export function SendMessage(arg1:string,arg2:string,arg3:string):Promise<string>;
+
 export function SpawnAgent(arg1:string,arg2:string):Promise<void>;
 
 export function StopAgent(arg1:string):Promise<void>;
+
+export function Subscribe(arg1:string):Promise<string>;
+
+export function Unsubscribe(arg1:string):Promise<void>;
