@@ -64,6 +64,7 @@
     "overrides": {
       "h3": ">=1.15.5",
       "undici": ">=7.18.2"
-    }
+    },
+    "onlyBuiltDependencies": ["esbuild", "sharp", "workerd"]
   }
 }
