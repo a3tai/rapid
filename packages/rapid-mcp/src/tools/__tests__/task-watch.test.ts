@@ -48,9 +48,9 @@ describe('Task Watch Tools', () => {
       maxResults: 10,
     });
 
-    expect(result.tasks).toEqual([]);
-    expect(result.count).toBe(0);
-    expect(result.nextCheck).toBeDefined();
+    expect(result.structuredContent.tasks).toEqual([]);
+    expect(result.structuredContent.count).toBe(0);
+    expect(result.structuredContent.nextCheck).toBeDefined();
   });
 
   it('should return empty array for task_get_details with invalid task ID', async () => {
@@ -65,8 +65,8 @@ describe('Task Watch Tools', () => {
       taskId: 'non-existent-id',
     });
 
-    expect(result.found).toBe(false);
-    expect(result.task).toBeUndefined();
+    expect(result.structuredContent.found).toBe(false);
+    expect(result.structuredContent.task).toBeUndefined();
   });
 
   it('should have task_watch input schema', () => {

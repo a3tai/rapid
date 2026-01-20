@@ -8,6 +8,11 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/__tests__/setup.ts'],
+    exclude: [
+      'node_modules/',
+      'src/__tests__/e2e/**',
+      'dist/**',
+    ],
     pool: 'forks',
     poolOptions: {
       forks: {
