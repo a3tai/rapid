@@ -390,7 +390,7 @@ const statusCommand = new Command('status')
       const worktreeStatus = worktrees.map((wt) => {
         // Extract worktree name from path
         const pathParts = wt.path.split('/');
-        const worktreeName = pathParts[pathParts.length - 1];
+        const worktreeName = pathParts[pathParts.length - 1] ?? '';
 
         // Extract persona from worktree name (pattern: persona-branch-timestamp or just branch-name)
         let assignedAgent = undefined;

@@ -75,9 +75,6 @@ let suggestionsFilePath: string;
 // Default voting period: 5 minutes
 const VOTING_PERIOD_MS = 5 * 60 * 1000;
 
-// Quorum for voting: 50% of active agents
-const _activeAgentsCount = 0;
-
 /**
  * Load suggestions from disk
  */

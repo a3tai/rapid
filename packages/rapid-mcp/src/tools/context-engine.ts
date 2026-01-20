@@ -21,9 +21,10 @@ export async function registerContextEngineTools(
 ): Promise<void> {
   // Initialize context engine
   if (!contextEngine) {
+    const redisUrl = process.env.REDIS_URL;
     contextEngine = new ContextEngine({
       projectDir: context.projectDir,
-      redisUrl: process.env.REDIS_URL,
+      ...(redisUrl ? { redisUrl } : {}),
       enableEmbeddings: process.env.ENABLE_EMBEDDINGS === 'true',
     });
   }
@@ -63,8 +64,8 @@ export async function registerContextEngineTools(
     async (args) => {
       const entry = await contextEngine!.learn(args.key, args.value, args.memoryType, {
         confidence: args.confidence,
-        tags: args.tags,
-        relatedKeys: args.relatedKeys,
+        ...(args.tags ? { tags: args.tags } : {}),
+        ...(args.relatedKeys ? { relatedKeys: args.relatedKeys } : {}),
       });
 
       return {
@@ -180,9 +181,9 @@ export async function registerContextEngineTools(
     },
     async (args) => {
       const filter: ContextFilter = {
-        memoryType: args.memoryType as MemoryType | undefined,
-        tags: args.tags,
-        minConfidence: args.minConfidence,
+        ...(args.memoryType ? { memoryType: args.memoryType as MemoryType } : {}),
+        ...(args.tags ? { tags: args.tags } : {}),
+        ...(args.minConfidence !== undefined ? { minConfidence: args.minConfidence } : {}),
       };
 
       const entries = await contextEngine!.list(filter);
@@ -241,7 +242,7 @@ export async function registerContextEngineTools(
     },
     async (args) => {
       const results = await contextEngine!.search(args.query, {
-        memoryType: args.memoryType as MemoryType | undefined,
+        ...(args.memoryType ? { memoryType: args.memoryType as MemoryType } : {}),
         limit: args.limit,
       });
 

@@ -26,7 +26,6 @@ export const suggestCommand = new Command('suggest')
       // List mode
       if (options.list || options.listStatus) {
         const spinner = ora('Loading suggestions...').start();
-        const _status = options.listStatus || undefined;
 
         try {
           // In a real implementation, this would call the MCP tool via the event bus or daemon

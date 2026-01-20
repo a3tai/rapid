@@ -33,7 +33,7 @@ describe('@a3t/rapid CLI', () => {
     });
 
     it('should import stop command', async () => {
-      const module = await import('./commands/daemon.ts');
+      const module = await import('./commands/daemon.js');
       expect(module).toBeDefined();
     });
 
@@ -68,7 +68,7 @@ describe('@a3t/rapid CLI', () => {
     });
 
     it('should import status command', async () => {
-      const module = await import('./commands/daemon.ts');
+      const module = await import('./commands/daemon.js');
       expect(module).toBeDefined();
     });
 

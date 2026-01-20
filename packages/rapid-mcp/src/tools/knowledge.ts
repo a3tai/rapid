@@ -62,7 +62,9 @@ class InMemoryKnowledgeStore {
   getByKey(key: string): KnowledgeEntry | undefined {
     const ids = this.keyIndex.get(key);
     if (!ids || ids.size === 0) return undefined;
-    return this.store.get(Array.from(ids)[0]);
+    const firstId = Array.from(ids)[0];
+    if (!firstId) return undefined;
+    return this.store.get(firstId);
   }
 
   listByCategory(category: string): KnowledgeEntry[] {
@@ -350,9 +352,17 @@ export function registerKnowledgeTools(server: McpServer, context: ServerContext
           await store.set(entry);
         }
 
-        return { id, success: true };
+        const output = { id, success: true };
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
+          structuredContent: output,
+        };
       } catch {
-        return { id: '', success: false };
+        const output = { id: '', success: false };
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
+          structuredContent: output,
+        };
       }
     }
   );
@@ -388,10 +398,14 @@ export function registerKnowledgeTools(server: McpServer, context: ServerContext
         }
 
         if (!entry) {
-          return { found: false };
+          const output = { found: false };
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
+            structuredContent: output,
+          };
         }
 
-        return {
+        const output = {
           found: true,
           knowledge: {
             key: entry.key,
@@ -400,8 +414,16 @@ export function registerKnowledgeTools(server: McpServer, context: ServerContext
             tags: entry.tags,
           },
         };
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
+          structuredContent: output,
+        };
       } catch {
-        return { found: false };
+        const output = { found: false };
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
+          structuredContent: output,
+        };
       }
     }
   );
@@ -444,7 +466,7 @@ export function registerKnowledgeTools(server: McpServer, context: ServerContext
           results = results.filter((e) => e.category === input.category);
         }
 
-        return {
+        const output = {
           results: results.map((e) => ({
             key: e.key,
             value: e.value,
@@ -453,8 +475,16 @@ export function registerKnowledgeTools(server: McpServer, context: ServerContext
           })),
           count: results.length,
         };
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
+          structuredContent: output,
+        };
       } catch {
-        return { results: [], count: 0 };
+        const output = { results: [], count: 0 };
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
+          structuredContent: output,
+        };
       }
     }
   );
@@ -490,7 +520,7 @@ export function registerKnowledgeTools(server: McpServer, context: ServerContext
           items = await store.listByCategory(input.category);
         }
 
-        return {
+        const output = {
           items: items.map((e) => ({
             key: e.key,
             value: e.value,
@@ -498,8 +528,16 @@ export function registerKnowledgeTools(server: McpServer, context: ServerContext
           })),
           count: items.length,
         };
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
+          structuredContent: output,
+        };
       } catch {
-        return { items: [], count: 0 };
+        const output = { items: [], count: 0 };
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
+          structuredContent: output,
+        };
       }
     }
   );
@@ -534,9 +572,17 @@ export function registerKnowledgeTools(server: McpServer, context: ServerContext
           }
         }
 
-        return { deleted: !!entry };
+        const output = { deleted: !!entry };
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
+          structuredContent: output,
+        };
       } catch {
-        return { deleted: false };
+        const output = { deleted: false };
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
+          structuredContent: output,
+        };
       }
     }
   );

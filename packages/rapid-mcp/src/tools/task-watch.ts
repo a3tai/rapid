@@ -207,7 +207,7 @@ export function registerTaskWatchTools(server: McpServer, context: ServerContext
         // Calculate next check time (stagger checks to reduce load)
         const nextCheck = new Date(Date.now() + 30 * 1000).toISOString(); // 30 seconds
 
-        return {
+        const output = {
           tasks: limited.map((item) => ({
             id: item.task.id,
             title: item.task.title,
@@ -222,11 +222,19 @@ export function registerTaskWatchTools(server: McpServer, context: ServerContext
           count: limited.length,
           nextCheck,
         };
-      } catch {
         return {
+          content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
+          structuredContent: output,
+        };
+      } catch {
+        const output = {
           tasks: [],
           count: 0,
           nextCheck: new Date(Date.now() + 60 * 1000).toISOString(),
+        };
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
+          structuredContent: output,
         };
       }
     }
@@ -271,10 +279,14 @@ export function registerTaskWatchTools(server: McpServer, context: ServerContext
         const task = tasks.find((t) => t.id === input.taskId);
 
         if (!task) {
-          return { found: false };
+          const output = { found: false };
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
+            structuredContent: output,
+          };
         }
 
-        return {
+        const output = {
           found: true,
           task: {
             id: task.id,
@@ -292,8 +304,16 @@ export function registerTaskWatchTools(server: McpServer, context: ServerContext
             metadata: task.metadata,
           },
         };
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
+          structuredContent: output,
+        };
       } catch {
-        return { found: false };
+        const output = { found: false };
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
+          structuredContent: output,
+        };
       }
     }
   );

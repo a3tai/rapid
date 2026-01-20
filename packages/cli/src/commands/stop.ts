@@ -125,8 +125,9 @@ async function pruneWorktrees(projectDir: string): Promise<{ cleaned: number; fa
       .filter((line) => line.startsWith('worktree'))
       .map((line) => {
         const parts = line.split(' ');
-        return parts[1];
-      });
+        return parts[1] ?? '';
+      })
+      .filter(Boolean);
 
     let cleaned = 0;
     let failed = 0;
@@ -204,7 +205,7 @@ export const stopCommand = new Command('stop')
 
         if (status.exists && status.running) {
           spinner.text = 'Stopping dev container...';
-          const result = await stopContainer(rootDir, config, { remove: options.remove });
+          const result = await stopContainer(rootDir, config, options.remove ? { remove: true } : {});
 
           if (result.success) {
             servicesStopped.push('Dev Container');
@@ -230,7 +231,7 @@ export const stopCommand = new Command('stop')
           spinner.text = 'Stopping RAPID services...';
           spinner.stopAndPersist({ symbol: '🛑', text: 'Stopping RAPID services...' });
 
-          const result = await stopServices(dockerDir, { remove: options.remove });
+          const result = await stopServices(dockerDir, options.remove ? { remove: true } : {});
 
           if (result.success) {
             if (runningServices.includes('rapid-redis')) servicesStopped.push('Event Bus');
