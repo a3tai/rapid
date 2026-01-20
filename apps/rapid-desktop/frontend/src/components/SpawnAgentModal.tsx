@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react'
-import { useAppStore } from '../stores/app'
 import { useMcp } from '../hooks/useMcp'
 
 interface SpawnAgentModalProps {
@@ -18,7 +17,6 @@ export function SpawnAgentModal({ isOpen, onClose, type = 'worker' }: SpawnAgent
   const [error, setError] = useState<string | null>(null)
 
   const { spawnAgent } = useMcp()
-  const { addToast } = useAppStore()
 
   const handleSpawn = useCallback(async () => {
     if (!personaName.trim()) {
@@ -33,30 +31,16 @@ export function SpawnAgentModal({ isOpen, onClose, type = 'worker' }: SpawnAgent
       const persona = type === 'orchestrator' ? 'orchestrator' : 'claude'
       await spawnAgent(persona, worktree)
 
-      addToast({
-        id: `spawn-${Date.now()}`,
-        type: 'success',
-        title: 'Agent spawned',
-        message: `${personaName} (${type}) started successfully`,
-        duration: 3000,
-      })
-
       setPersonaName('')
       setWorktree('main')
       onClose()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to spawn agent'
       setError(message)
-      addToast({
-        id: `error-${Date.now()}`,
-        type: 'error',
-        title: 'Failed to spawn agent',
-        message,
-      })
     } finally {
       setLoading(false)
     }
-  }, [personaName, worktree, type, spawnAgent, addToast, onClose])
+  }, [personaName, worktree, type, spawnAgent, onClose])
 
   if (!isOpen) return null
 
