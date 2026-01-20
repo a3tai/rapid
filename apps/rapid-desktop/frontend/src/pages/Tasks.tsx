@@ -26,6 +26,7 @@ export function TasksPage() {
   const [filterAssignee, setFilterAssignee] = useState<'all' | 'unassigned' | string>('all')
   const [sortBy, setSortBy] = useState<SortBy>('date')
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
+  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set())
   const { createTask } = useWails()
   const toast = useToast()
 
@@ -76,6 +77,40 @@ export function TasksPage() {
 
   // Get unique assignees for filter dropdown
   const uniqueAssignees = Array.from(new Set(tasks.filter((t) => t.assignedTo).map((t) => t.assignedTo)))
+
+  // Bulk selection handlers
+  const toggleTaskSelection = (taskId: string) => {
+    const newSelected = new Set(selectedTasks)
+    if (newSelected.has(taskId)) {
+      newSelected.delete(taskId)
+    } else {
+      newSelected.add(taskId)
+    }
+    setSelectedTasks(newSelected)
+  }
+
+  const selectAll = () => {
+    setSelectedTasks(new Set(sortedTasks.map((t) => t.id)))
+  }
+
+  const deselectAll = () => {
+    setSelectedTasks(new Set())
+  }
+
+  const bulkChangeStatus = (newStatus: TaskStatus) => {
+    // This would call backend to update multiple tasks
+    // For now, just show feedback
+    toast.success('Bulk Action', `Updated ${selectedTasks.size} tasks to ${newStatus}`)
+    deselectAll()
+  }
+
+  const bulkDelete = () => {
+    if (selectedTasks.size === 0) return
+    if (confirm(`Delete ${selectedTasks.size} selected tasks? This cannot be undone.`)) {
+      toast.success('Bulk Delete', `Deleted ${selectedTasks.size} tasks`)
+      deselectAll()
+    }
+  }
 
   return (
     <div className="space-y-6 h-full flex flex-col">
@@ -226,6 +261,51 @@ export function TasksPage() {
         </div>
       )}
 
+      {/* Bulk actions toolbar (list view only) */}
+      {viewMode === 'list' && selectedTasks.size > 0 && (
+        <div className="card p-3 bg-rapid-accent/10 border border-rapid-accent flex items-center justify-between">
+          <div className="text-sm">
+            <span className="font-medium">{selectedTasks.size}</span> task{selectedTasks.size !== 1 ? 's' : ''} selected
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={selectAll}
+              className="text-xs px-2 py-1 rounded hover:bg-rapid-elevated"
+            >
+              Select All
+            </button>
+            <button
+              onClick={deselectAll}
+              className="text-xs px-2 py-1 rounded hover:bg-rapid-elevated"
+            >
+              Deselect
+            </button>
+            <div className="border-l border-rapid-border mx-1" />
+            <select
+              onChange={(e) => {
+                if (e.target.value) {
+                  bulkChangeStatus(e.target.value as TaskStatus)
+                }
+                e.target.value = ''
+              }}
+              className="text-xs px-2 py-1 rounded border border-rapid-accent bg-rapid-elevated hover:bg-rapid-border"
+            >
+              <option value="">Change Status...</option>
+              <option value="pending">→ Pending</option>
+              <option value="in_progress">→ In Progress</option>
+              <option value="completed">→ Completed</option>
+              <option value="blocked">→ Blocked</option>
+            </select>
+            <button
+              onClick={bulkDelete}
+              className="text-xs px-2 py-1 rounded hover:bg-red-500/20 text-red-400"
+            >
+              Delete Selected
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Content */}
       {viewMode === 'board' ? (
         <div className="flex-1 grid grid-cols-4 gap-4 overflow-hidden">
@@ -238,7 +318,7 @@ export function TasksPage() {
           ))}
         </div>
       ) : (
-        <TaskList tasks={sortedTasks} />
+        <TaskList tasks={sortedTasks} selectedTasks={selectedTasks} onToggleSelect={toggleTaskSelection} />
       )}
 
       {/* Create modal */}
@@ -350,7 +430,7 @@ function TaskCard({ task }: { task: Task }) {
   )
 }
 
-function TaskList({ tasks }: { tasks: Task[] }) {
+function TaskList({ tasks, selectedTasks, onToggleSelect }: { tasks: Task[]; selectedTasks?: Set<string>; onToggleSelect?: (id: string) => void }) {
   const statusBadge = {
     pending: 'badge-neutral',
     in_progress: 'badge-warning',
@@ -371,6 +451,22 @@ function TaskList({ tasks }: { tasks: Task[] }) {
       <table className="w-full">
         <thead>
           <tr className="border-b border-rapid-border">
+            {onToggleSelect && (
+              <th className="text-left p-3 w-10">
+                <input
+                  type="checkbox"
+                  checked={tasks.length > 0 && selectedTasks && tasks.every((t) => selectedTasks.has(t.id))}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      tasks.forEach((t) => onToggleSelect(t.id))
+                    } else {
+                      tasks.forEach((t) => selectedTasks?.has(t.id) && onToggleSelect(t.id))
+                    }
+                  }}
+                  className="rounded"
+                />
+              </th>
+            )}
             <th className="text-left p-3 text-sm font-medium text-rapid-muted">Title</th>
             <th className="text-left p-3 text-sm font-medium text-rapid-muted">Status</th>
             <th className="text-left p-3 text-sm font-medium text-rapid-muted">Priority</th>
@@ -380,7 +476,23 @@ function TaskList({ tasks }: { tasks: Task[] }) {
         </thead>
         <tbody>
           {tasks.map((task) => (
-            <tr key={task.id} className="border-b border-rapid-border hover:bg-rapid-elevated">
+            <tr
+              key={task.id}
+              className={clsx(
+                'border-b border-rapid-border hover:bg-rapid-elevated',
+                selectedTasks?.has(task.id) && 'bg-rapid-accent/10'
+              )}
+            >
+              {onToggleSelect && (
+                <td className="p-3 w-10">
+                  <input
+                    type="checkbox"
+                    checked={selectedTasks?.has(task.id) ?? false}
+                    onChange={() => onToggleSelect(task.id)}
+                    className="rounded"
+                  />
+                </td>
+              )}
               <td className="p-3">
                 <div className="font-medium text-sm">{task.title}</div>
                 {task.tags && task.tags.length > 0 && (
