@@ -11,6 +11,7 @@ RAPID is an orchestration layer for AI-assisted development. It manages the comp
 - **Multi-agent orchestration** - Run Claude Code, OpenCode, Aider concurrently with inter-agent communication
 - **Event bus** - Redis-based message bus for real-time agent coordination and discovery
 - **MCP Server** - Model Context Protocol server providing secure execution, file operations, and secrets management
+- **Context Engine** - Agent learning system with persistent memory across sessions
 - **Persona system** - Define specialized agent personalities with custom capabilities and behaviors
 - **Task management** - Track and coordinate work across multiple agents
 - **Dev container integration** - Automatic lifecycle management for isolated development environments
@@ -64,6 +65,16 @@ Secure execution and file access with built-in tools:
 - `get_secret` - Credential management
 - File operations - Read, write, list with path restrictions
 - Event bus integration - Inter-agent communication
+
+### Context Engine
+Agent learning and knowledge storage system:
+- **Persistent memory** - Store knowledge across sessions in `.rapid/context/knowledge.json`
+- **Memory types** - Episodic, semantic, procedural, and decision_trace storage
+- **Core operations** - Learn, recall, search, and forget with confidence scoring
+- **CLI interface** - `rapid context learn/recall/search/list/forget/stats/inject/consolidate`
+- **MCP tools** - Full programmatic access for agents via MCP protocol
+- **Context injection** - Retrieve task-relevant knowledge by keywords
+- **Store maintenance** - Archive old, low-confidence entries automatically
 
 ### Task Management
 Coordinate work across agents:
