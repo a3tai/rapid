@@ -1,0 +1,102 @@
+# RAPID Services Stack
+# Run with: docker compose -f docker/docker-compose.yml up -d
+
+name: rapid-services
+
+services:
+  # Event Bus (Redis)
+  redis:
+    image: redis:7-alpine
+    container_name: rapid-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - rapid-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - rapid-network
+
+  # MCP Server (HTTP transport)
+  mcp:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.mcp
+    container_name: rapid-mcp
+    ports:
+      - "3100:3100"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - NODE_ENV=production
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3100/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - rapid-network
+
+  # LLM Gateway (LiteLLM)
+  gateway:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.gateway
+    container_name: rapid-gateway
+    ports:
+      - "4000:4000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY:-}
+    volumes:
+      - ./litellm-config.yaml:/etc/litellm/config.yaml:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - rapid-network
+
+  # Daemon (Session Manager)
+  daemon:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.daemon
+    container_name: rapid-daemon
+    ports:
+      - "3200:3200"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - MCP_URL=http://mcp:3100
+      - GATEWAY_URL=http://gateway:4000
+      - NODE_ENV=production
+    depends_on:
+      redis:
+        condition: service_healthy
+      mcp:
+        condition: service_started
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - rapid-sessions:/data/sessions
+    restart: unless-stopped
+    networks:
+      - rapid-network
+
+networks:
+  rapid-network:
+    name: rapid-network
+    driver: bridge
+
+volumes:
+  rapid-redis-data:
+  rapid-sessions:

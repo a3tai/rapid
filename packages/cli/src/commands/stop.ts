@@ -1,21 +1,112 @@
 /**
  * rapid stop - Stop all RAPID services
  *
- * Stops:
- * - Dev container
+ * Stops the RAPID services stack:
  * - Event bus (Redis)
- * - Gateway
+ * - MCP Server
+ * - Gateway (LiteLLM)
+ * - Daemon
+ * - Dev container
  */
 
 import { Command } from 'commander';
+import { existsSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { loadConfig, logger, getContainerStatus, stopContainer } from '@a3t/rapid-core';
-import { getRedisStatus, stopRedis } from '@a3t/rapid-eventbus';
 import ora from 'ora';
+import { execa } from 'execa';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+/**
+ * Find the docker directory containing docker-compose.yml
+ */
+function findDockerDir(): string | null {
+  const possiblePaths = [
+    join(__dirname, '..', '..', '..', '..', '..', 'docker'),
+    join(__dirname, '..', '..', '..', '..', 'docker'),
+    join(__dirname, '..', '..', '..', 'docker'),
+    join(process.cwd(), 'docker'),
+  ];
+
+  for (const p of possiblePaths) {
+    if (existsSync(join(p, 'docker-compose.yml'))) {
+      return p;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Get docker compose command (v2 or v1)
+ */
+async function getDockerComposeCmd(): Promise<string[]> {
+  try {
+    await execa('docker', ['compose', 'version']);
+    return ['docker', 'compose'];
+  } catch {
+    return ['docker-compose'];
+  }
+}
+
+/**
+ * Stop RAPID services using docker compose
+ */
+async function stopServices(
+  dockerDir: string,
+  options: { remove?: boolean }
+): Promise<{ success: boolean; error?: string }> {
+  const composeCmd = await getDockerComposeCmd();
+  const composeFile = join(dockerDir, 'docker-compose.yml');
+
+  const args = [...composeCmd.slice(1), '-f', composeFile, 'down'];
+
+  if (options.remove) {
+    args.push('-v', '--rmi', 'local');
+  }
+
+  try {
+    await execa(composeCmd[0], args, {
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        COMPOSE_PROJECT_NAME: 'rapid-services',
+      },
+    });
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+/**
+ * Check if any RAPID services are running
+ */
+async function getRunningServices(): Promise<string[]> {
+  try {
+    const { stdout } = await execa('docker', [
+      'ps',
+      '--format',
+      '{{.Names}}',
+      '--filter',
+      'name=rapid-',
+    ]);
+    return stdout.split('\n').filter(Boolean);
+  } catch {
+    return [];
+  }
+}
 
 export const stopCommand = new Command('stop')
   .description('Stop all RAPID services (container, event bus, gateway)')
-  .option('--remove', 'Remove containers after stopping', false)
-  .option('--services-only', 'Only stop services, not the container')
+  .option('--remove', 'Remove containers and volumes after stopping', false)
+  .option('--services-only', 'Only stop services, not the dev container')
   .action(async (options) => {
     const spinner = ora('Stopping RAPID environment...').start();
 
@@ -32,43 +123,63 @@ export const stopCommand = new Command('stop')
       const servicesStopped: string[] = [];
 
       // ─────────────────────────────────────────────────────────────
-      // Stop Dev Container
+      // Stop Dev Container first
       // ─────────────────────────────────────────────────────────────
       if (!options.servicesOnly) {
         spinner.text = 'Checking container status...';
         const status = await getContainerStatus(rootDir, config);
 
         if (status.exists && status.running) {
-          spinner.text = 'Stopping container...';
+          spinner.text = 'Stopping dev container...';
           const result = await stopContainer(rootDir, config, { remove: options.remove });
 
           if (result.success) {
-            servicesStopped.push('Container');
+            servicesStopped.push('Dev Container');
           } else {
             logger.warn(`Failed to stop container: ${result.error}`);
           }
         } else if (status.exists && options.remove) {
           await stopContainer(rootDir, config, { remove: true });
-          servicesStopped.push('Container (removed)');
+          servicesStopped.push('Dev Container (removed)');
         }
       }
 
       // ─────────────────────────────────────────────────────────────
-      // Stop Event Bus (Redis)
+      // Stop RAPID Services Stack
       // ─────────────────────────────────────────────────────────────
-      spinner.text = 'Checking event bus...';
-      const redisStatus = await getRedisStatus();
+      const dockerDir = findDockerDir();
 
-      if (redisStatus.running || redisStatus.containerId) {
-        spinner.text = 'Stopping event bus...';
-        await stopRedis(options.remove);
-        servicesStopped.push(options.remove ? 'Event Bus (removed)' : 'Event Bus');
+      if (dockerDir) {
+        // Check if any services are running
+        const runningServices = await getRunningServices();
+
+        if (runningServices.length > 0) {
+          spinner.text = 'Stopping RAPID services...';
+          spinner.stopAndPersist({ symbol: '🛑', text: 'Stopping RAPID services...' });
+
+          const result = await stopServices(dockerDir, { remove: options.remove });
+
+          if (result.success) {
+            if (runningServices.includes('rapid-redis')) servicesStopped.push('Event Bus');
+            if (runningServices.includes('rapid-mcp')) servicesStopped.push('MCP Server');
+            if (runningServices.includes('rapid-gateway')) servicesStopped.push('Gateway');
+            if (runningServices.includes('rapid-daemon')) servicesStopped.push('Daemon');
+          } else {
+            logger.warn(`Failed to stop services: ${result.error}`);
+          }
+        }
+      } else {
+        // Fall back to stopping standalone Redis
+        spinner.text = 'Checking event bus...';
+        const { getRedisStatus, stopRedis } = await import('@a3t/rapid-eventbus');
+        const redisStatus = await getRedisStatus();
+
+        if (redisStatus.running || redisStatus.containerId) {
+          spinner.text = 'Stopping event bus...';
+          await stopRedis(options.remove);
+          servicesStopped.push(options.remove ? 'Event Bus (removed)' : 'Event Bus');
+        }
       }
-
-      // ─────────────────────────────────────────────────────────────
-      // Stop Gateway (placeholder)
-      // ─────────────────────────────────────────────────────────────
-      // TODO: Stop managed gateway if running
 
       // ─────────────────────────────────────────────────────────────
       // Summary

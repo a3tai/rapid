@@ -547,9 +547,8 @@ export const DEFAULT_CONFIG: RapidConfig = {
     servers: {
       rapid: {
         enabled: true,
-        type: 'stdio',
-        command: 'rapid',
-        args: ['mcp', 'serve'],
+        type: 'remote',
+        url: 'http://localhost:3100/mcp',
       },
     },
   },

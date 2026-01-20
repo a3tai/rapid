@@ -1,0 +1,25 @@
+# RAPID Gateway
+# LiteLLM proxy for unified LLM API access
+
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install LiteLLM with proxy support
+RUN pip install --no-cache-dir 'litellm[proxy]'
+
+# Create default config
+RUN mkdir -p /etc/litellm
+
+# Copy entrypoint script
+COPY docker/gateway-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Expose proxy port
+EXPOSE 4000
+
+# Environment variables for configuration
+ENV LITELLM_MASTER_KEY=""
+ENV LITELLM_CONFIG_PATH="/etc/litellm/config.yaml"
+
+ENTRYPOINT ["/entrypoint.sh"]

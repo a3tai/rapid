@@ -1,0 +1,36 @@
+# RAPID MCP Server
+# Provides MCP tools via HTTP transport for agents
+
+FROM node:22-slim
+
+WORKDIR /app
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Copy package files
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/rapid-mcp/package.json packages/rapid-mcp/
+COPY packages/rapid-eventbus/package.json packages/rapid-eventbus/
+COPY packages/schema/package.json packages/schema/
+COPY packages/core/package.json packages/core/
+COPY packages/runtime/package.json packages/runtime/
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile --prod=false
+
+# Copy source and build
+COPY packages/schema packages/schema
+COPY packages/core packages/core
+COPY packages/runtime packages/runtime
+COPY packages/rapid-eventbus packages/rapid-eventbus
+COPY packages/rapid-mcp packages/rapid-mcp
+
+RUN pnpm --filter @a3t/rapid-mcp build
+
+# Expose HTTP port
+EXPOSE 3100
+
+# Run MCP server in HTTP mode
+ENV NODE_ENV=production
+CMD ["node", "packages/rapid-mcp/dist/bin.js", "--http", "--port", "3100"]

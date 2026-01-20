@@ -479,6 +479,89 @@ mcpCommand
   });
 
 /**
+ * rapid mcp serve - Start the RAPID MCP server
+ *
+ * This command starts the RAPID MCP server which provides tools for:
+ * - Event bus communication (bus_send, bus_messages, bus_agents)
+ * - Secure command execution
+ * - File operations
+ * - Secrets access
+ */
+mcpCommand
+  .command('serve')
+  .description('Start the RAPID MCP server')
+  .option('--http', 'Use HTTP transport instead of stdio')
+  .option('--port <port>', 'HTTP port (default: 3000)', '3000')
+  .option('-p, --project <dir>', 'Project directory')
+  .option('-v, --verbose', 'Enable verbose logging')
+  .action(async (options) => {
+    try {
+      // Build args for rapid-mcp binary
+      const args: string[] = [];
+
+      if (options.http) {
+        args.push('--http');
+        args.push('--port', options.port);
+      }
+
+      if (options.project) {
+        args.push('--project', options.project);
+      }
+
+      if (options.verbose) {
+        args.push('--verbose');
+      }
+
+      // Find the rapid-mcp binary in node_modules
+      const { execa } = await import('execa');
+      const { fileURLToPath } = await import('node:url');
+      const { dirname, join } = await import('node:path');
+
+      // Try to find rapid-mcp in common locations
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = dirname(__filename);
+
+      // Look for rapid-mcp in node_modules/.bin relative to CLI package
+      const possiblePaths = [
+        join(__dirname, '..', '..', 'node_modules', '.bin', 'rapid-mcp'),
+        join(__dirname, '..', '..', '..', '..', 'node_modules', '.bin', 'rapid-mcp'),
+        join(__dirname, '..', '..', '..', '..', '..', 'node_modules', '.bin', 'rapid-mcp'),
+        'rapid-mcp', // Try PATH
+      ];
+
+      let rapidMcpPath = 'rapid-mcp';
+      const { access } = await import('node:fs/promises');
+
+      for (const p of possiblePaths) {
+        try {
+          await access(p);
+          rapidMcpPath = p;
+          break;
+        } catch {
+          // Continue to next path
+        }
+      }
+
+      // Run rapid-mcp with stdio inherited for proper MCP communication
+      const result = await execa(rapidMcpPath, args, {
+        stdio: 'inherit',
+        reject: false,
+      });
+
+      process.exit(result.exitCode ?? 0);
+    } catch (error) {
+      // For stdio mode, we need to be quiet - errors go to stderr
+      if (!process.stdout.isTTY) {
+        console.error(error instanceof Error ? error.message : String(error));
+      } else {
+        logger.error('Failed to start MCP server');
+        logger.error(error instanceof Error ? error.message : String(error));
+      }
+      process.exit(1);
+    }
+  });
+
+/**
  * Helper to collect multiple --header flags
  */
 function collectHeaders(value: string, previous: Record<string, string>): Record<string, string> {

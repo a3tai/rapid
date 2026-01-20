@@ -11,6 +11,7 @@
  *   rapid-mcp --project /path/to/dir   # Specify project directory
  */
 
+import crypto from 'node:crypto';
 import { createRapidMcpServer, type RapidMcpServerConfig } from './server.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { Request, Response } from 'express';
@@ -113,26 +114,64 @@ Prompts provided:
 }
 
 /**
- * Start the HTTP server
+ * Start the HTTP server with Streamable HTTP transport
+ *
+ * Per MCP spec, the server provides a single endpoint that supports:
+ * - POST: For client requests/notifications/responses
+ * - GET: For server-initiated SSE stream (optional)
  */
 async function startHttpServer(config: RapidMcpServerConfig, port: number): Promise<void> {
   // Dynamic import to avoid loading express unless needed
   const express = (await import('express')).default;
+  const cors = (await import('cors')).default;
   const { StreamableHTTPServerTransport } =
     await import('@modelcontextprotocol/sdk/server/streamableHttp.js');
 
-  const server = createRapidMcpServer(config);
   const app = express();
+  app.use(cors());
   app.use(express.json());
 
-  app.post('/mcp', async (req: Request, res: Response) => {
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => crypto.randomUUID(),
-      enableJsonResponse: true,
-    });
-    res.on('close', () => transport.close());
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await server.connect(transport as any);
+  // Store active sessions
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sessions = new Map<string, InstanceType<typeof StreamableHTTPServerTransport>>();
+
+  // Main MCP endpoint - handles both POST and GET per MCP spec
+  app.all('/mcp', async (req: Request, res: Response) => {
+    // Get or create session ID
+    const sessionId = (req.headers['mcp-session-id'] as string) || crypto.randomUUID();
+
+    // Get existing transport or create new one
+    let transport = sessions.get(sessionId);
+
+    if (!transport) {
+      transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: () => sessionId,
+        enableJsonResponse: true,
+      });
+
+      // Create and connect a new server instance for this session
+      const server = createRapidMcpServer(config);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await server.connect(transport as any);
+
+      sessions.set(sessionId, transport);
+
+      // Clean up on close
+      res.on('close', () => {
+        // Keep session alive for reconnection, but clean up after timeout
+        setTimeout(() => {
+          if (sessions.get(sessionId) === transport) {
+            sessions.delete(sessionId);
+            transport?.close();
+          }
+        }, 30000); // 30 second session timeout
+      });
+    }
+
+    // Set session ID header for client
+    res.setHeader('mcp-session-id', sessionId);
+
+    // Handle the request
     await transport.handleRequest(req, res, req.body);
   });
 
@@ -142,12 +181,14 @@ async function startHttpServer(config: RapidMcpServerConfig, port: number): Prom
       server: 'rapid-mcp',
       version: config.version,
       projectDir: config.projectDir,
+      activeSessions: sessions.size,
     });
   });
 
-  app.listen(port, () => {
-    console.log(`RAPID MCP Server running at http://localhost:${port}/mcp`);
-    console.log(`Health check at http://localhost:${port}/health`);
+  app.listen(port, '0.0.0.0', () => {
+    console.log(`RAPID MCP Server running at http://0.0.0.0:${port}`);
+    console.log(`MCP endpoint: http://localhost:${port}/mcp`);
+    console.log(`Health check: http://localhost:${port}/health`);
     console.log(`Project directory: ${config.projectDir}`);
   });
 }
