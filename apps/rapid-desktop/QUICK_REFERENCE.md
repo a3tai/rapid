@@ -1,4 +1,4 @@
-# RAPID Wails UI - Quick Reference
+# RAPID Desktop - Quick Reference (Wails v3)
 
 ## Documentation Index
 

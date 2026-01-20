@@ -4,7 +4,7 @@ A cross-platform desktop application for the RAPID multi-agent development orche
 
 ## Overview
 
-RAPID Desktop provides a visual dashboard for monitoring and managing AI agents, tasks, and the event bus. Built with [Wails](https://wails.io/) (Go + React).
+RAPID Desktop provides a visual dashboard for monitoring and managing AI agents, tasks, and the event bus. Built with [Wails v3](https://wails.io/) (Go + React).
 
 ## Features
 
@@ -18,7 +18,7 @@ RAPID Desktop provides a visual dashboard for monitoring and managing AI agents,
 
 - Go 1.21+
 - Node.js 18+
-- Wails CLI: `go install github.com/wailsapp/wails/v2/cmd/wails@latest`
+- Wails v3 CLI: `go install -v github.com/wailsapp/wails/v3/cmd/wails3@latest`
 
 ## Development
 
@@ -26,16 +26,13 @@ RAPID Desktop provides a visual dashboard for monitoring and managing AI agents,
 
 ```bash
 # Install frontend dependencies
-cd frontend && npm install && cd ..
-
-# Generate Wails bindings
-wails generate module
+cd frontend && pnpm install && cd ..
 ```
 
 ### Run in Development Mode
 
 ```bash
-wails dev
+wails3 dev -config ./build/config.yml
 ```
 
 This starts the app with hot-reload enabled for both Go and frontend changes.
@@ -44,24 +41,26 @@ This starts the app with hot-reload enabled for both Go and frontend changes.
 
 ```bash
 # Build for current platform
-wails build
+go build -o bin/rapid-desktop .
 
-# Build for specific platform
-wails build -platform darwin/arm64  # macOS Apple Silicon
-wails build -platform darwin/amd64  # macOS Intel
-wails build -platform windows/amd64 # Windows
-wails build -platform linux/amd64   # Linux
+# Build with Taskfile (recommended for multi-platform builds)
+task build        # Current platform
+task build:darwin # macOS
+task build:linux  # Linux
+task build:windows # Windows
 ```
 
-Built binaries are output to `build/bin/`.
+Built binaries are output to `bin/`.
 
 ## Architecture
 
 ```
 rapid-desktop/
-├── main.go           # Wails entry point
-├── app.go            # Go backend - daemon RPC integration
-├── wails.json        # Wails configuration
+├── main.go           # Wails v3 entry point
+├── app.go            # Go backend - daemon RPC integration (AppService)
+├── build/
+│   ├── config.yml    # Wails v3 configuration
+│   └── [platform]/   # Platform-specific build configs
 └── frontend/
     ├── src/
     │   ├── App.tsx           # Main application component
@@ -83,7 +82,7 @@ rapid-desktop/
 
 ## Backend Integration
 
-The Go backend (`app.go`) communicates with the RAPID daemon via Unix socket at `~/.rapid/rapid.sock`. It exposes these methods to the frontend:
+The Go backend (`app.go`, `AppService` struct) communicates with the RAPID daemon via Unix socket at `~/.rapid/rapid.sock`. It exposes these methods to the frontend via Wails v3 RPC:
 
 - `GetDaemonStatus()` - Check if daemon is running
 - `GetAgents()` - List active agents
