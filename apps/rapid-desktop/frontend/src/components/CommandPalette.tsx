@@ -14,9 +14,10 @@ interface Command {
 interface CommandPaletteProps {
   isOpen: boolean
   onClose: () => void
+  onSpawnAgent?: (type: 'worker' | 'orchestrator') => void
 }
 
-export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
+export function CommandPalette({ isOpen, onClose, onSpawnAgent }: CommandPaletteProps) {
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -119,9 +120,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
         label: 'Spawn Worker Agent',
         icon: <PlusIcon />,
         action: () => {
-          setActiveView('agents')
-          onClose()
-          // Could trigger modal open here
+          onSpawnAgent?.('worker')
         },
         category: 'agent',
       },
@@ -130,8 +129,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
         label: 'Spawn Orchestrator Agent',
         icon: <PlusIcon />,
         action: () => {
-          setActiveView('agents')
-          onClose()
+          onSpawnAgent?.('orchestrator')
         },
         category: 'agent',
       },

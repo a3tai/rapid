@@ -4,6 +4,7 @@ import { useData, useDataPolling, useMcpStatus } from './hooks/useData'
 import { Sidebar } from './components/Sidebar'
 import { Header } from './components/Header'
 import { CommandPalette, useCommandPalette } from './components/CommandPalette'
+import { SpawnAgentModal } from './components/SpawnAgentModal'
 import { Dashboard } from './pages/Dashboard'
 import { AgentsPage } from './pages/Agents'
 import { TasksPage } from './pages/Tasks'
@@ -21,6 +22,7 @@ function App() {
   const { checkConnection } = useMcpStatus()
   const [mcpStatus, setMcpStatus] = useState<{ connected: boolean; toolCount: number } | null>(null)
   const commandPalette = useCommandPalette()
+  const [spawnAgentModal, setSpawnAgentModal] = useState<{ isOpen: boolean; type?: 'worker' | 'orchestrator' }>({ isOpen: false })
 
   // Initialize data on mount
   useEffect(() => {
@@ -58,8 +60,22 @@ function App() {
 
   return (
     <div className="flex h-screen bg-rapid-bg">
+      {/* Spawn Agent Modal */}
+      <SpawnAgentModal
+        isOpen={spawnAgentModal.isOpen}
+        onClose={() => setSpawnAgentModal({ isOpen: false })}
+        type={spawnAgentModal.type}
+      />
+
       {/* Command Palette */}
-      <CommandPalette isOpen={commandPalette.isOpen} onClose={commandPalette.close} />
+      <CommandPalette
+        isOpen={commandPalette.isOpen}
+        onClose={commandPalette.close}
+        onSpawnAgent={(type) => {
+          setSpawnAgentModal({ isOpen: true, type })
+          commandPalette.close()
+        }}
+      />
 
       {/* Sidebar navigation */}
       <Sidebar />
