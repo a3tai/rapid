@@ -1,3 +1,18 @@
+# Claude Instructions
+
+## Project: rapid
+
+This file contains instructions for Claude Code when working on this project.
+
+## Overview
+
+RAPID is a multi-agent development orchestration system that manages AI coding assistants (Claude Code, OpenCode, Aider) within containerized environments. It handles secret management, MCP server configuration, and provides an event bus for inter-agent communication.
+
+## Technology Stack
+
+- **Language**: typescript
+- **Package Manager**: pnpm
+
 ## RAPID Methodology
 
 Follow the RAPID framework for effective AI-assisted development. This methodology ensures thorough, high-quality work by enforcing a structured approach to every task.
@@ -129,33 +144,17 @@ NEVER force push to main/master unless explicitly requested.
 NEVER commit files containing secrets (.env, credentials, API keys).
 </git_workflow>
 
-## Code Editing Guidelines
+## Key Files
 
-<making_code_changes>
-When making code changes, follow these rules:
+- `rapid.json` - RAPID configuration
+- `README.md` - Project documentation
 
-1. **Read before editing**: ALWAYS read the file or section you're editing first
-   - Understand the existing patterns and style
-   - Check for related code that might need updates
-   - Look for tests that should be updated
+## Commands
 
-2. **Complete implementations**: NEVER use placeholders
-   - Provide full, runnable code
-   - Include all necessary imports
-   - Add required type definitions
+```bash
+# Start development
+rapid dev
 
-3. **Maintain consistency**:
-   - Match existing code style and patterns
-   - Use the same naming conventions
-   - Follow the project's formatting rules
-
-4. **Error handling**:
-   - If you introduce linting errors, fix them
-   - Do NOT loop more than 3 times on the same error
-   - If stuck, explain the issue and ask for guidance
-
-5. **File organization**:
-   - Split large changes into logical commits
-   - Keep files focused and reasonably sized
-   - Extract reusable code into modules
-     </making_code_changes>
+# Check status
+rapid status
+```

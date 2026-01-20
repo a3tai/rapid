@@ -131,48 +131,113 @@ async function startHttpServer(config: RapidMcpServerConfig, port: number): Prom
   app.use(cors());
   app.use(express.json());
 
-  // Store active sessions
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sessions = new Map<string, InstanceType<typeof StreamableHTTPServerTransport>>();
+  // Store active sessions with last activity time and initialization state
+  interface SessionEntry {
+    transport: InstanceType<typeof StreamableHTTPServerTransport>;
+    lastActivity: number;
+    initialized: boolean;
+  }
+  const sessions = new Map<string, SessionEntry>();
+
+  // Clean up idle sessions periodically (5 minute timeout)
+  const SESSION_TIMEOUT_MS = 5 * 60 * 1000;
+  setInterval(() => {
+    const now = Date.now();
+    for (const [sessionId, entry] of sessions.entries()) {
+      if (now - entry.lastActivity > SESSION_TIMEOUT_MS) {
+        sessions.delete(sessionId);
+        entry.transport.close();
+      }
+    }
+  }, 60000); // Check every minute
 
   // Main MCP endpoint - handles both POST and GET per MCP spec
   app.all('/mcp', async (req: Request, res: Response) => {
-    // Get or create session ID
-    const sessionId = (req.headers['mcp-session-id'] as string) || crypto.randomUUID();
+    // Get session ID from header, or generate a new one
+    const clientSessionId = req.headers['mcp-session-id'] as string | undefined;
+    const sessionId = clientSessionId || crypto.randomUUID();
+    const method = req.body?.method;
 
-    // Get existing transport or create new one
-    let transport = sessions.get(sessionId);
+    // Get existing session or create new one
+    let entry = sessions.get(sessionId);
 
-    if (!transport) {
-      transport = new StreamableHTTPServerTransport({
+    if (!entry) {
+      // Create new session
+      console.error(`[mcp] New session ${sessionId.slice(0, 8)} (method: ${method})`);
+
+      const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => sessionId,
         enableJsonResponse: true,
       });
 
-      // Create and connect a new server instance for this session
       const server = createRapidMcpServer(config);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await server.connect(transport as any);
 
-      sessions.set(sessionId, transport);
-
-      // Clean up on close
-      res.on('close', () => {
-        // Keep session alive for reconnection, but clean up after timeout
-        setTimeout(() => {
-          if (sessions.get(sessionId) === transport) {
-            sessions.delete(sessionId);
-            transport?.close();
-          }
-        }, 30000); // 30 second session timeout
-      });
+      entry = { transport, lastActivity: Date.now(), initialized: false };
+      sessions.set(sessionId, entry);
+    } else {
+      // Update last activity time
+      entry.lastActivity = Date.now();
     }
 
     // Set session ID header for client
     res.setHeader('mcp-session-id', sessionId);
 
-    // Handle the request
-    await transport.handleRequest(req, res, req.body);
+    // Track initialization
+    if (method === 'initialize') {
+      entry.initialized = true;
+      console.error(`[mcp] Session ${sessionId.slice(0, 8)} initialized`);
+      await entry.transport.handleRequest(req, res, req.body);
+      return;
+    }
+
+    // If not initialized and this is a tool call, auto-initialize first
+    if (!entry.initialized && (method === 'tools/call' || method === 'tools/list')) {
+      console.error(`[mcp] Auto-initializing session ${sessionId.slice(0, 8)} for ${method}`);
+
+      // Synthesize initialize request
+      const initRequest = {
+        jsonrpc: '2.0',
+        id: `init-${Date.now()}`,
+        method: 'initialize',
+        params: {
+          protocolVersion: '2024-11-05',
+          capabilities: {},
+          clientInfo: { name: 'auto-init', version: '1.0.0' },
+        },
+      };
+
+      // Create a mock response to capture the init response
+      const initRes = {
+        headersSent: false,
+        statusCode: 200,
+        setHeader: () => initRes,
+        status: () => initRes,
+        json: () => initRes,
+        send: () => initRes,
+        end: () => {},
+        write: () => true,
+        on: () => initRes,
+        once: () => initRes,
+        emit: () => false,
+        getHeader: () => undefined,
+        removeHeader: () => {},
+        flushHeaders: () => {},
+      } as unknown as Response;
+
+      try {
+        await entry.transport.handleRequest(req, initRes, initRequest);
+        entry.initialized = true;
+        console.error(`[mcp] Session ${sessionId.slice(0, 8)} auto-initialized successfully`);
+      } catch (err) {
+        console.error(`[mcp] Auto-init failed for ${sessionId.slice(0, 8)}:`, err);
+      }
+    }
+
+    // Handle the actual request
+    console.error(`[mcp] Session ${sessionId.slice(0, 8)}: ${method}`);
+    await entry.transport.handleRequest(req, res, req.body);
   });
 
   app.get('/health', (_req: Request, res: Response) => {

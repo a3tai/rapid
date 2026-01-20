@@ -6,6 +6,7 @@
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { RapidMcpServerConfig, TransportType } from './types.js';
 
@@ -16,6 +17,8 @@ import { registerGetSecretTool } from './tools/secrets.js';
 import { registerFilesystemTools } from './tools/filesystem.js';
 import { registerSecurityTools } from './tools/security.js';
 import { registerEventBusTools } from './tools/eventbus.js';
+import { registerPersonaTools } from './tools/personas.js';
+import { registerTaskTools } from './tools/tasks.js';
 
 // Import resource implementations
 import { registerConfigResource } from './resources/config.js';
@@ -56,6 +59,8 @@ export function createRapidMcpServer(config: RapidMcpServerConfig): McpServer {
   registerFilesystemTools(server, context);
   registerSecurityTools(server, context);
   registerEventBusTools(server, context);
+  registerPersonaTools(server, context);
+  registerTaskTools(server, context);
 
   // Register resources
   registerConfigResource(server, context);
@@ -113,7 +118,7 @@ export async function runHttp(server: McpServer, port: number = 3100): Promise<v
   });
 
   // Connect the server to the transport
-  await server.connect(httpTransport as any);
+  await server.connect(httpTransport as unknown as Transport);
 
   // Mount at /mcp - handle both GET (SSE) and POST (JSON-RPC)
   app.all('/mcp', async (req, res) => {

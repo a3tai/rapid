@@ -13,7 +13,7 @@ Get a RAPID-enabled project running in 5 minutes.
 ## Installation
 
 ```bash
-npm install -g @rapid-dev/cli
+npm install -g @a3t/rapid
 ```
 
 Verify installation:

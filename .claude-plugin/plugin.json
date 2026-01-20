@@ -1,0 +1,12 @@
+{
+  "name": "rapid-rapid",
+  "version": "1.0.0",
+  "description": "RAPID plugin for rapid",
+  "commands": [
+    "commands/rapid-status.md",
+    "commands/rapid-worktree.md",
+    "commands/rapid-context.md",
+    "commands/rapid-mcp.md"
+  ],
+  "skills": ["skills/rapid-methodology.md", "skills/mcp-usage.md"]
+}

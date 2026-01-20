@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh run view:*)",
+      "WebFetch(domain:developer.1password.com)",
+      "Bash(pnpm test:*)",
+      "Bash(wc:*)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__query-docs",
+      "Bash(pnpm install)",
+      "Bash(pnpm build:*)",
+      "Bash(npx tsc:*)",
+      "Bash(node dist/bin.js:*)",
+      "Bash(node:*)",
+      "Bash(git add:*)",
+      "Bash(pnpm typecheck:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": ["context7", "tavily"]
+}

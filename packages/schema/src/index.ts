@@ -49,6 +49,12 @@ export interface RapidConfig {
 
   /** Inter-agent event bus configuration */
   eventBus?: EventBusConfig;
+
+  /** Agent personas configuration */
+  personas?: PersonasConfig;
+
+  /** Skills/commands configuration */
+  skills?: SkillsConfig;
 }
 
 /**
@@ -514,6 +520,155 @@ export const SCHEMA_URL = 'https://getrapid.dev/schema/v1/rapid.json';
  * Current schema version
  */
 export const SCHEMA_VERSION = '1.0';
+
+// ============================================================================
+// PERSONA CONFIGURATION
+// ============================================================================
+
+/**
+ * Supported AI models for personas
+ */
+export type PersonaModel = 'opus' | 'sonnet' | 'haiku' | 'gpt-4o' | 'gpt-4o-mini' | 'custom';
+
+/**
+ * Personality traits that influence agent behavior
+ */
+export type PersonalityTrait =
+  | 'thorough'
+  | 'concise'
+  | 'cautious'
+  | 'bold'
+  | 'creative'
+  | 'analytical'
+  | 'friendly'
+  | 'formal'
+  | 'asks_clarifying_questions'
+  | 'autonomous';
+
+/**
+ * Event triggers that can spawn a persona
+ */
+export type PersonaTrigger =
+  | 'on_pr'
+  | 'on_commit'
+  | 'on_issue'
+  | 'on_error'
+  | 'on_request'
+  | 'manual';
+
+/**
+ * Tools available to personas
+ */
+export type PersonaTool =
+  | 'read'
+  | 'write'
+  | 'edit'
+  | 'grep'
+  | 'glob'
+  | 'bash'
+  | 'bus_send'
+  | 'bus_messages'
+  | 'bus_agents'
+  | 'web_search'
+  | 'web_fetch';
+
+/**
+ * Configuration for an AI persona/agent with custom prompt and personality
+ */
+export interface PersonaConfig {
+  /** Unique persona identifier */
+  name: string;
+
+  /** Human-readable description */
+  description?: string;
+
+  /** AI model to use (affects cost/capability) */
+  model?: PersonaModel;
+
+  /** Custom model ID when model is 'custom' */
+  customModel?: string;
+
+  /** System prompt that defines the persona's role and behavior */
+  systemPrompt: string;
+
+  /** Personality traits that influence behavior */
+  personality?: PersonalityTrait[];
+
+  /** MCP tools this persona can access */
+  tools?: PersonaTool[];
+
+  /** Events that can automatically spawn this persona */
+  triggers?: PersonaTrigger[];
+
+  /** Maximum conversation turns before auto-terminating */
+  maxTurns?: number;
+
+  /** Whether this persona can spawn other personas */
+  canSpawn?: boolean;
+
+  /** Parent persona to inherit settings from */
+  extends?: string;
+
+  /** Additional context files to include */
+  contextFiles?: string[];
+
+  /** Environment variables required by this persona */
+  envVars?: string[];
+
+  /** Custom metadata */
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Collection of persona configurations
+ */
+export interface PersonasConfig {
+  /** Directory containing persona definition files */
+  directory?: string;
+
+  /** Default model for all personas */
+  defaultModel?: PersonaModel;
+
+  /** Default tools for all personas */
+  defaultTools?: PersonaTool[];
+
+  /** Inline persona definitions */
+  definitions?: Record<string, PersonaConfig>;
+}
+
+/**
+ * Skill configuration for Claude Code integration
+ */
+export interface SkillConfig {
+  /** Skill name (used as /command) */
+  name: string;
+
+  /** Human-readable description */
+  description: string;
+
+  /** Skill implementation type */
+  type: 'spawn' | 'script' | 'mcp';
+
+  /** For spawn type: persona to spawn */
+  persona?: string;
+
+  /** For script type: command to execute */
+  command?: string;
+
+  /** Arguments passed to the skill */
+  args?: string[];
+}
+
+/**
+ * Skills configuration
+ */
+export interface SkillsConfig {
+  /** Directory containing skill definition files */
+  directory?: string;
+
+  /** Inline skill definitions */
+  definitions?: Record<string, SkillConfig>;
+}
 
 /**
  * Default rapid.json configuration

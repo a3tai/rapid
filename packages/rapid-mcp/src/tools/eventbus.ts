@@ -12,10 +12,8 @@ import {
   InMemoryEventBus,
   MessageType,
   MessagePriority,
-  formatMessagesForInjection,
   getRedisStatus,
   type AgentInfo,
-  type Message,
   type EventBusConfig,
 } from '@a3t/rapid-eventbus';
 import type { ServerContext } from '../server.js';
@@ -33,7 +31,25 @@ async function getEventBus(projectId: string): Promise<EventBus | InMemoryEventB
     return bus;
   }
 
-  // Check if Redis is running (started by `rapid start`)
+  // First check for REDIS_URL environment variable (for containerized MCP)
+  const redisUrl = process.env.REDIS_URL;
+  if (redisUrl) {
+    try {
+      const config: EventBusConfig = {
+        redis: { url: redisUrl },
+        projectId,
+      };
+      bus = new EventBus(config);
+      await bus.connect();
+      busInstances.set(projectId, bus);
+      console.error(`[eventbus] Connected to Redis at ${redisUrl}`);
+      return bus;
+    } catch (err) {
+      console.error(`[eventbus] Failed to connect to Redis at ${redisUrl}:`, err);
+    }
+  }
+
+  // Check if Redis is running locally (started by `rapid start`)
   try {
     const status = await getRedisStatus();
 
@@ -46,6 +62,7 @@ async function getEventBus(projectId: string): Promise<EventBus | InMemoryEventB
       bus = new EventBus(config);
       await bus.connect();
       busInstances.set(projectId, bus);
+      console.error(`[eventbus] Connected to Redis at ${status.url}`);
       return bus;
     }
   } catch {
@@ -53,6 +70,7 @@ async function getEventBus(projectId: string): Promise<EventBus | InMemoryEventB
   }
 
   // Fall back to in-memory
+  console.error('[eventbus] Using in-memory event bus (no Redis available)');
   bus = new InMemoryEventBus();
   busInstances.set(projectId, bus);
   return bus;
@@ -239,58 +257,156 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
     {
       title: 'Get Messages',
       description:
-        'Get recent messages from the event bus. ' +
-        'Returns messages from other agents for coordination.',
+        'Get recent messages from the event bus. Use brief=true to save context. ' +
+        'Use since parameter for efficient polling (only get new messages).',
       inputSchema: {
-        hours: z.number().default(1).describe('Get messages from the last N hours'),
+        limit: z.number().default(5).describe('Maximum messages to return (default: 5, max: 20)'),
+        since: z.string().optional().describe('ISO timestamp - only return messages after this time'),
         types: z.array(MessageType).optional().describe('Filter by message types'),
-        limit: z.number().default(20).describe('Maximum number of messages'),
-        format: z
-          .enum(['json', 'inject'])
-          .default('json')
-          .describe('Output format: json or inject (formatted for context injection)'),
+        brief: z.boolean().default(true).describe('Return summaries only (saves context)'),
+        maxContentLength: z.number().default(200).describe('Truncate content to this length'),
       },
       outputSchema: {
         messages: z.array(z.any()),
         count: z.number(),
-        formatted: z.string().optional(),
+        hasMore: z.boolean(),
+        newestTimestamp: z.string().optional(),
       },
     },
     async (args) => {
-      const { hours, types, limit, format } = args as {
-        hours?: number;
-        types?: z.infer<typeof MessageType>[];
+      const { limit, since, types, brief, maxContentLength } = args as {
         limit?: number;
-        format?: 'json' | 'inject';
+        since?: string;
+        types?: z.infer<typeof MessageType>[];
+        brief?: boolean;
+        maxContentLength?: number;
       };
 
       const bus = await getEventBus(projectId);
       const historyOptions: { hours: number; types?: z.infer<typeof MessageType>[] } = {
-        hours: hours ?? 1,
+        hours: 1, // Always get last hour, filter by 'since' if provided
       };
       if (types !== undefined) {
         historyOptions.types = types;
       }
-      const messages = await bus.getHistory(historyOptions);
+      let messages = await bus.getHistory(historyOptions);
 
-      const limited = messages.slice(0, limit ?? 20);
+      // Filter by 'since' timestamp if provided
+      if (since) {
+        const sinceDate = new Date(since).getTime();
+        messages = messages.filter((m) => new Date(m.timestamp).getTime() > sinceDate);
+      }
 
-      const output: {
-        messages: Message[];
-        count: number;
-        formatted?: string;
-      } = {
-        messages: limited,
-        count: limited.length,
+      // Limit results (cap at 20 to prevent context overload)
+      const effectiveLimit = Math.min(limit ?? 5, 20);
+      const hasMore = messages.length > effectiveLimit;
+      const limited = messages.slice(0, effectiveLimit);
+
+      // Get newest timestamp for next poll
+      const firstMessage = limited[0];
+      const newestTimestamp = firstMessage ? firstMessage.timestamp : undefined;
+
+      // Transform messages based on brief mode
+      const maxLen = maxContentLength ?? 200;
+      const transformedMessages = limited.map((m) => {
+        if (brief) {
+          // Brief mode: just essential info
+          return {
+            id: m.id,
+            time: m.timestamp,
+            type: m.type,
+            from: m.fromAgent.name,
+            title: m.payload.title,
+            preview: m.payload.content.length > maxLen
+              ? m.payload.content.slice(0, maxLen) + '...'
+              : m.payload.content,
+            actionable: m.payload.actionable,
+          };
+        } else {
+          // Full mode: truncate content if needed
+          return {
+            ...m,
+            payload: {
+              ...m.payload,
+              content: m.payload.content.length > maxLen * 2
+                ? m.payload.content.slice(0, maxLen * 2) + '...'
+                : m.payload.content,
+            },
+          };
+        }
+      });
+
+      const output = {
+        messages: transformedMessages,
+        count: transformedMessages.length,
+        hasMore,
+        newestTimestamp,
       };
 
-      if (format === 'inject') {
-        output.formatted = formatMessagesForInjection(limited);
+      if (context.verbose) {
+        console.error(`[bus_messages] Retrieved ${limited.length} messages (brief=${brief})`);
       }
 
-      if (context.verbose) {
-        console.error(`[bus_messages] Retrieved ${limited.length} messages`);
+      return {
+        content: [{ type: 'text', text: JSON.stringify(output, null, 2) }],
+        structuredContent: output,
+      };
+    }
+  );
+
+  // Tool: Poll for new messages (efficient polling with cursor)
+  server.registerTool(
+    'bus_poll',
+    {
+      title: 'Poll New Messages',
+      description:
+        'Efficiently poll for new messages since last check. Returns only new messages. ' +
+        'Pass the returned cursor to subsequent calls for continuous polling.',
+      inputSchema: {
+        cursor: z.string().optional().describe('Timestamp cursor from previous poll'),
+        limit: z.number().default(5).describe('Max messages per poll (default: 5)'),
+      },
+      outputSchema: {
+        messages: z.array(z.any()),
+        count: z.number(),
+        cursor: z.string(),
+        hasNew: z.boolean(),
+      },
+    },
+    async (args) => {
+      const { cursor, limit } = args as { cursor?: string; limit?: number };
+
+      const bus = await getEventBus(projectId);
+      let messages = await bus.getHistory({ hours: 1 });
+
+      // Filter to only messages after cursor
+      if (cursor) {
+        const cursorTime = new Date(cursor).getTime();
+        messages = messages.filter((m) => new Date(m.timestamp).getTime() > cursorTime);
       }
+
+      const effectiveLimit = Math.min(limit ?? 5, 10);
+      const limited = messages.slice(0, effectiveLimit);
+
+      // Brief format only for polling
+      const briefMessages = limited.map((m) => ({
+        type: m.type,
+        from: m.fromAgent.name,
+        title: m.payload.title,
+        preview: m.payload.content.slice(0, 100) + (m.payload.content.length > 100 ? '...' : ''),
+        actionable: m.payload.actionable,
+      }));
+
+      // New cursor is newest message time, or current time if no messages
+      const newestMessage = limited[0];
+      const newCursor = newestMessage ? newestMessage.timestamp : new Date().toISOString();
+
+      const output = {
+        messages: briefMessages,
+        count: briefMessages.length,
+        cursor: newCursor,
+        hasNew: briefMessages.length > 0,
+      };
 
       return {
         content: [{ type: 'text', text: JSON.stringify(output, null, 2) }],

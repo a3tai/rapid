@@ -196,7 +196,7 @@ Create a `rapid.json` in your project root:
 }
 ```
 
-See [rapid.json Specification](https://github.com/a3tai/rapid/docs/reference/rapid.json-spec.md) for complete reference.
+See [rapid.json Specification](../../docs/reference/rapid.json-spec.md) for complete reference.
 
 ## Environment Variables
 

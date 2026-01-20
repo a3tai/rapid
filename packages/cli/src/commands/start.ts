@@ -139,8 +139,13 @@ async function startServices(
     args.push(...options.services);
   }
 
+  const cmd = composeCmd[0];
+  if (!cmd) {
+    return { success: false, error: 'No docker compose command found' };
+  }
+
   try {
-    await execa(composeCmd[0], args, {
+    await execa(cmd, args, {
       stdio: 'inherit',
       env: {
         ...process.env,
@@ -230,7 +235,7 @@ export const startCommand = new Command('start')
 
         const result = await startServices(dockerDir, {
           rebuild: options.rebuild,
-          services: servicesToStart,
+          ...(servicesToStart && { services: servicesToStart }),
           secrets,
         });
 

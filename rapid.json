@@ -1,44 +1,49 @@
 {
   "$schema": "https://getrapid.dev/schema/v1/rapid.json",
   "version": "1.0",
+  "name": "rapid",
   "agents": {
     "default": "claude",
     "available": {
       "claude": {
         "cli": "claude",
         "instructionFile": "CLAUDE.md",
-        "envVars": ["ANTHROPIC_API_KEY"],
         "yolo": true
       },
-      "opencode": {
-        "cli": "opencode",
-        "instructionFile": "AGENTS.md",
-        "envVars": ["ANTHROPIC_API_KEY"]
-      },
+      "opencode": { "cli": "opencode", "instructionFile": "AGENTS.md" },
       "aider": {
         "cli": "aider",
         "instructionFile": "AGENTS.md",
         "envVars": ["ANTHROPIC_API_KEY"],
-        "args": ["--model", "claude-3-5-sonnet-20241022"]
+        "args": ["--model", "claude-3-5-sonnet-20241022"],
+        "readsInstructionFiles": true
       }
     }
   },
   "secrets": {
     "provider": "1password",
-    "vault": "Development",
+    "vault": "A3T",
     "items": {
-      "ANTHROPIC_API_KEY": "op://A3T/RAPID/ANTHROPIC_API_KEY",
-      "TAVILY_API_KEY": "op://A3T/RAPID/TAVILY_API_KEY",
-      "CONTEXT7_API_KEY": "op://A3T/RAPID/CONTEXT7_API_KEY"
+      "CONTEXT7_API_KEY": "op://A3T/RAPID/CONTEXT7_API_KEY",
+      "TAVILY_API_KEY": "op://A3T/RAPID/TAVILY_API_KEY"
     }
   },
   "context": {
     "files": ["README.md", "CLAUDE.md", "AGENTS.md"],
     "generateAgentFiles": false
   },
+  "gateway": {
+    "enabled": true,
+    "mode": "managed"
+  },
   "mcp": {
     "configFile": ".mcp.json",
     "servers": {
+      "rapid": {
+        "enabled": true,
+        "type": "remote",
+        "url": "http://host.docker.internal:3100/mcp"
+      },
       "context7": {
         "enabled": true,
         "type": "remote",
@@ -53,7 +58,5 @@
       }
     }
   },
-  "eventBus": {
-    "enabled": true
-  }
+  "eventBus": { "enabled": true }
 }
