@@ -29,6 +29,7 @@ import { daemonCommand } from './commands/daemon.js';
 import { sessionCommand } from './commands/session.js';
 import { pluginCommand } from './commands/plugin.js';
 import { rewindCommand } from './commands/rewind.js';
+import { approveCommand } from './commands/approve.js';
 import { updateChecker } from './utils/update-checker.js';
 
 // Read version from package.json
@@ -89,6 +90,7 @@ program.addCommand(daemonCommand);
 program.addCommand(sessionCommand);
 program.addCommand(pluginCommand);
 program.addCommand(rewindCommand);
+program.addCommand(approveCommand);
 
 // Default action - show help
 program.action(() => {
