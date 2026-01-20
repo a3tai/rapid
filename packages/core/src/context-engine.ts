@@ -192,21 +192,15 @@ export class ContextEngine {
     }
 
     if (filter?.tags && filter.tags.length > 0) {
-      results = results.filter((e) =>
-        filter.tags!.some((tag) => e.metadata.tags.includes(tag))
-      );
+      results = results.filter((e) => filter.tags!.some((tag) => e.metadata.tags.includes(tag)));
     }
 
     if (filter?.createdAfter) {
-      results = results.filter(
-        (e) => new Date(e.metadata.createdAt) > filter.createdAfter!
-      );
+      results = results.filter((e) => new Date(e.metadata.createdAt) > filter.createdAfter!);
     }
 
     if (filter?.createdBefore) {
-      results = results.filter(
-        (e) => new Date(e.metadata.createdAt) < filter.createdBefore!
-      );
+      results = results.filter((e) => new Date(e.metadata.createdAt) < filter.createdBefore!);
     }
 
     if (filter?.minConfidence !== undefined) {
@@ -277,9 +271,7 @@ export class ContextEngine {
   ): Promise<ContextEntry[]> {
     // Phase 1: Simple substring matching in keys and tags
     const results = Array.from(this.entries.values()).filter(
-      (e) =>
-        e.key.includes(query) ||
-        e.metadata.tags.some((t) => t.includes(query))
+      (e) => e.key.includes(query) || e.metadata.tags.some((t) => t.includes(query))
     );
 
     logger.debug(`Search for "${query}" found ${results.length} results`);
@@ -315,9 +307,7 @@ export class ContextEngine {
       : null;
 
     const mostAccessed = entries.length
-      ? entries.reduce((a, b) =>
-          a.metadata.accessCount > b.metadata.accessCount ? a : b
-        )
+      ? entries.reduce((a, b) => (a.metadata.accessCount > b.metadata.accessCount ? a : b))
       : null;
 
     return {
@@ -374,7 +364,8 @@ export class ContextEngine {
     let kept = 0;
 
     for (const [key, entry] of this.entries) {
-      const age = (now.getTime() - new Date(entry.metadata.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+      const age =
+        (now.getTime() - new Date(entry.metadata.createdAt).getTime()) / (1000 * 60 * 60 * 24);
 
       // Archive old, low-confidence entries
       if (age > maxAge && entry.metadata.confidence < minConfidence) {

@@ -11,12 +11,16 @@ Check configured MCP servers with: `rapid mcp list`
 ## Common Servers
 
 ### Context7
+
 Use for up-to-date library documentation:
+
 1. First resolve library ID: `mcp__context7__resolve-library-id`
 2. Then query docs: `mcp__context7__query-docs`
 
 ### Tavily
+
 Use for web searches and content extraction:
+
 - `mcp__tavily__tavily_search` - Search the web
 - `mcp__tavily__tavily_extract` - Extract content from URLs
 

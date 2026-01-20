@@ -30,6 +30,7 @@ Complete reference and examples for configuring RAPID multi-agent development sy
 ## Overview
 
 `rapid.json` is the main configuration file for RAPID. It defines:
+
 - Which AI agents are available (Claude, OpenCode, Aider, etc.)
 - How secrets are managed (1Password, Vault, etc.)
 - Container and development environment settings
@@ -69,22 +70,22 @@ Minimal configuration to get started:
 
 ### Top-Level Properties
 
-| Property    | Type   | Required | Default         | Description                                 |
-| ----------- | ------ | -------- | --------------- | ------------------------------------------- |
-| `$schema`   | string | No       | -               | JSON schema URL for validation/IntelliSense |
-| `version`   | string | Yes      | -               | Specification version (currently `"1.0"`)   |
-| `name`      | string | No       | Directory name  | Project name                                |
-| `container` | object | No       | See below       | Container lifecycle configuration           |
-| `secrets`   | object | No       | `{"provider": "env"}` | Secret management           |
-| `agents`    | object | Yes      | -               | AI agent configuration                      |
-| `context`   | object | No       | See below       | Context file settings                       |
-| `mcp`       | object | No       | -               | MCP server configuration                    |
-| `gateway`   | object | No       | -               | LLM gateway (LiteLLM) configuration         |
-| `eventBus`  | object | No       | `{"enabled": false}` | Inter-agent event bus             |
-| `personas`  | object | No       | -               | Persona definitions for specialized agents  |
-| `skills`    | object | No       | -               | Custom skills/commands                      |
-| `sandbox`   | object | No       | -               | Sandbox security configuration              |
-| `lima`      | object | No       | -               | Lima VM configuration (macOS only)          |
+| Property    | Type   | Required | Default               | Description                                 |
+| ----------- | ------ | -------- | --------------------- | ------------------------------------------- |
+| `$schema`   | string | No       | -                     | JSON schema URL for validation/IntelliSense |
+| `version`   | string | Yes      | -                     | Specification version (currently `"1.0"`)   |
+| `name`      | string | No       | Directory name        | Project name                                |
+| `container` | object | No       | See below             | Container lifecycle configuration           |
+| `secrets`   | object | No       | `{"provider": "env"}` | Secret management                           |
+| `agents`    | object | Yes      | -                     | AI agent configuration                      |
+| `context`   | object | No       | See below             | Context file settings                       |
+| `mcp`       | object | No       | -                     | MCP server configuration                    |
+| `gateway`   | object | No       | -                     | LLM gateway (LiteLLM) configuration         |
+| `eventBus`  | object | No       | `{"enabled": false}`  | Inter-agent event bus                       |
+| `personas`  | object | No       | -                     | Persona definitions for specialized agents  |
+| `skills`    | object | No       | -                     | Custom skills/commands                      |
+| `sandbox`   | object | No       | -                     | Sandbox security configuration              |
+| `lima`      | object | No       | -                     | Lima VM configuration (macOS only)          |
 
 ### Container Configuration
 
@@ -160,15 +161,15 @@ Define which AI coding assistants are available:
 
 **Agent Properties:**
 
-| Property                | Type    | Required | Description                                        |
-| ----------------------- | ------- | -------- | -------------------------------------------------- |
-| `cli`                   | string  | Yes      | CLI command to execute                             |
-| `instructionFile`       | string  | No       | Path to instruction file for this agent            |
-| `envVars`               | array   | No       | Required environment variables                     |
-| `installCmd`            | string  | No       | Command to install the CLI tool                    |
-| `args`                  | array   | No       | Additional CLI arguments                           |
-| `yolo`                  | boolean | No       | Enable auto-accept mode (skip confirmations)       |
-| `readsInstructionFiles` | boolean | No       | Whether agent natively reads instruction files     |
+| Property                | Type    | Required | Description                                    |
+| ----------------------- | ------- | -------- | ---------------------------------------------- |
+| `cli`                   | string  | Yes      | CLI command to execute                         |
+| `instructionFile`       | string  | No       | Path to instruction file for this agent        |
+| `envVars`               | array   | No       | Required environment variables                 |
+| `installCmd`            | string  | No       | Command to install the CLI tool                |
+| `args`                  | array   | No       | Additional CLI arguments                       |
+| `yolo`                  | boolean | No       | Enable auto-accept mode (skip confirmations)   |
+| `readsInstructionFiles` | boolean | No       | Whether agent natively reads instruction files |
 
 **Pro tip:** Set `yolo: true` for Claude in trusted dev environments to skip permission prompts.
 
@@ -309,13 +310,13 @@ Control which files are included in agent context:
 
 **Properties:**
 
-| Property             | Type    | Default         | Description                        |
-| -------------------- | ------- | --------------- | ---------------------------------- |
-| `files`              | array   | `["README.md"]` | Files to include in agent context  |
-| `dirs`               | array   | `["docs/"]`     | Directories to include             |
-| `exclude`            | array   | `[]`            | Patterns to exclude                |
-| `generateAgentFiles` | boolean | `true`          | Auto-generate AGENTS.md, CLAUDE.md |
-| `templateDir`        | string  | -               | Custom templates for agent files   |
+| Property             | Type    | Default         | Description                         |
+| -------------------- | ------- | --------------- | ----------------------------------- |
+| `files`              | array   | `["README.md"]` | Files to include in agent context   |
+| `dirs`               | array   | `["docs/"]`     | Directories to include              |
+| `exclude`            | array   | `[]`            | Patterns to exclude                 |
+| `generateAgentFiles` | boolean | `true`          | Auto-generate AGENTS.md, CLAUDE.md  |
+| `templateDir`        | string  | -               | Custom templates for agent files    |
 | `preserve`           | array   | `[]`            | Files to preserve from auto-updates |
 
 ---
@@ -350,37 +351,37 @@ Enable inter-agent communication for multi-agent workflows:
 
 **Event Bus Properties:**
 
-| Property    | Type    | Default | Description                    |
-| ----------- | ------- | ------- | ------------------------------ |
-| `enabled`   | boolean | `false` | Enable the event bus           |
-| `redis`     | object  | -       | Redis connection (optional)    |
-| `injection` | object  | -       | Context injection settings     |
-| `autoCheck` | object  | -       | Auto-check for new messages    |
+| Property    | Type    | Default | Description                 |
+| ----------- | ------- | ------- | --------------------------- |
+| `enabled`   | boolean | `false` | Enable the event bus        |
+| `redis`     | object  | -       | Redis connection (optional) |
+| `injection` | object  | -       | Context injection settings  |
+| `autoCheck` | object  | -       | Auto-check for new messages |
 
 **Redis Configuration:**
 
-| Property | Type   | Default   | Description                   |
-| -------- | ------ | --------- | ----------------------------- |
-| `url`    | string | -         | Redis connection URL          |
-| `prefix` | string | `"rapid:"` | Key prefix for RAPID data     |
+| Property | Type   | Default    | Description               |
+| -------- | ------ | ---------- | ------------------------- |
+| `url`    | string | -          | Redis connection URL      |
+| `prefix` | string | `"rapid:"` | Key prefix for RAPID data |
 
 If Redis is not configured, RAPID falls back to in-memory event bus (single-host only).
 
 **Injection Configuration:**
 
-| Property            | Type   | Default          | Description                       |
-| ------------------- | ------ | ---------------- | --------------------------------- |
+| Property            | Type   | Default           | Description                                           |
+| ------------------- | ------ | ----------------- | ----------------------------------------------------- |
 | `mode`              | enum   | `"system_prompt"` | `"system_prompt"`, `"user_prefix"`, `"tool_response"` |
-| `maxMessages`       | number | `5`              | Maximum messages to inject        |
-| `priorityThreshold` | enum   | `"normal"`       | `"low"`, `"normal"`, `"high"`, `"urgent"` |
-| `includeTypes`      | array  | All types        | Message types to include          |
+| `maxMessages`       | number | `5`               | Maximum messages to inject                            |
+| `priorityThreshold` | enum   | `"normal"`        | `"low"`, `"normal"`, `"high"`, `"urgent"`             |
+| `includeTypes`      | array  | All types         | Message types to include                              |
 
 **Auto-Check Configuration:**
 
-| Property     | Type    | Default | Description                      |
-| ------------ | ------- | ------- | -------------------------------- |
+| Property     | Type    | Default | Description                       |
+| ------------ | ------- | ------- | --------------------------------- |
 | `enabled`    | boolean | `false` | Enable automatic message checking |
-| `intervalMs` | number  | `10000` | Check interval in milliseconds   |
+| `intervalMs` | number  | `10000` | Check interval in milliseconds    |
 
 ### Personas
 
@@ -413,15 +414,15 @@ Define specialized AI agents with custom prompts and personalities:
 
 **Personas Configuration:**
 
-| Property        | Type    | Default                 | Description                            |
-| --------------- | ------- | ----------------------- | -------------------------------------- |
-| `directory`     | string  | `".rapid/personas"`     | Directory containing persona YAML files |
-| `defaultModel`  | enum    | `"sonnet"`              | Default model for all personas         |
-| `defaultTools`  | array   | All tools               | Default tools for all personas         |
-| `team`          | array   | `[]`                    | Team members to spawn                  |
-| `autoSpawn`     | boolean | `false`                 | Auto-spawn team on `rapid start`       |
-| `orchestrator`  | string  | -                       | Orchestrator persona name              |
-| `definitions`   | object  | `{}`                    | Inline persona definitions             |
+| Property       | Type    | Default             | Description                             |
+| -------------- | ------- | ------------------- | --------------------------------------- |
+| `directory`    | string  | `".rapid/personas"` | Directory containing persona YAML files |
+| `defaultModel` | enum    | `"sonnet"`          | Default model for all personas          |
+| `defaultTools` | array   | All tools           | Default tools for all personas          |
+| `team`         | array   | `[]`                | Team members to spawn                   |
+| `autoSpawn`    | boolean | `false`             | Auto-spawn team on `rapid start`        |
+| `orchestrator` | string  | -                   | Orchestrator persona name               |
+| `definitions`  | object  | `{}`                | Inline persona definitions              |
 
 **Persona Definition (YAML file format):**
 
@@ -429,7 +430,7 @@ Define specialized AI agents with custom prompts and personalities:
 name: architect
 description: Software architect for design decisions and code structure planning
 
-model: sonnet  # opus, sonnet, haiku, gpt-4o, gpt-4o-mini, custom
+model: sonnet # opus, sonnet, haiku, gpt-4o, gpt-4o-mini, custom
 
 systemPrompt: |
   You are a software architect responsible for high-level design decisions.
@@ -459,14 +460,14 @@ triggers:
   - manual
 
 maxTurns: 30
-canSpawn: true  # Can spawn other specialized agents
+canSpawn: true # Can spawn other specialized agents
 
 contextFiles:
-  - "docs/architecture/**/*.md"
-  - "ADR.md"
+  - 'docs/architecture/**/*.md'
+  - 'ADR.md'
 
 envVars:
-  - "ANTHROPIC_API_KEY"
+  - 'ANTHROPIC_API_KEY'
 ```
 
 **Persona Properties:**
@@ -488,6 +489,7 @@ envVars:
 | `envVars`      | array   | No       | Required environment variables             |
 
 **Available Models:**
+
 - `opus` - Claude Opus (highest capability, highest cost)
 - `sonnet` - Claude Sonnet (balanced capability and cost) **recommended**
 - `haiku` - Claude Haiku (fast, cost-effective for focused tasks)
@@ -496,6 +498,7 @@ envVars:
 - `custom` - Custom model ID (requires `customModel` property)
 
 **Available Personality Traits:**
+
 - `thorough` - Exhaustive, detail-oriented
 - `concise` - Brief, to-the-point communication
 - `cautious` - Risk-aware, asks for clarification
@@ -508,6 +511,7 @@ envVars:
 - `autonomous` - Works independently, minimal oversight
 
 **Available Tools:**
+
 - `read` - Read files
 - `write` - Write files
 - `edit` - Edit existing files
@@ -521,6 +525,7 @@ envVars:
 - `web_fetch` - Fetch web content
 
 **Available Triggers:**
+
 - `on_pr` - Pull request created/updated
 - `on_commit` - Git commit
 - `on_issue` - Issue created/updated
@@ -563,21 +568,21 @@ Define custom commands/skills that agents can execute:
 
 **Skills Configuration:**
 
-| Property      | Type   | Default            | Description                            |
-| ------------- | ------ | ------------------ | -------------------------------------- |
-| `directory`   | string | `".rapid/skills"`  | Directory containing skill YAML files  |
-| `definitions` | object | `{}`               | Inline skill definitions               |
+| Property      | Type   | Default           | Description                           |
+| ------------- | ------ | ----------------- | ------------------------------------- |
+| `directory`   | string | `".rapid/skills"` | Directory containing skill YAML files |
+| `definitions` | object | `{}`              | Inline skill definitions              |
 
 **Skill Definition:**
 
-| Property      | Type   | Required | Description                        |
-| ------------- | ------ | -------- | ---------------------------------- |
-| `name`        | string | Yes      | Skill name (used as /command)      |
-| `description` | string | Yes      | Human-readable description         |
-| `type`        | enum   | Yes      | `"spawn"`, `"script"`, or `"mcp"`  |
-| `persona`     | string | No       | Persona to spawn (type: spawn)     |
-| `command`     | string | No       | Command to execute (type: script)  |
-| `args`        | array  | No       | Arguments passed to skill          |
+| Property      | Type   | Required | Description                       |
+| ------------- | ------ | -------- | --------------------------------- |
+| `name`        | string | Yes      | Skill name (used as /command)     |
+| `description` | string | Yes      | Human-readable description        |
+| `type`        | enum   | Yes      | `"spawn"`, `"script"`, or `"mcp"` |
+| `persona`     | string | No       | Persona to spawn (type: spawn)    |
+| `command`     | string | No       | Command to execute (type: script) |
+| `args`        | array  | No       | Arguments passed to skill         |
 
 ---
 
@@ -649,17 +654,18 @@ Configure Model Context Protocol servers for extended agent capabilities:
 
 **MCP Server Configuration:**
 
-| Property  | Type    | Required | Description                                    |
-| --------- | ------- | -------- | ---------------------------------------------- |
-| `enabled` | boolean | No       | Enable this MCP server (default: true)         |
-| `type`    | enum    | Yes      | `"stdio"`, `"streamable-http"`, or `"remote"`  |
-| `url`     | string  | No       | URL for remote servers                         |
-| `headers` | object  | No       | HTTP headers for remote servers                |
-| `command` | string  | No       | Command for stdio servers                      |
-| `args`    | array   | No       | Arguments for stdio command                    |
-| `env`     | object  | No       | Environment variables for stdio servers        |
+| Property  | Type    | Required | Description                                   |
+| --------- | ------- | -------- | --------------------------------------------- |
+| `enabled` | boolean | No       | Enable this MCP server (default: true)        |
+| `type`    | enum    | Yes      | `"stdio"`, `"streamable-http"`, or `"remote"` |
+| `url`     | string  | No       | URL for remote servers                        |
+| `headers` | object  | No       | HTTP headers for remote servers               |
+| `command` | string  | No       | Command for stdio servers                     |
+| `args`    | array   | No       | Arguments for stdio command                   |
+| `env`     | object  | No       | Environment variables for stdio servers       |
 
 **Transport Types:**
+
 - `stdio` - Local subprocess (command + args)
 - `streamable-http` - Remote HTTP server (url + headers) - MCP spec standard
 - `remote` - Alias for `streamable-http` (backwards compatible)
@@ -726,18 +732,19 @@ Route AI requests through LiteLLM for load balancing, cost tracking, and fallbac
 
 **Gateway Properties:**
 
-| Property   | Type    | Default   | Description                                    |
-| ---------- | ------- | --------- | ---------------------------------------------- |
-| `enabled`  | boolean | `false`   | Enable LLM gateway                             |
-| `type`     | enum    | `"litellm"` | `"litellm"`, `"openrouter"`, `"custom"`      |
-| `mode`     | enum    | `"proxy"` | `"external"` (connect) or `"managed"` (start) |
-| `fallback` | enum    | `"direct"` | `"direct"` (bypass on error) or `"error"`     |
-| `logging`  | boolean | `false`   | Enable request/response logging                |
-| `config`   | object  | -         | Gateway connection config                      |
-| `models`   | object  | -         | Model aliases and routing                      |
-| `budgets`  | object  | -         | Budget configuration                           |
+| Property   | Type    | Default     | Description                                   |
+| ---------- | ------- | ----------- | --------------------------------------------- |
+| `enabled`  | boolean | `false`     | Enable LLM gateway                            |
+| `type`     | enum    | `"litellm"` | `"litellm"`, `"openrouter"`, `"custom"`       |
+| `mode`     | enum    | `"proxy"`   | `"external"` (connect) or `"managed"` (start) |
+| `fallback` | enum    | `"direct"`  | `"direct"` (bypass on error) or `"error"`     |
+| `logging`  | boolean | `false`     | Enable request/response logging               |
+| `config`   | object  | -           | Gateway connection config                     |
+| `models`   | object  | -           | Model aliases and routing                     |
+| `budgets`  | object  | -           | Budget configuration                          |
 
 **Gateway Modes:**
+
 - `external` - Connect to existing LiteLLM instance
 - `managed` - RAPID starts and manages LiteLLM
 
@@ -746,9 +753,9 @@ Route AI requests through LiteLLM for load balancing, cost tracking, and fallbac
 ```json
 {
   "project": {
-    "max": 100,          // $100 USD
-    "duration": "30d",    // Over 30 days
-    "alertAt": [50, 75, 90]  // Alert at 50%, 75%, 90%
+    "max": 100, // $100 USD
+    "duration": "30d", // Over 30 days
+    "alertAt": [50, 75, 90] // Alert at 50%, 75%, 90%
   }
 }
 ```
@@ -770,24 +777,13 @@ Control security sandbox for agent command execution:
         "api.openai.com",
         "registry.npmjs.org"
       ],
-      "deniedDomains": [
-        "internal.company.com"
-      ],
+      "deniedDomains": ["internal.company.com"],
       "proxyPort": 8888
     },
     "filesystem": {
-      "readPaths": [
-        "/workspaces/myproject/**",
-        "/tmp/**"
-      ],
-      "writePaths": [
-        "/workspaces/myproject/**",
-        "/tmp/**"
-      ],
-      "blockedPaths": [
-        "/workspaces/myproject/.env",
-        "/workspaces/myproject/secrets/**"
-      ],
+      "readPaths": ["/workspaces/myproject/**", "/tmp/**"],
+      "writePaths": ["/workspaces/myproject/**", "/tmp/**"],
+      "blockedPaths": ["/workspaces/myproject/.env", "/workspaces/myproject/secrets/**"],
       "readOnlyRoot": true
     }
   }
@@ -796,14 +792,15 @@ Control security sandbox for agent command execution:
 
 **Sandbox Properties:**
 
-| Property     | Type    | Default | Description                           |
-| ------------ | ------- | ------- | ------------------------------------- |
-| `enabled`    | boolean | `true`  | Enable OS-level sandboxing            |
+| Property     | Type    | Default  | Description                               |
+| ------------ | ------- | -------- | ----------------------------------------- |
+| `enabled`    | boolean | `true`   | Enable OS-level sandboxing                |
 | `mode`       | enum    | `"auto"` | `"auto"`, `"sandbox"`, `"lima"`, `"none"` |
-| `network`    | object  | -       | Network filtering config              |
-| `filesystem` | object  | -       | Filesystem access config              |
+| `network`    | object  | -        | Network filtering config                  |
+| `filesystem` | object  | -        | Filesystem access config                  |
 
 **Sandbox Modes:**
+
 - `auto` - Automatically select best sandbox (Seatbelt on macOS, Bubblewrap on Linux)
 - `sandbox` - Force platform sandbox (Seatbelt/Bubblewrap)
 - `lima` - Use Lima VM (macOS only)
@@ -1163,12 +1160,7 @@ Advanced setup with orchestrator and specialized personas:
   "personas": {
     "directory": ".rapid/personas",
     "defaultModel": "sonnet",
-    "team": [
-      "orchestrator",
-      "architect",
-      "security-reviewer",
-      "test-writer"
-    ],
+    "team": ["orchestrator", "architect", "security-reviewer", "test-writer"],
     "autoSpawn": false,
     "orchestrator": "orchestrator"
   },

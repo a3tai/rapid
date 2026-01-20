@@ -419,7 +419,9 @@ export function registerPersonaTools(server: McpServer, context: ServerContext):
         haiku: 'claude-haiku-4-20250514',
       };
 
-      const modelId = persona.model ? modelMap[persona.model] || persona.customModel : modelMap.sonnet;
+      const modelId = persona.model
+        ? modelMap[persona.model] || persona.customModel
+        : modelMap.sonnet;
 
       // Generate system prompt with task
       let systemPrompt = generateSystemPrompt(persona);
@@ -456,7 +458,7 @@ export function registerPersonaTools(server: McpServer, context: ServerContext):
       title: 'Spawn Agent',
       description:
         'Spawn a new AI agent with a specific persona. ' +
-        'The agent runs as a subprocess with the persona\'s system prompt and capabilities. ' +
+        "The agent runs as a subprocess with the persona's system prompt and capabilities. " +
         'Auto-creates an isolated worktree if worktree parameter not provided. ' +
         'Returns the agent ID for tracking.',
       inputSchema: {
@@ -464,7 +466,10 @@ export function registerPersonaTools(server: McpServer, context: ServerContext):
         task: z.string().describe('Task description for the agent'),
         background: z.boolean().default(true).describe('Run in background (default true)'),
         connectToBus: z.boolean().default(true).describe('Register agent with event bus'),
-        worktree: z.string().optional().describe('Git worktree name or branch (auto-generated if not provided)'),
+        worktree: z
+          .string()
+          .optional()
+          .describe('Git worktree name or branch (auto-generated if not provided)'),
       },
       outputSchema: {
         agentId: z.string(),
@@ -477,7 +482,13 @@ export function registerPersonaTools(server: McpServer, context: ServerContext):
       },
     },
     async (args) => {
-      const { name, task, background = true, connectToBus = true, worktree: _worktree } = args as {
+      const {
+        name,
+        task,
+        background = true,
+        connectToBus = true,
+        worktree: _worktree,
+      } = args as {
         name: string;
         task: string;
         background?: boolean;
@@ -587,10 +598,13 @@ Check bus_messages periodically for coordination messages from other agents.`;
       try {
         // Build the claude command with proper arguments
         const claudeArgs = [
-          '--model', model,
+          '--model',
+          model,
           '--print',
-          '--output-format', 'text',
-          '--append-system-prompt', systemPrompt,
+          '--output-format',
+          'text',
+          '--append-system-prompt',
+          systemPrompt,
           task,
         ];
 
@@ -622,18 +636,20 @@ Check bus_messages periodically for coordination messages from other agents.`;
           proc.stderr?.pipe(outputStream);
 
           // Handle completion
-          proc.then((result) => {
-            const a = spawnedAgents.get(agentId);
-            if (a) {
-              a.status = result.exitCode === 0 ? 'completed' : 'failed';
-              a.exitCode = result.exitCode ?? 1;
-            }
-          }).catch(() => {
-            const a = spawnedAgents.get(agentId);
-            if (a) {
-              a.status = 'failed';
-            }
-          });
+          proc
+            .then((result) => {
+              const a = spawnedAgents.get(agentId);
+              if (a) {
+                a.status = result.exitCode === 0 ? 'completed' : 'failed';
+                a.exitCode = result.exitCode ?? 1;
+              }
+            })
+            .catch(() => {
+              const a = spawnedAgents.get(agentId);
+              if (a) {
+                a.status = 'failed';
+              }
+            });
 
           if (context.verbose) {
             console.error(`[persona_spawn] Spawned ${name} as ${agentId} in background`);

@@ -1,7 +1,7 @@
 name: critic
 description: Critical reviewer that pokes holes in implementations and suggests improvements
 
-model: sonnet  # Need good reasoning for nuanced critique
+model: sonnet # Need good reasoning for nuanced critique
 
 systemPrompt: |
   You are a critical code reviewer and devil's advocate. Your job is to find weaknesses,
@@ -51,4 +51,4 @@ triggers:
   - manual
 
 maxTurns: 30
-canSpawn: true  # Can spawn other agents for specific checks
+canSpawn: true # Can spawn other agents for specific checks

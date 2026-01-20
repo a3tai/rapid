@@ -18,24 +18,28 @@ In a multi-agent system, errors can occur at any layer: network communication, t
 ## Error Categories
 
 ### 1. Transient Errors (Retry Automatically)
+
 - Network timeouts
 - Redis connection drops
 - Rate limiting (429 errors)
 - Temporary file locks
 
 ### 2. Permanent Errors (Fail and Report)
+
 - Invalid configuration
 - Missing required files
 - Permission denied
 - Syntax errors in code
 
 ### 3. Resource Errors (Wait and Retry)
+
 - Out of memory
 - Disk full
 - CPU throttling
 - Git merge conflicts
 
 ### 4. Coordination Errors (Escalate)
+
 - Task assignment conflicts
 - Capability mismatches
 - Circular dependencies
@@ -65,7 +69,7 @@ try {
       errorType: error.constructor.name,
       recoverable: isRecoverable(error),
       attemptNumber: 1,
-    }
+    },
   });
 
   // Decide: retry, escalate, or abort
@@ -82,20 +86,17 @@ try {
 ```typescript
 function classifyError(error: Error): ErrorCategory {
   // Network errors - transient
-  if (error.message.includes('ECONNREFUSED') ||
-      error.message.includes('ETIMEDOUT')) {
+  if (error.message.includes('ECONNREFUSED') || error.message.includes('ETIMEDOUT')) {
     return { type: 'transient', retryable: true };
   }
 
   // Permission errors - permanent
-  if (error.message.includes('EACCES') ||
-      error.message.includes('permission denied')) {
+  if (error.message.includes('EACCES') || error.message.includes('permission denied')) {
     return { type: 'permanent', retryable: false };
   }
 
   // Resource errors - wait and retry
-  if (error.message.includes('EMFILE') ||
-      error.message.includes('out of memory')) {
+  if (error.message.includes('EMFILE') || error.message.includes('out of memory')) {
     return { type: 'resource', retryable: true, waitTime: 30000 };
   }
 
@@ -131,10 +132,7 @@ async function retryWithBackoff<T>(
       }
 
       // Calculate exponential backoff: 1s, 2s, 4s, 8s, ...
-      const delay = Math.min(
-        initialDelay * Math.pow(2, attempt - 1),
-        maxDelay
-      );
+      const delay = Math.min(initialDelay * Math.pow(2, attempt - 1), maxDelay);
 
       // Notify about retry
       if (onRetry) {
@@ -149,17 +147,14 @@ async function retryWithBackoff<T>(
 }
 
 // Usage
-const result = await retryWithBackoff(
-  () => fetchFromAPI('/endpoint'),
-  {
-    maxRetries: 3,
-    initialDelay: 1000,
-    maxDelay: 10000,
-    onRetry: (attempt, error) => {
-      console.log(`Retry attempt ${attempt} after error: ${error.message}`);
-    }
-  }
-);
+const result = await retryWithBackoff(() => fetchFromAPI('/endpoint'), {
+  maxRetries: 3,
+  initialDelay: 1000,
+  maxDelay: 10000,
+  onRetry: (attempt, error) => {
+    console.log(`Retry attempt ${attempt} after error: ${error.message}`);
+  },
+});
 ```
 
 ### Task-Level Retry Pattern
@@ -187,7 +182,6 @@ async function executeTaskWithRetry(task: Task) {
       });
 
       return result;
-
     } catch (error) {
       console.error(`Task attempt ${attempt}/${maxAttempts} failed:`, error);
 
@@ -232,7 +226,7 @@ class ResilientEventBusClient {
   private maxReconnectAttempts = 5;
 
   async ensureConnected(): Promise<EventBus | InMemoryEventBus> {
-    if (this.bus && await this.bus.isHealthy()) {
+    if (this.bus && (await this.bus.isHealthy())) {
       return this.bus;
     }
 
@@ -247,10 +241,7 @@ class ResilientEventBusClient {
         return this.bus;
       } catch (error) {
         this.reconnectAttempts++;
-        console.error(
-          `[event-bus] Reconnect attempt ${this.reconnectAttempts} failed:`,
-          error
-        );
+        console.error(`[event-bus] Reconnect attempt ${this.reconnectAttempts} failed:`, error);
 
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
           console.error('[event-bus] Max reconnect attempts reached, falling back to in-memory');
@@ -327,7 +318,6 @@ async function claimTaskSafely(taskId: string, agentId: string): Promise<boolean
     });
 
     return false;
-
   } catch (error) {
     console.error(`Failed to claim task ${taskId}:`, error);
 
@@ -362,9 +352,7 @@ async function findSuitableTask(agentCapabilities: string[]): Promise<Task | nul
   for (const task of pendingTasks.tasks) {
     // Check if agent has required capabilities
     const requiredCapabilities = task.tags || [];
-    const hasCapabilities = requiredCapabilities.every(cap =>
-      agentCapabilities.includes(cap)
-    );
+    const hasCapabilities = requiredCapabilities.every((cap) => agentCapabilities.includes(cap));
 
     if (hasCapabilities) {
       const claimed = await claimTaskSafely(task.id, myAgentId);
@@ -400,7 +388,10 @@ async function withTimeout<T>(
   operationName: string
 ): Promise<T> {
   const timeoutPromise = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error(`Operation timed out after ${timeoutMs}ms: ${operationName}`)), timeoutMs)
+    setTimeout(
+      () => reject(new Error(`Operation timed out after ${timeoutMs}ms: ${operationName}`)),
+      timeoutMs
+    )
   );
 
   try {
@@ -466,7 +457,7 @@ class AgentHealthMonitor {
             agentId: agent.id,
             agentName: agent.name,
             lastSeen: this.lastHeartbeat.get(agent.id),
-          }
+          },
         });
 
         // Consider reassigning agent's tasks
@@ -478,14 +469,14 @@ class AgentHealthMonitor {
   async reassignAgentTasks(unhealthyAgentId: string) {
     const tasks = await task_list({
       assignedTo: unhealthyAgentId,
-      status: 'in_progress'
+      status: 'in_progress',
     });
 
     for (const task of tasks.tasks) {
       // Reset task to pending for reassignment
       await task_update(task.id, {
         status: 'pending',
-        assignedTo: null
+        assignedTo: null,
       });
 
       await bus_send({
@@ -520,14 +511,14 @@ async function handleMergeConflict(branch: string): Promise<void> {
       branch,
       conflictType: 'git-merge',
       worktree: process.cwd(),
-    }
+    },
   });
 
   // Attempt automatic resolution for simple conflicts
   try {
     const conflictFiles = await getConflictFiles();
 
-    if (conflictFiles.every(f => isAutoResolvable(f))) {
+    if (conflictFiles.every((f) => isAutoResolvable(f))) {
       console.log('Attempting automatic conflict resolution...');
       await autoResolveConflicts(conflictFiles);
 
@@ -570,7 +561,7 @@ async function acquireFileLock(filePath: string, agentId: string): Promise<boole
         lockType: 'file',
         resource: filePath,
         agentId,
-      }
+      },
     });
 
     // Check if another agent already has the lock
@@ -579,11 +570,12 @@ async function acquireFileLock(filePath: string, agentId: string): Promise<boole
       limit: 50,
     });
 
-    const existingLock = recentMessages.find(msg =>
-      msg.payload.context?.lockType === 'file' &&
-      msg.payload.context?.resource === filePath &&
-      msg.fromAgent.id !== agentId &&
-      isLockStillActive(msg.timestamp)
+    const existingLock = recentMessages.find(
+      (msg) =>
+        msg.payload.context?.lockType === 'file' &&
+        msg.payload.context?.resource === filePath &&
+        msg.fromAgent.id !== agentId &&
+        isLockStillActive(msg.timestamp)
     );
 
     if (existingLock) {
@@ -631,7 +623,7 @@ async function requestHumanIntervention(
       risk_level: 'high',
       context,
       timeout_seconds: 1800, // 30 minutes
-    }
+    },
   });
 
   // Wait for human response
@@ -652,17 +644,13 @@ async function requestHumanIntervention(
 
 ```typescript
 enum EscalationLevel {
-  INFO = 'info',          // Informational, no action needed
-  WARN = 'warn',          // Warning, agent handling it
-  ERROR = 'error',        // Error, agent can't handle
-  CRITICAL = 'critical',  // Critical, immediate attention
+  INFO = 'info', // Informational, no action needed
+  WARN = 'warn', // Warning, agent handling it
+  ERROR = 'error', // Error, agent can't handle
+  CRITICAL = 'critical', // Critical, immediate attention
 }
 
-async function escalate(
-  level: EscalationLevel,
-  title: string,
-  details: string
-): Promise<void> {
+async function escalate(level: EscalationLevel, title: string, details: string): Promise<void> {
   const priority = {
     [EscalationLevel.INFO]: 'low',
     [EscalationLevel.WARN]: 'normal',
@@ -751,19 +739,21 @@ class ErrorMetrics {
 
     // Keep only last hour
     const oneHourAgo = Date.now() - 3600000;
-    const recentTimestamps = timestamps.filter(ts => ts > oneHourAgo);
+    const recentTimestamps = timestamps.filter((ts) => ts > oneHourAgo);
     this.errorRates.set(errorType, recentTimestamps);
 
     // Alert if error rate is high
     if (recentTimestamps.length > 10) {
-      console.warn(`High error rate for ${errorType}: ${recentTimestamps.length} errors in last hour`);
+      console.warn(
+        `High error rate for ${errorType}: ${recentTimestamps.length} errors in last hour`
+      );
     }
   }
 
   getErrorRate(errorType: string): number {
     const timestamps = this.errorRates.get(errorType) || [];
     const oneMinuteAgo = Date.now() - 60000;
-    const recentErrors = timestamps.filter(ts => ts > oneMinuteAgo);
+    const recentErrors = timestamps.filter((ts) => ts > oneMinuteAgo);
     return recentErrors.length;
   }
 
@@ -771,8 +761,9 @@ class ErrorMetrics {
     const metrics = {
       totalErrors: Array.from(this.errorCounts.values()).reduce((a, b) => a + b, 0),
       errorsByType: Object.fromEntries(this.errorCounts),
-      highRateErrors: Array.from(this.errorCounts.keys())
-        .filter(type => this.getErrorRate(type) > 5),
+      highRateErrors: Array.from(this.errorCounts.keys()).filter(
+        (type) => this.getErrorRate(type) > 5
+      ),
     };
 
     await bus_send({
@@ -795,10 +786,11 @@ class ErrorMetrics {
 async function executeTaskWithNetworkRetry(task: Task) {
   try {
     const result = await withTimeout(
-      retryWithBackoff(
-        () => performNetworkOperation(task),
-        { maxRetries: 3, initialDelay: 1000, maxDelay: 10000 }
-      ),
+      retryWithBackoff(() => performNetworkOperation(task), {
+        maxRetries: 3,
+        initialDelay: 1000,
+        maxDelay: 10000,
+      }),
       60000, // 1 minute overall timeout
       'executeTask'
     );
@@ -846,7 +838,10 @@ process.on('uncaughtException', async (error) => {
 ### Scenario 3: Circular Task Dependencies
 
 ```typescript
-async function detectCircularDependency(taskId: string, visited: Set<string> = new Set()): Promise<boolean> {
+async function detectCircularDependency(
+  taskId: string,
+  visited: Set<string> = new Set()
+): Promise<boolean> {
   if (visited.has(taskId)) {
     // Circular dependency detected!
     await bus_send({
@@ -986,11 +981,13 @@ describe('Task execution error handling', () => {
 **Symptoms:** No heartbeat messages, tasks stuck in_progress
 
 **Diagnosis:**
+
 1. Check agent logs: `.rapid/logs/agent-{id}.log`
 2. Check event bus messages: `rapid bus status`
 3. Check system resources: `top`, `free -h`
 
 **Solutions:**
+
 - Restart agent: `rapid agent restart {id}`
 - Increase memory limit in rapid.json
 - Check for deadlocks in agent code
@@ -1000,11 +997,13 @@ describe('Task execution error handling', () => {
 **Symptoms:** Multiple error messages, tasks never complete
 
 **Diagnosis:**
+
 1. Check error logs: `rapid logs approvals --filter error`
 2. Review task dependencies: `rapid task show {id}`
 3. Check for missing capabilities
 
 **Solutions:**
+
 - Fix underlying issue causing failures
 - Reassign to different agent: `rapid task assign {id} {agent-id}`
 - Split into smaller tasks if too complex
@@ -1014,11 +1013,13 @@ describe('Task execution error handling', () => {
 **Symptoms:** "ECONNREFUSED", "Redis timeout" errors
 
 **Diagnosis:**
+
 1. Check Redis status: `rapid status`
 2. Test connection: `redis-cli ping`
 3. Review network logs
 
 **Solutions:**
+
 - Restart Redis: `rapid restart`
 - Check firewall rules
 - Fall back to in-memory mode for local dev

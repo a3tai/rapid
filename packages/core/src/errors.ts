@@ -368,10 +368,7 @@ export function isRAPIDError(error: unknown): error is RAPIDError {
 /**
  * Convert any error to RAPIDError
  */
-export function toRAPIDError(
-  error: unknown,
-  options?: ErrorSubclassOptions
-): RAPIDError {
+export function toRAPIDError(error: unknown, options?: ErrorSubclassOptions): RAPIDError {
   if (isRAPIDError(error)) {
     return error;
   }

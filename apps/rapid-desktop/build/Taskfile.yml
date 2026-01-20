@@ -1,7 +1,7 @@
 version: '3'
 
 vars:
-  APP_NAME: "rapid-desktop"
+  APP_NAME: 'rapid-desktop'
 
 tasks:
   setup:docker:
@@ -11,13 +11,13 @@ tasks:
 
   dev:frontend:
     summary: Runs the frontend in development mode
-    dir: "{{.ROOT_DIR}}/frontend"
+    dir: '{{.ROOT_DIR}}/frontend'
     cmds:
       - npm run dev
 
   build:frontend:
     summary: Builds the frontend
-    dir: "{{.ROOT_DIR}}/frontend"
+    dir: '{{.ROOT_DIR}}/frontend'
     cmds:
       - npm run build
 

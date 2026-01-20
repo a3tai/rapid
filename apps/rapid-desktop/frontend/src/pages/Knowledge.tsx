@@ -1,59 +1,59 @@
-import { useState, useEffect, useCallback } from 'react'
-import { clsx } from 'clsx'
-import { formatDistanceToNow } from 'date-fns'
-import { useData } from '../hooks/useData'
-import { useToast } from '../components/Toast'
+import { useState, useEffect, useCallback } from 'react';
+import { clsx } from 'clsx';
+import { formatDistanceToNow } from 'date-fns';
+import { useData } from '../hooks/useData';
+import { useToast } from '../components/Toast';
 
 interface KnowledgeEntry {
-  key: string
-  value: unknown
-  memoryType: 'episodic' | 'semantic' | 'procedural' | 'decision_trace'
-  confidence: number
-  tags: string[]
-  createdAt: string
-  accessCount?: number
+  key: string;
+  value: unknown;
+  memoryType: 'episodic' | 'semantic' | 'procedural' | 'decision_trace';
+  confidence: number;
+  tags: string[];
+  createdAt: string;
+  accessCount?: number;
 }
 
 interface ContextStats {
-  totalEntries: number
+  totalEntries: number;
   byMemoryType: {
-    episodic: number
-    semantic: number
-    procedural: number
-    decision_trace: number
-  }
+    episodic: number;
+    semantic: number;
+    procedural: number;
+    decision_trace: number;
+  };
 }
 
-const MEMORY_TYPES = ['all', 'episodic', 'semantic', 'procedural', 'decision_trace'] as const
+const MEMORY_TYPES = ['all', 'episodic', 'semantic', 'procedural', 'decision_trace'] as const;
 
 export function KnowledgePage() {
-  const { callTool } = useData()
-  const toast = useToast()
-  const [entries, setEntries] = useState<KnowledgeEntry[]>([])
-  const [stats, setStats] = useState<ContextStats | null>(null)
-  const [filter, setFilter] = useState<typeof MEMORY_TYPES[number]>('all')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [selectedEntry, setSelectedEntry] = useState<KnowledgeEntry | null>(null)
-  const [showAddModal, setShowAddModal] = useState(false)
+  const { callTool } = useData();
+  const toast = useToast();
+  const [entries, setEntries] = useState<KnowledgeEntry[]>([]);
+  const [stats, setStats] = useState<ContextStats | null>(null);
+  const [filter, setFilter] = useState<(typeof MEMORY_TYPES)[number]>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [selectedEntry, setSelectedEntry] = useState<KnowledgeEntry | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const fetchData = useCallback(async () => {
-    setLoading(true)
+    setLoading(true);
     try {
       // Fetch entries
       const listResult = await callTool('context_list', {
         memoryType: filter === 'all' ? undefined : filter,
         limit: 100,
-      })
-      const listData = listResult.structuredContent as { entries?: KnowledgeEntry[] }
-      setEntries(listData?.entries || [])
+      });
+      const listData = listResult.structuredContent as { entries?: KnowledgeEntry[] };
+      setEntries(listData?.entries || []);
 
       // Fetch stats
-      const statsResult = await callTool('context_stats', {})
-      const statsData = statsResult.structuredContent as ContextStats
-      setStats(statsData)
+      const statsResult = await callTool('context_stats', {});
+      const statsData = statsResult.structuredContent as ContextStats;
+      setStats(statsData);
     } catch (err) {
-      console.warn('Failed to fetch knowledge:', err)
+      console.warn('Failed to fetch knowledge:', err);
       // Mock data for demo
       setEntries([
         {
@@ -72,43 +72,43 @@ export function KnowledgePage() {
           tags: ['preferences', 'formatting'],
           createdAt: new Date(Date.now() - 172800000).toISOString(),
         },
-      ])
+      ]);
       setStats({
         totalEntries: 2,
         byMemoryType: { episodic: 0, semantic: 1, procedural: 1, decision_trace: 0 },
-      })
+      });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [callTool, filter])
+  }, [callTool, filter]);
 
   useEffect(() => {
-    fetchData()
-  }, [fetchData])
+    fetchData();
+  }, [fetchData]);
 
   const filteredEntries = entries.filter((entry) => {
     if (searchQuery) {
-      const query = searchQuery.toLowerCase()
+      const query = searchQuery.toLowerCase();
       return (
         entry.key.toLowerCase().includes(query) ||
         entry.tags.some((t) => t.toLowerCase().includes(query)) ||
         String(entry.value).toLowerCase().includes(query)
-      )
+      );
     }
-    return true
-  })
+    return true;
+  });
 
   const handleForget = async (key: string) => {
     try {
-      await callTool('context_forget', { key })
-      toast.success('Knowledge Removed', `"${key}" has been forgotten`)
-      await fetchData()
-      setSelectedEntry(null)
+      await callTool('context_forget', { key });
+      toast.success('Knowledge Removed', `"${key}" has been forgotten`);
+      await fetchData();
+      setSelectedEntry(null);
     } catch (err) {
-      toast.error('Failed to Remove', err instanceof Error ? err.message : 'Unknown error')
-      console.error('Failed to forget:', err)
+      toast.error('Failed to Remove', err instanceof Error ? err.message : 'Unknown error');
+      console.error('Failed to forget:', err);
     }
-  }
+  };
 
   return (
     <div className="space-y-6 h-full flex flex-col">
@@ -116,16 +116,16 @@ export function KnowledgePage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold">Context Engine</h2>
-          <p className="text-rapid-muted text-sm mt-1">
-            Stored knowledge and learned patterns
-          </p>
+          <p className="text-rapid-muted text-sm mt-1">Stored knowledge and learned patterns</p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="btn btn-primary"
-        >
+        <button onClick={() => setShowAddModal(true)} className="btn btn-primary">
           <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+            />
           </svg>
           Add Knowledge
         </button>
@@ -244,7 +244,12 @@ export function KnowledgePage() {
                 className="text-rapid-muted hover:text-rapid-text"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
@@ -260,7 +265,9 @@ export function KnowledgePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-rapid-muted mb-1">Confidence</label>
+                <label className="block text-sm font-medium text-rapid-muted mb-1">
+                  Confidence
+                </label>
                 <div className="flex items-center gap-2">
                   <div className="flex-1 h-2 bg-rapid-bg rounded-full overflow-hidden">
                     <div
@@ -315,18 +322,18 @@ export function KnowledgePage() {
                 memoryType,
                 tags,
                 confidence: 0.8,
-              })
-              toast.success('Knowledge Added', `"${key}" has been stored`)
-              await fetchData()
+              });
+              toast.success('Knowledge Added', `"${key}" has been stored`);
+              await fetchData();
             } catch (err) {
-              toast.error('Failed to Add', err instanceof Error ? err.message : 'Unknown error')
-              throw err
+              toast.error('Failed to Add', err instanceof Error ? err.message : 'Unknown error');
+              throw err;
             }
           }}
         />
       )}
     </div>
-  )
+  );
 }
 
 function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
@@ -336,14 +343,14 @@ function StatCard({ label, value, color }: { label: string; value: number; color
     blue: 'text-blue-400',
     green: 'text-green-400',
     yellow: 'text-yellow-400',
-  }
+  };
 
   return (
     <div className="card p-3">
       <div className="text-sm text-rapid-muted">{label}</div>
       <div className={clsx('text-2xl font-semibold', colorClasses[color])}>{value}</div>
     </div>
-  )
+  );
 }
 
 function KnowledgeRow({
@@ -351,9 +358,9 @@ function KnowledgeRow({
   isSelected,
   onClick,
 }: {
-  entry: KnowledgeEntry
-  isSelected: boolean
-  onClick: () => void
+  entry: KnowledgeEntry;
+  isSelected: boolean;
+  onClick: () => void;
 }) {
   return (
     <div
@@ -376,9 +383,7 @@ function KnowledgeRow({
           </div>
         </div>
         <div className="ml-4 text-right">
-          <div className="text-sm text-rapid-muted">
-            {Math.round(entry.confidence * 100)}%
-          </div>
+          <div className="text-sm text-rapid-muted">{Math.round(entry.confidence * 100)}%</div>
         </div>
       </div>
       {entry.tags.length > 0 && (
@@ -394,7 +399,7 @@ function KnowledgeRow({
         </div>
       )}
     </div>
-  )
+  );
 }
 
 function getTypeBadge(type: KnowledgeEntry['memoryType']): string {
@@ -403,36 +408,39 @@ function getTypeBadge(type: KnowledgeEntry['memoryType']): string {
     semantic: 'bg-blue-500/20 text-blue-400',
     procedural: 'bg-green-500/20 text-green-400',
     decision_trace: 'bg-yellow-500/20 text-yellow-400',
-  }
-  return badges[type] || 'badge-neutral'
+  };
+  return badges[type] || 'badge-neutral';
 }
 
 function AddKnowledgeModal({
   onClose,
   onAdd,
 }: {
-  onClose: () => void
-  onAdd: (key: string, value: string, memoryType: string, tags: string[]) => Promise<void>
+  onClose: () => void;
+  onAdd: (key: string, value: string, memoryType: string, tags: string[]) => Promise<void>;
 }) {
-  const [key, setKey] = useState('')
-  const [value, setValue] = useState('')
-  const [memoryType, setMemoryType] = useState('semantic')
-  const [tagsInput, setTagsInput] = useState('')
-  const [isAdding, setIsAdding] = useState(false)
+  const [key, setKey] = useState('');
+  const [value, setValue] = useState('');
+  const [memoryType, setMemoryType] = useState('semantic');
+  const [tagsInput, setTagsInput] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
 
   const handleAdd = async () => {
-    if (!key.trim() || !value.trim()) return
-    setIsAdding(true)
+    if (!key.trim() || !value.trim()) return;
+    setIsAdding(true);
     try {
-      const tags = tagsInput.split(',').map((t) => t.trim()).filter(Boolean)
-      await onAdd(key, value, memoryType, tags)
-      onClose()
+      const tags = tagsInput
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
+      await onAdd(key, value, memoryType, tags);
+      onClose();
     } catch (err) {
-      console.error('Failed to add knowledge:', err)
+      console.error('Failed to add knowledge:', err);
     } finally {
-      setIsAdding(false)
+      setIsAdding(false);
     }
-  }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -508,5 +516,5 @@ function AddKnowledgeModal({
         </div>
       </div>
     </div>
-  )
+  );
 }

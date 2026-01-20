@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
-import { clsx } from 'clsx'
-import { Skeleton } from '../components/Skeleton'
-import { McpServerManager } from '../components/McpServerManager'
-import { useConfig, useConfigValidation, type RapidConfig } from '../hooks/useConfig'
+import { useState, useEffect } from 'react';
+import { clsx } from 'clsx';
+import { Skeleton } from '../components/Skeleton';
+import { McpServerManager } from '../components/McpServerManager';
+import { useConfig, useConfigValidation, type RapidConfig } from '../hooks/useConfig';
 
 /**
  * Configuration management page
@@ -15,58 +15,58 @@ import { useConfig, useConfigValidation, type RapidConfig } from '../hooks/useCo
  * - Error handling and user feedback
  */
 export function ConfigPage() {
-  const { config, loading, error, saving, saveError, isDirty, saveConfig } = useConfig()
-  const { validate } = useConfigValidation()
-  const [activeTab, setActiveTab] = useState<'general' | 'personas' | 'mcp' | 'raw'>('general')
-  const [formData, setFormData] = useState<RapidConfig | null>(null)
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  const { config, loading, error, saving, saveError, isDirty, saveConfig } = useConfig();
+  const { validate } = useConfigValidation();
+  const [activeTab, setActiveTab] = useState<'general' | 'personas' | 'mcp' | 'raw'>('general');
+  const [formData, setFormData] = useState<RapidConfig | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Initialize form when config loads
   useEffect(() => {
     if (config && !formData) {
-      setFormData(config)
+      setFormData(config);
     }
-  }, [config, formData])
+  }, [config, formData]);
 
   const handleSave = async () => {
-    if (!formData) return
+    if (!formData) return;
 
     // Validate
-    const validationErrors = validate(formData)
+    const validationErrors = validate(formData);
     if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors)
-      return
+      setErrors(validationErrors);
+      return;
     }
 
     // Save
-    const success = await saveConfig(formData)
+    const success = await saveConfig(formData);
     if (!success && saveError) {
-      setErrors({ _form: saveError.message })
+      setErrors({ _form: saveError.message });
     }
-  }
+  };
 
   const handleFieldChange = (path: string, value: unknown) => {
-    if (!formData) return
+    if (!formData) return;
 
     setErrors((prev) => {
-      const newErrors = { ...prev }
-      delete newErrors[path]
-      return newErrors
-    })
+      const newErrors = { ...prev };
+      delete newErrors[path];
+      return newErrors;
+    });
 
     // Deep set value in formData
-    const keys = path.split('.')
-    const updated = JSON.parse(JSON.stringify(formData))
-    let obj = updated
+    const keys = path.split('.');
+    const updated = JSON.parse(JSON.stringify(formData));
+    let obj = updated;
     for (let i = 0; i < keys.length - 1; i++) {
-      obj = obj[keys[i]] = obj[keys[i]] || {}
+      obj = obj[keys[i]] = obj[keys[i]] || {};
     }
-    obj[keys[keys.length - 1]] = value
-    setFormData(updated)
-  }
+    obj[keys[keys.length - 1]] = value;
+    setFormData(updated);
+  };
 
   if (loading) {
-    return <ConfigSkeleton />
+    return <ConfigSkeleton />;
   }
 
   if (error && !config) {
@@ -77,15 +77,15 @@ export function ConfigPage() {
           <p className="text-sm text-red-400 mt-1">{error.message}</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (!formData) {
-    return null
+    return null;
   }
 
-  const personas = formData?.personas || {}
-  const mcpServers = formData?.mcp?.servers || {}
+  const personas = formData?.personas || {};
+  const mcpServers = formData?.mcp?.servers || {};
 
   return (
     <div className="space-y-6">
@@ -93,9 +93,7 @@ export function ConfigPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold">Configuration</h2>
-          <p className="text-rapid-muted text-sm mt-1">
-            Manage your rapid.json settings
-          </p>
+          <p className="text-rapid-muted text-sm mt-1">Manage your rapid.json settings</p>
         </div>
         <button
           onClick={handleSave}
@@ -108,15 +106,31 @@ export function ConfigPage() {
           {saving ? (
             <>
               <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
               </svg>
               Saving...
             </>
           ) : (
             <>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
+                />
               </svg>
               Save Changes
             </>
@@ -152,30 +166,16 @@ export function ConfigPage() {
       {/* Tab content */}
       <div className="card p-6">
         {activeTab === 'general' && (
-          <GeneralSettings
-            config={formData}
-            errors={errors}
-            onChange={handleFieldChange}
-          />
+          <GeneralSettings config={formData} errors={errors} onChange={handleFieldChange} />
         )}
         {activeTab === 'personas' && (
-          <PersonaSettings
-            personas={personas}
-            errors={errors}
-            onChange={handleFieldChange}
-          />
+          <PersonaSettings personas={personas} errors={errors} onChange={handleFieldChange} />
         )}
-        {activeTab === 'mcp' && (
-          <McpServerManager
-            servers={mcpServers}
-          />
-        )}
-        {activeTab === 'raw' && (
-          <RawConfig config={formData} />
-        )}
+        {activeTab === 'mcp' && <McpServerManager servers={mcpServers} />}
+        {activeTab === 'raw' && <RawConfig config={formData} />}
       </div>
     </div>
-  )
+  );
 }
 
 function ConfigSkeleton() {
@@ -198,13 +198,13 @@ function ConfigSkeleton() {
         <Skeleton height={200} width="100%" />
       </div>
     </div>
-  )
+  );
 }
 
 interface GeneralSettingsProps {
-  config: RapidConfig
-  errors: Record<string, string>
-  onChange: (path: string, value: unknown) => void
+  config: RapidConfig;
+  errors: Record<string, string>;
+  onChange: (path: string, value: unknown) => void;
 }
 
 function GeneralSettings({ config, errors, onChange }: GeneralSettingsProps) {
@@ -219,10 +219,7 @@ function GeneralSettings({ config, errors, onChange }: GeneralSettingsProps) {
               type="text"
               value={config.project?.name || ''}
               onChange={(e) => onChange('project.name', e.target.value)}
-              className={clsx(
-                'input w-full',
-                errors['project.name'] && 'border-red-500'
-              )}
+              className={clsx('input w-full', errors['project.name'] && 'border-red-500')}
             />
             {errors['project.name'] && (
               <p className="text-xs text-red-400 mt-1">{errors['project.name']}</p>
@@ -234,10 +231,7 @@ function GeneralSettings({ config, errors, onChange }: GeneralSettingsProps) {
               type="text"
               value={config.project?.root || ''}
               onChange={(e) => onChange('project.root', e.target.value)}
-              className={clsx(
-                'input w-full',
-                errors['project.root'] && 'border-red-500'
-              )}
+              className={clsx('input w-full', errors['project.root'] && 'border-red-500')}
             />
             {errors['project.root'] && (
               <p className="text-xs text-red-400 mt-1">{errors['project.root']}</p>
@@ -285,21 +279,21 @@ function GeneralSettings({ config, errors, onChange }: GeneralSettingsProps) {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 interface PersonaSettingsProps {
-  personas: Record<string, { systemPrompt?: string; capabilities?: string[] }>
-  errors: Record<string, string>
-  onChange: (path: string, value: unknown) => void
+  personas: Record<string, { systemPrompt?: string; capabilities?: string[] }>;
+  errors: Record<string, string>;
+  onChange: (path: string, value: unknown) => void;
 }
 
 function PersonaSettings({ personas, errors, onChange }: PersonaSettingsProps) {
   const [selectedPersona, setSelectedPersona] = useState<string | null>(
     Object.keys(personas)[0] || null
-  )
+  );
 
-  const persona = selectedPersona ? personas[selectedPersona] : null
+  const persona = selectedPersona ? personas[selectedPersona] : null;
 
   return (
     <div>
@@ -377,19 +371,16 @@ function PersonaSettings({ personas, errors, onChange }: PersonaSettingsProps) {
         </div>
       )}
     </div>
-  )
+  );
 }
-
 
 function RawConfig({ config }: { config: RapidConfig }) {
   return (
     <div>
-      <p className="text-sm text-rapid-muted mb-4">
-        Raw rapid.json configuration
-      </p>
+      <p className="text-sm text-rapid-muted mb-4">Raw rapid.json configuration</p>
       <pre className="p-4 bg-rapid-bg rounded-lg overflow-auto text-sm font-mono text-rapid-text max-h-[500px]">
         {JSON.stringify(config, null, 2)}
       </pre>
     </div>
-  )
+  );
 }

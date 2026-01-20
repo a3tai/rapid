@@ -192,15 +192,15 @@ AI agent configuration.
 
 Each agent in `available` supports:
 
-| Property                | Type    | Required | Description                                        |
-| ----------------------- | ------- | -------- | -------------------------------------------------- |
-| `cli`                   | string  | Yes      | CLI command to execute                             |
-| `instructionFile`       | string  | No       | Path to instruction file for this agent            |
-| `envVars`               | array   | No       | Required environment variables                     |
-| `installCmd`            | string  | No       | Command to install the CLI tool                    |
-| `args`                  | array   | No       | Additional CLI arguments                           |
-| `yolo`                  | boolean | No       | Enable auto-accept mode (skip confirmations)       |
-| `readsInstructionFiles` | boolean | No       | Whether agent natively reads instruction files     |
+| Property                | Type    | Required | Description                                    |
+| ----------------------- | ------- | -------- | ---------------------------------------------- |
+| `cli`                   | string  | Yes      | CLI command to execute                         |
+| `instructionFile`       | string  | No       | Path to instruction file for this agent        |
+| `envVars`               | array   | No       | Required environment variables                 |
+| `installCmd`            | string  | No       | Command to install the CLI tool                |
+| `args`                  | array   | No       | Additional CLI arguments                       |
+| `yolo`                  | boolean | No       | Enable auto-accept mode (skip confirmations)   |
+| `readsInstructionFiles` | boolean | No       | Whether agent natively reads instruction files |
 
 ### Example
 
@@ -302,11 +302,11 @@ When running `rapid dev`, RAPID writes the enabled MCP servers to `configFile` a
 
 API gateway configuration for proxying and monitoring agent requests.
 
-| Property  | Type    | Default   | Description                              |
-| --------- | ------- | --------- | ---------------------------------------- |
-| `enabled` | boolean | `false`   | Enable the API gateway                   |
+| Property  | Type    | Default   | Description                                |
+| --------- | ------- | --------- | ------------------------------------------ |
+| `enabled` | boolean | `false`   | Enable the API gateway                     |
 | `mode`    | enum    | `"proxy"` | `"proxy"`, `"managed"`, or `"passthrough"` |
-| `port`    | number  | `3100`    | Gateway port                             |
+| `port`    | number  | `3100`    | Gateway port                               |
 
 ### Example
 
@@ -325,11 +325,11 @@ API gateway configuration for proxying and monitoring agent requests.
 
 Inter-agent communication via event bus.
 
-| Property  | Type    | Default | Description                    |
-| --------- | ------- | ------- | ------------------------------ |
-| `enabled` | boolean | `false` | Enable the event bus           |
-| `persist` | boolean | `false` | Persist messages to disk       |
-| `ttl`     | number  | `3600`  | Message TTL in seconds         |
+| Property  | Type    | Default | Description              |
+| --------- | ------- | ------- | ------------------------ |
+| `enabled` | boolean | `false` | Enable the event bus     |
+| `persist` | boolean | `false` | Persist messages to disk |
+| `ttl`     | number  | `3600`  | Message TTL in seconds   |
 
 ### Example
 

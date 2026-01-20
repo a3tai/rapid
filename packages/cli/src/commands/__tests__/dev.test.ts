@@ -180,18 +180,14 @@ describe('rapid dev - Agent Selection', () => {
     it('should validate all agents in multi-agent list', () => {
       const selectedAgents = ['claude', 'architect'];
       const availableAgents = ['claude', 'architect', 'test-writer'];
-      const allValid = selectedAgents.every((a) =>
-        availableAgents.includes(a)
-      );
+      const allValid = selectedAgents.every((a) => availableAgents.includes(a));
       expect(allValid).toBe(true);
     });
 
     it('should fail if any agent in list not found', () => {
       const selectedAgents = ['claude', 'unknown'];
       const availableAgents = ['claude', 'architect'];
-      const allValid = selectedAgents.every((a) =>
-        availableAgents.includes(a)
-      );
+      const allValid = selectedAgents.every((a) => availableAgents.includes(a));
       expect(allValid).toBe(false);
     });
 
@@ -455,30 +451,22 @@ describe('rapid dev - Tmux Session Management', () => {
   describe('Layout Options', () => {
     it('should support tiled layout', () => {
       const layout = 'tiled';
-      expect(['tiled', 'horizontal', 'vertical', 'main-vertical']).toContain(
-        layout
-      );
+      expect(['tiled', 'horizontal', 'vertical', 'main-vertical']).toContain(layout);
     });
 
     it('should support horizontal layout', () => {
       const layout = 'horizontal';
-      expect(['tiled', 'horizontal', 'vertical', 'main-vertical']).toContain(
-        layout
-      );
+      expect(['tiled', 'horizontal', 'vertical', 'main-vertical']).toContain(layout);
     });
 
     it('should support vertical layout', () => {
       const layout = 'vertical';
-      expect(['tiled', 'horizontal', 'vertical', 'main-vertical']).toContain(
-        layout
-      );
+      expect(['tiled', 'horizontal', 'vertical', 'main-vertical']).toContain(layout);
     });
 
     it('should support main-vertical layout', () => {
       const layout = 'main-vertical';
-      expect(['tiled', 'horizontal', 'vertical', 'main-vertical']).toContain(
-        layout
-      );
+      expect(['tiled', 'horizontal', 'vertical', 'main-vertical']).toContain(layout);
     });
 
     it('should use appropriate layout for single agent', () => {

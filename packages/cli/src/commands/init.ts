@@ -934,7 +934,11 @@ export const initCommand = new Command('init')
       createDevcontainerFlag = options.devcontainer !== false;
       usePrebuilt = options.prebuilt === true;
       // Default team config in non-interactive mode
-      teamConfig = { autoSpawn: true, personas: ['orchestrator', 'worker'], orchestrator: 'orchestrator' };
+      teamConfig = {
+        autoSpawn: true,
+        personas: ['orchestrator', 'worker'],
+        orchestrator: 'orchestrator',
+      };
     }
 
     const spinner2 = ora('Initializing RAPID...').start();

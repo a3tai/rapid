@@ -20,6 +20,7 @@ Complete guide to coordinating multiple AI agents working in parallel on RAPID p
 ## Overview
 
 RAPID enables multiple AI agents to work concurrently on different tasks using:
+
 - **Event Bus** - Real-time coordination and messaging
 - **Task Management** - Distributed task queue with dependencies
 - **Worktree Isolation** - Separate git branches for conflict-free parallel work
@@ -36,6 +37,7 @@ RAPID enables multiple AI agents to work concurrently on different tasks using:
 ### When to Use Concurrent Execution
 
 **Good Use Cases:**
+
 - Developing multiple independent features simultaneously
 - Running tests while implementing new functionality
 - Parallel documentation updates across multiple files
@@ -43,6 +45,7 @@ RAPID enables multiple AI agents to work concurrently on different tasks using:
 - Refactoring + test suite expansion
 
 **Not Recommended:**
+
 - Single-file edits where merge conflicts are inevitable
 - Tasks with tight coupling (one depends on another's output)
 - Small projects where overhead exceeds benefits
@@ -59,27 +62,28 @@ All agents communicate via Redis-backed event bus:
 ```typescript
 // Agent registers on bus
 await bus_register({
-  agentName: "claude-worker-1"
+  agentName: 'claude-worker-1',
 });
 
 // Send coordination message
 await bus_send({
-  type: "coordination",
+  type: 'coordination',
   agentId: myAgentId,
-  agentName: "claude-worker-1",
-  title: "Starting auth feature",
-  content: "Working on feat/auth branch in .worktrees/auth-123",
-  priority: "normal",
-  actionable: false
+  agentName: 'claude-worker-1',
+  title: 'Starting auth feature',
+  content: 'Working on feat/auth branch in .worktrees/auth-123',
+  priority: 'normal',
+  actionable: false,
 });
 
 // Poll for messages
 const messages = await bus_poll({
-  limit: 10
+  limit: 10,
 });
 ```
 
 **Message Types:**
+
 - `coordination` - Inter-agent communication
 - `completion` - Task finished notifications
 - `error` - Error reporting
@@ -94,26 +98,26 @@ Tasks are created with dependencies, capabilities, and deadlines:
 ```typescript
 // Orchestrator creates task
 await task_create({
-  title: "Implement authentication API",
-  description: "Add JWT-based auth with refresh tokens",
-  priority: "high",
-  createdBy: "orchestrator",
-  requiredCapabilities: ["read", "write", "bash", "test"],
+  title: 'Implement authentication API',
+  description: 'Add JWT-based auth with refresh tokens',
+  priority: 'high',
+  createdBy: 'orchestrator',
+  requiredCapabilities: ['read', 'write', 'bash', 'test'],
   estimatedDuration: 3600,
-  dependencies: ["task-id-for-user-model"],
-  deadline: "2026-01-20T18:00:00Z"
+  dependencies: ['task-id-for-user-model'],
+  deadline: '2026-01-20T18:00:00Z',
 });
 
 // Worker claims task
 await task_claim({
-  id: "task-id",
-  agentId: myAgentId
+  id: 'task-id',
+  agentId: myAgentId,
 });
 
 // Worker completes task
 await task_complete({
-  id: "task-id",
-  summary: "Auth API implemented with tests passing"
+  id: 'task-id',
+  summary: 'Auth API implemented with tests passing',
 });
 ```
 
@@ -133,6 +137,7 @@ project/
 ```
 
 **Key Benefits:**
+
 - No merge conflicts during parallel development
 - Independent dependency installation
 - Isolated testing and builds
@@ -149,25 +154,25 @@ Tasks can depend on other tasks completing first:
 ```typescript
 // Task 1: Create database schema
 const schemaTask = await task_create({
-  title: "Create user database schema",
-  createdBy: "orchestrator",
-  estimatedDuration: 900
+  title: 'Create user database schema',
+  createdBy: 'orchestrator',
+  estimatedDuration: 900,
 });
 
 // Task 2: Depends on Task 1
 const apiTask = await task_create({
-  title: "Implement user API endpoints",
-  createdBy: "orchestrator",
+  title: 'Implement user API endpoints',
+  createdBy: 'orchestrator',
   dependencies: [schemaTask.task.id],
-  estimatedDuration: 1800
+  estimatedDuration: 1800,
 });
 
 // Task 3: Depends on Task 2
 const testTask = await task_create({
-  title: "Add API integration tests",
-  createdBy: "orchestrator",
+  title: 'Add API integration tests',
+  createdBy: 'orchestrator',
   dependencies: [apiTask.task.id],
-  estimatedDuration: 1200
+  estimatedDuration: 1200,
 });
 ```
 
@@ -187,19 +192,19 @@ Multiple tasks can depend on the same prerequisite:
 
 ```typescript
 const coreTask = await task_create({
-  title: "Implement core auth logic",
-  createdBy: "orchestrator"
+  title: 'Implement core auth logic',
+  createdBy: 'orchestrator',
 });
 
 // Both can run in parallel after coreTask completes
 const apiTask = await task_create({
-  title: "Add API endpoints",
-  dependencies: [coreTask.task.id]
+  title: 'Add API endpoints',
+  dependencies: [coreTask.task.id],
 });
 
 const testsTask = await task_create({
-  title: "Add unit tests",
-  dependencies: [coreTask.task.id]
+  title: 'Add unit tests',
+  dependencies: [coreTask.task.id],
 });
 ```
 
@@ -216,16 +221,16 @@ Tasks require specific agent capabilities:
 ```typescript
 // Task requiring bash execution
 await task_create({
-  title: "Run integration tests",
-  requiredCapabilities: ["bash", "read"],
-  createdBy: "orchestrator"
+  title: 'Run integration tests',
+  requiredCapabilities: ['bash', 'read'],
+  createdBy: 'orchestrator',
 });
 
 // Task requiring web search
 await task_create({
-  title: "Research latest security best practices",
-  requiredCapabilities: ["web_search", "write"],
-  createdBy: "orchestrator"
+  title: 'Research latest security best practices',
+  requiredCapabilities: ['web_search', 'write'],
+  createdBy: 'orchestrator',
 });
 ```
 
@@ -243,24 +248,25 @@ Multiple features developed simultaneously with no dependencies:
 // Orchestrator creates parallel tasks
 const tasks = await Promise.all([
   task_create({
-    title: "Implement user authentication",
-    createdBy: "orchestrator",
-    requiredCapabilities: ["read", "write", "bash"]
+    title: 'Implement user authentication',
+    createdBy: 'orchestrator',
+    requiredCapabilities: ['read', 'write', 'bash'],
   }),
   task_create({
-    title: "Add email notification system",
-    createdBy: "orchestrator",
-    requiredCapabilities: ["read", "write"]
+    title: 'Add email notification system',
+    createdBy: 'orchestrator',
+    requiredCapabilities: ['read', 'write'],
   }),
   task_create({
-    title: "Create admin dashboard UI",
-    createdBy: "orchestrator",
-    requiredCapabilities: ["read", "write", "web_fetch"]
-  })
+    title: 'Create admin dashboard UI',
+    createdBy: 'orchestrator',
+    requiredCapabilities: ['read', 'write', 'web_fetch'],
+  }),
 ]);
 ```
 
 **Timeline:**
+
 ```
 Worker 1: [========== Auth Feature ==========]
 Worker 2: [====== Email System ======]
@@ -276,33 +282,34 @@ Tasks flow through stages with dependencies:
 ```typescript
 // Stage 1: Design
 const designTask = await task_create({
-  title: "Design API schema",
-  createdBy: "orchestrator"
+  title: 'Design API schema',
+  createdBy: 'orchestrator',
 });
 
 // Stage 2: Implementation (depends on design)
 const implTask = await task_create({
-  title: "Implement API",
+  title: 'Implement API',
   dependencies: [designTask.id],
-  createdBy: "orchestrator"
+  createdBy: 'orchestrator',
 });
 
 // Stage 3: Testing (depends on implementation)
 const testTask = await task_create({
-  title: "Add tests",
+  title: 'Add tests',
   dependencies: [implTask.id],
-  createdBy: "orchestrator"
+  createdBy: 'orchestrator',
 });
 
 // Stage 4: Documentation (depends on implementation)
 const docsTask = await task_create({
-  title: "Write API documentation",
+  title: 'Write API documentation',
   dependencies: [implTask.id],
-  createdBy: "orchestrator"
+  createdBy: 'orchestrator',
 });
 ```
 
 **Timeline:**
+
 ```
 Designer:  [Design]
 Worker 1:          [========= Implement =========]
@@ -318,28 +325,29 @@ Parallel processing with aggregation:
 
 ```typescript
 // Map: Parallel code reviews
-const files = ["auth.ts", "api.ts", "db.ts", "util.ts"];
+const files = ['auth.ts', 'api.ts', 'db.ts', 'util.ts'];
 const reviewTasks = await Promise.all(
-  files.map(file =>
+  files.map((file) =>
     task_create({
       title: `Review ${file}`,
       description: `Security and quality review of ${file}`,
-      createdBy: "orchestrator",
-      requiredCapabilities: ["read", "grep"],
-      tags: ["review", "security"]
+      createdBy: 'orchestrator',
+      requiredCapabilities: ['read', 'grep'],
+      tags: ['review', 'security'],
     })
   )
 );
 
 // Reduce: Aggregate results
 const aggregateTask = await task_create({
-  title: "Aggregate code review findings",
-  dependencies: reviewTasks.map(t => t.task.id),
-  createdBy: "orchestrator"
+  title: 'Aggregate code review findings',
+  dependencies: reviewTasks.map((t) => t.task.id),
+  createdBy: 'orchestrator',
 });
 ```
 
 **Timeline:**
+
 ```
 Worker 1: [Review auth.ts]
 Worker 2: [Review api.ts]
@@ -356,18 +364,18 @@ One agent runs tests while others implement features:
 ```typescript
 // Continuous test runner (runs after each feature PR)
 const testRunnerTask = await task_create({
-  title: "Run full test suite",
-  createdBy: "orchestrator",
-  requiredCapabilities: ["bash"],
-  priority: "high",
+  title: 'Run full test suite',
+  createdBy: 'orchestrator',
+  requiredCapabilities: ['bash'],
+  priority: 'high',
   // Re-create this task after completion
-  metadata: { recurring: true }
+  metadata: { recurring: true },
 });
 
 // Feature development (parallel)
 const featureTasks = await Promise.all([
-  task_create({ title: "Add login endpoint", createdBy: "orchestrator" }),
-  task_create({ title: "Add logout endpoint", createdBy: "orchestrator" })
+  task_create({ title: 'Add login endpoint', createdBy: 'orchestrator' }),
+  task_create({ title: 'Add logout endpoint', createdBy: 'orchestrator' }),
 ]);
 ```
 
@@ -504,7 +512,7 @@ rapid worktree prune
 
 ```typescript
 // Orchestrator creates review tasks
-const files = await glob("src/**/*.ts");
+const files = await glob('src/**/*.ts');
 const securityReviews = [];
 const perfReviews = [];
 
@@ -514,10 +522,10 @@ for (const file of files) {
     task_create({
       title: `Security review: ${file}`,
       description: `Check for security vulnerabilities in ${file}`,
-      createdBy: "orchestrator",
-      requiredCapabilities: ["read", "grep"],
-      tags: ["security", "review"],
-      priority: "high"
+      createdBy: 'orchestrator',
+      requiredCapabilities: ['read', 'grep'],
+      tags: ['security', 'review'],
+      priority: 'high',
     })
   );
 
@@ -526,22 +534,19 @@ for (const file of files) {
     task_create({
       title: `Performance review: ${file}`,
       description: `Identify performance bottlenecks in ${file}`,
-      createdBy: "orchestrator",
-      requiredCapabilities: ["read", "grep"],
-      tags: ["performance", "review"],
-      priority: "normal"
+      createdBy: 'orchestrator',
+      requiredCapabilities: ['read', 'grep'],
+      tags: ['performance', 'review'],
+      priority: 'normal',
     })
   );
 }
 
 // Aggregate findings
 const aggregateTask = await task_create({
-  title: "Aggregate review findings",
-  dependencies: [
-    ...securityReviews.map(t => t.task.id),
-    ...perfReviews.map(t => t.task.id)
-  ],
-  createdBy: "orchestrator"
+  title: 'Aggregate review findings',
+  dependencies: [...securityReviews.map((t) => t.task.id), ...perfReviews.map((t) => t.task.id)],
+  createdBy: 'orchestrator',
 });
 ```
 
@@ -561,25 +566,25 @@ Orchestrator:                    [Aggregate]
 ```typescript
 // Security reviewer finds issue
 await bus_send({
-  type: "coordination",
-  agentId: "security-reviewer-1",
-  title: "Critical security issue found",
-  content: "SQL injection vulnerability in auth.ts:142",
-  priority: "urgent",
-  actionable: true
+  type: 'coordination',
+  agentId: 'security-reviewer-1',
+  title: 'Critical security issue found',
+  content: 'SQL injection vulnerability in auth.ts:142',
+  priority: 'urgent',
+  actionable: true,
 });
 
 // Orchestrator receives and creates fix task
 const messages = await bus_messages({
-  types: ["coordination"],
-  limit: 10
+  types: ['coordination'],
+  limit: 10,
 });
 
-if (messages.find(m => m.priority === "urgent")) {
+if (messages.find((m) => m.priority === 'urgent')) {
   await task_create({
-    title: "Fix SQL injection in auth.ts",
-    priority: "urgent",
-    createdBy: "orchestrator"
+    title: 'Fix SQL injection in auth.ts',
+    priority: 'urgent',
+    createdBy: 'orchestrator',
   });
 }
 ```
@@ -593,58 +598,54 @@ if (messages.find(m => m.priority === "urgent")) {
 ```typescript
 // 1. Database schema (foundation)
 const schemaTask = await task_create({
-  title: "Create checkout database schema",
+  title: 'Create checkout database schema',
   estimatedDuration: 900,
-  createdBy: "orchestrator"
+  createdBy: 'orchestrator',
 });
 
 // 2. Parallel API implementations (depend on schema)
 const [cartAPI, paymentAPI, orderAPI] = await Promise.all([
   task_create({
-    title: "Implement cart API",
+    title: 'Implement cart API',
     dependencies: [schemaTask.task.id],
-    createdBy: "orchestrator"
+    createdBy: 'orchestrator',
   }),
   task_create({
-    title: "Implement payment API",
+    title: 'Implement payment API',
     dependencies: [schemaTask.task.id],
-    createdBy: "orchestrator"
+    createdBy: 'orchestrator',
   }),
   task_create({
-    title: "Implement order API",
+    title: 'Implement order API',
     dependencies: [schemaTask.task.id],
-    createdBy: "orchestrator"
-  })
+    createdBy: 'orchestrator',
+  }),
 ]);
 
 // 3. Parallel testing (depend on APIs)
 const [cartTests, paymentTests, orderTests] = await Promise.all([
   task_create({
-    title: "Add cart API tests",
+    title: 'Add cart API tests',
     dependencies: [cartAPI.task.id],
-    createdBy: "orchestrator"
+    createdBy: 'orchestrator',
   }),
   task_create({
-    title: "Add payment API tests",
+    title: 'Add payment API tests',
     dependencies: [paymentAPI.task.id],
-    createdBy: "orchestrator"
+    createdBy: 'orchestrator',
   }),
   task_create({
-    title: "Add order API tests",
+    title: 'Add order API tests',
     dependencies: [orderAPI.task.id],
-    createdBy: "orchestrator"
-  })
+    createdBy: 'orchestrator',
+  }),
 ]);
 
 // 4. Integration (depend on all tests)
 const integrationTask = await task_create({
-  title: "Integrate checkout flow end-to-end",
-  dependencies: [
-    cartTests.task.id,
-    paymentTests.task.id,
-    orderTests.task.id
-  ],
-  createdBy: "orchestrator"
+  title: 'Integrate checkout flow end-to-end',
+  dependencies: [cartTests.task.id, paymentTests.task.id, orderTests.task.id],
+  createdBy: 'orchestrator',
 });
 ```
 
@@ -671,11 +672,11 @@ T60-90min: Worker 1:                                       [Integration]
 
 Choose the right model for each task type:
 
-| Task Type | Model | Cost | Speed | Use Case |
-|-----------|-------|------|-------|----------|
-| Simple fixes, formatting | Haiku | $ | ⚡⚡⚡ | High-volume, low-complexity |
-| Feature development | Sonnet | $$ | ⚡⚡ | Balanced capability |
-| Complex architecture | Opus | $$$ | ⚡ | High-stakes design decisions |
+| Task Type                | Model  | Cost | Speed  | Use Case                     |
+| ------------------------ | ------ | ---- | ------ | ---------------------------- |
+| Simple fixes, formatting | Haiku  | $    | ⚡⚡⚡ | High-volume, low-complexity  |
+| Feature development      | Sonnet | $$   | ⚡⚡   | Balanced capability          |
+| Complex architecture     | Opus   | $$$  | ⚡     | High-stakes design decisions |
 
 **Example Configuration:**
 
@@ -708,28 +709,31 @@ Choose the right model for each task type:
 ### 2. Task Granularity
 
 **Too Coarse** (inefficient parallelization):
+
 ```typescript
 // Bad: One huge task that blocks everything
 await task_create({
-  title: "Build entire authentication system",
-  estimatedDuration: 14400 // 4 hours!
+  title: 'Build entire authentication system',
+  estimatedDuration: 14400, // 4 hours!
 });
 ```
 
 **Too Fine** (excessive overhead):
+
 ```typescript
 // Bad: Too many tiny tasks
-await task_create({ title: "Add import statement" });
-await task_create({ title: "Define function signature" });
-await task_create({ title: "Implement function body" });
+await task_create({ title: 'Add import statement' });
+await task_create({ title: 'Define function signature' });
+await task_create({ title: 'Implement function body' });
 ```
 
 **Just Right** (optimal parallelization):
+
 ```typescript
 // Good: Balanced task granularity
-await task_create({ title: "Implement login endpoint with tests" }); // ~30min
-await task_create({ title: "Implement logout endpoint with tests" }); // ~30min
-await task_create({ title: "Add JWT token refresh logic" }); // ~20min
+await task_create({ title: 'Implement login endpoint with tests' }); // ~30min
+await task_create({ title: 'Implement logout endpoint with tests' }); // ~30min
+await task_create({ title: 'Add JWT token refresh logic' }); // ~20min
 ```
 
 **Rule of thumb**: Tasks should take 15-60 minutes for optimal balance.
@@ -767,16 +771,16 @@ while (true) {
 // Bad: Send many small messages
 for (const file of files) {
   await bus_send({
-    type: "completion",
-    content: `Reviewed ${file}`
+    type: 'completion',
+    content: `Reviewed ${file}`,
   });
 }
 
 // Good: Batch completion messages
-const results = files.map(file => `Reviewed ${file}`);
+const results = files.map((file) => `Reviewed ${file}`);
 await bus_send({
-  type: "completion",
-  content: `Reviewed ${files.length} files:\n${results.join('\n')}`
+  type: 'completion',
+  content: `Reviewed ${files.length} files:\n${results.join('\n')}`,
 });
 ```
 
@@ -821,12 +825,12 @@ View all messages between agents:
 ```typescript
 // Get recent messages
 const messages = await bus_messages({
-  types: ["coordination", "completion", "error"],
+  types: ['coordination', 'completion', 'error'],
   limit: 50,
-  brief: false
+  brief: false,
 });
 
-messages.forEach(msg => {
+messages.forEach((msg) => {
   console.log(`[${msg.timestamp}] ${msg.fromAgent.name}: ${msg.payload.title}`);
   console.log(`  ${msg.payload.content}`);
 });
@@ -848,9 +852,9 @@ Check task progress:
 
 ```typescript
 // List tasks by status
-const pending = await task_list({ status: "pending" });
-const inProgress = await task_list({ status: "in_progress" });
-const completed = await task_list({ status: "completed" });
+const pending = await task_list({ status: 'pending' });
+const inProgress = await task_list({ status: 'in_progress' });
+const completed = await task_list({ status: 'completed' });
 
 console.log(`Pending: ${pending.tasks.length}`);
 console.log(`In Progress: ${inProgress.tasks.length}`);
@@ -874,10 +878,10 @@ Monitor active agents:
 ```typescript
 // Get active agents
 const agents = await bus_agents({
-  maxAgeSeconds: 300 // Active in last 5 minutes
+  maxAgeSeconds: 300, // Active in last 5 minutes
 });
 
-agents.forEach(agent => {
+agents.forEach((agent) => {
   console.log(`${agent.name} (${agent.id})`);
   console.log(`  Last seen: ${agent.lastSeen}`);
   console.log(`  Worktree: ${agent.worktree || 'none'}`);
@@ -946,13 +950,13 @@ console.error(`[task:${taskId}] Completed in ${duration}ms`);
 ```typescript
 // Bad: Circular dependency
 const taskA = await task_create({
-  title: "Task A",
-  dependencies: [taskB.task.id] // References B
+  title: 'Task A',
+  dependencies: [taskB.task.id], // References B
 });
 
 const taskB = await task_create({
-  title: "Task B",
-  dependencies: [taskA.task.id] // References A - CIRCULAR!
+  title: 'Task B',
+  dependencies: [taskA.task.id], // References A - CIRCULAR!
 });
 ```
 
@@ -960,14 +964,14 @@ const taskB = await task_create({
 
 ```typescript
 // Good: Linear dependency chain
-const taskA = await task_create({ title: "Task A" });
+const taskA = await task_create({ title: 'Task A' });
 const taskB = await task_create({
-  title: "Task B",
-  dependencies: [taskA.task.id]
+  title: 'Task B',
+  dependencies: [taskA.task.id],
 });
 const taskC = await task_create({
-  title: "Task C",
-  dependencies: [taskB.task.id]
+  title: 'Task C',
+  dependencies: [taskB.task.id],
 });
 ```
 
@@ -978,8 +982,8 @@ const taskC = await task_create({
 ```typescript
 // Task requires bash
 await task_create({
-  title: "Run integration tests",
-  requiredCapabilities: ["bash", "read"]
+  title: 'Run integration tests',
+  requiredCapabilities: ['bash', 'read'],
 });
 
 // Agent without bash tries to claim it - FAILS!
@@ -992,7 +996,7 @@ await task_create({
 tools:
   - read
   - write
-  - bash  # Required for test execution
+  - bash # Required for test execution
   - grep
   - glob
 ```
@@ -1033,22 +1037,20 @@ await task_claim({ id: taskId, agentId: myAgentId });
 ```typescript
 // Create task with claim deadline
 await task_create({
-  title: "Task with timeout",
-  claimDeadline: Date.now() + 300000 // 5 minutes
+  title: 'Task with timeout',
+  claimDeadline: Date.now() + 300000, // 5 minutes
 });
 
 // Orchestrator reclaims stale tasks
-const staleTasks = tasks.filter(t =>
-  t.status === "in_progress" &&
-  t.claimDeadline &&
-  Date.now() > t.claimDeadline
+const staleTasks = tasks.filter(
+  (t) => t.status === 'in_progress' && t.claimDeadline && Date.now() > t.claimDeadline
 );
 
 for (const task of staleTasks) {
   await task_update({
     id: task.id,
-    status: "pending",
-    assignedTo: undefined
+    status: 'pending',
+    assignedTo: undefined,
   });
 }
 ```
@@ -1082,7 +1084,7 @@ function detectCycles(tasks: Task[]): string[] {
     visited.add(taskId);
     stack.add(taskId);
 
-    const task = tasks.find(t => t.id === taskId);
+    const task = tasks.find((t) => t.id === taskId);
     for (const depId of task?.dependencies || []) {
       visit(depId);
     }
@@ -1129,9 +1131,9 @@ Break work into independent, parallelizable tasks:
 ```typescript
 // Good: Independent tasks
 const tasks = [
-  { title: "Add login endpoint", file: "auth.ts" },
-  { title: "Add logout endpoint", file: "auth.ts" },
-  { title: "Add user profile endpoint", file: "users.ts" }
+  { title: 'Add login endpoint', file: 'auth.ts' },
+  { title: 'Add logout endpoint', file: 'auth.ts' },
+  { title: 'Add user profile endpoint', file: 'users.ts' },
 ];
 ```
 
@@ -1141,13 +1143,19 @@ Aim for 15-60 minute tasks:
 
 ```typescript
 // Too large (4 hours)
-{ title: "Build entire authentication system" }
+{
+  title: 'Build entire authentication system';
+}
 
 // Too small (2 minutes)
-{ title: "Add import statement" }
+{
+  title: 'Add import statement';
+}
 
 // Just right (30 minutes)
-{ title: "Implement login endpoint with validation and tests" }
+{
+  title: 'Implement login endpoint with validation and tests';
+}
 ```
 
 ### 3. Explicit Capability Requirements
@@ -1156,9 +1164,9 @@ Always specify required capabilities:
 
 ```typescript
 await task_create({
-  title: "Run performance benchmarks",
-  requiredCapabilities: ["bash", "read", "write"],
-  createdBy: "orchestrator"
+  title: 'Run performance benchmarks',
+  requiredCapabilities: ['bash', 'read', 'write'],
+  createdBy: 'orchestrator',
 });
 ```
 
@@ -1169,22 +1177,22 @@ Send informative event bus messages:
 ```typescript
 // Bad: Vague message
 await bus_send({
-  type: "completion",
-  content: "Done"
+  type: 'completion',
+  content: 'Done',
 });
 
 // Good: Detailed message
 await bus_send({
-  type: "completion",
+  type: 'completion',
   agentId: myAgentId,
-  title: "Authentication API completed",
+  title: 'Authentication API completed',
   content: `Implemented login/logout endpoints with JWT tokens.
   - Added src/auth/controller.ts
   - Added tests with 95% coverage
   - Updated API documentation
 
   Ready for security review.`,
-  priority: "normal"
+  priority: 'normal',
 });
 ```
 
@@ -1198,15 +1206,15 @@ await task_claim({ id: taskId, agentId: myAgentId });
 
 // Progress update
 await bus_send({
-  type: "coordination",
+  type: 'coordination',
   title: `Progress on ${task.title}`,
-  content: "Completed database schema, starting API implementation"
+  content: 'Completed database schema, starting API implementation',
 });
 
 // Completion
 await task_complete({
   id: taskId,
-  summary: "API implementation complete with tests"
+  summary: 'API implementation complete with tests',
 });
 ```
 
@@ -1241,7 +1249,7 @@ while (true) {
     if (worker) {
       await task_update({
         id: task.id,
-        assignedTo: worker.id
+        assignedTo: worker.id,
       });
     }
   }
@@ -1258,18 +1266,18 @@ Implement retry logic for failed tasks:
 ```typescript
 // Task creation with retry support
 await task_create({
-  title: "Deploy to staging",
+  title: 'Deploy to staging',
   canRetry: true,
   attemptNumber: 1,
-  createdBy: "orchestrator"
+  createdBy: 'orchestrator',
 });
 
 // Retry on failure
 if (taskFailed && task.canRetry && task.attemptNumber < 3) {
   await task_update({
     id: task.id,
-    status: "pending",
-    attemptNumber: task.attemptNumber + 1
+    status: 'pending',
+    attemptNumber: task.attemptNumber + 1,
   });
 }
 ```
@@ -1280,7 +1288,7 @@ Add clear descriptions to tasks:
 
 ```typescript
 await task_create({
-  title: "Implement payment processing",
+  title: 'Implement payment processing',
   description: `Add Stripe payment integration.
 
   Dependencies:
@@ -1291,7 +1299,7 @@ await task_create({
   - Payment controller with charge/refund methods
   - Integration tests with Stripe test mode
   - Error handling for failed payments`,
-  dependencies: [userModelTaskId, schemaTaskId]
+  dependencies: [userModelTaskId, schemaTaskId],
 });
 ```
 
@@ -1306,9 +1314,7 @@ const workerLoad = new Map<string, number>();
 // Assign to least-loaded worker
 function assignTask(task: Task, workers: Agent[]) {
   const leastLoaded = workers.reduce((min, worker) =>
-    (workerLoad.get(worker.id) || 0) < (workerLoad.get(min.id) || 0)
-      ? worker
-      : min
+    (workerLoad.get(worker.id) || 0) < (workerLoad.get(min.id) || 0) ? worker : min
   );
 
   workerLoad.set(leastLoaded.id, (workerLoad.get(leastLoaded.id) || 0) + 1);
@@ -1321,12 +1327,14 @@ function assignTask(task: Task, workers: Agent[]) {
 ## Summary
 
 Concurrent execution in RAPID enables:
+
 - **Faster development** through parallel work
 - **Better resource utilization** with specialized agents
 - **Conflict-free collaboration** via worktree isolation
 - **Automatic coordination** using the event bus
 
 **Key Takeaways:**
+
 1. Use task dependencies to define execution order
 2. Isolate work in git worktrees to prevent conflicts
 3. Match agent capabilities to task requirements
@@ -1335,6 +1343,7 @@ Concurrent execution in RAPID enables:
 6. Clean up resources after task completion
 
 **Next Steps:**
+
 - [Multi-Agent System Architecture](../architecture/multi-agent-system.md)
 - [Event Bus Documentation](../../packages/rapid-eventbus/README.md)
 - [Persona Configuration Guide](rapid-json-config.md#personas)

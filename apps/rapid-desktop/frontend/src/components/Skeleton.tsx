@@ -1,32 +1,27 @@
-import { clsx } from 'clsx'
+import { clsx } from 'clsx';
 
 interface SkeletonProps {
-  className?: string
-  variant?: 'text' | 'circular' | 'rectangular'
-  width?: string | number
-  height?: string | number
+  className?: string;
+  variant?: 'text' | 'circular' | 'rectangular';
+  width?: string | number;
+  height?: string | number;
 }
 
 export function Skeleton({ className, variant = 'rectangular', width, height }: SkeletonProps) {
-  const baseClasses = 'animate-pulse bg-rapid-border'
+  const baseClasses = 'animate-pulse bg-rapid-border';
 
   const variantClasses = {
     text: 'rounded',
     circular: 'rounded-full',
     rectangular: 'rounded-lg',
-  }
+  };
 
   const style: React.CSSProperties = {
     width: typeof width === 'number' ? `${width}px` : width,
     height: typeof height === 'number' ? `${height}px` : height,
-  }
+  };
 
-  return (
-    <div
-      className={clsx(baseClasses, variantClasses[variant], className)}
-      style={style}
-    />
-  )
+  return <div className={clsx(baseClasses, variantClasses[variant], className)} style={style} />;
 }
 
 // Pre-built skeleton patterns for common use cases
@@ -43,7 +38,7 @@ export function SkeletonCard() {
       <Skeleton height={12} width="100%" />
       <Skeleton height={12} width="80%" />
     </div>
-  )
+  );
 }
 
 export function SkeletonTable({ rows = 5 }: { rows?: number }) {
@@ -70,7 +65,7 @@ export function SkeletonTable({ rows = 5 }: { rows?: number }) {
         ))}
       </div>
     </div>
-  )
+  );
 }
 
 export function SkeletonList({ items = 5 }: { items?: number }) {
@@ -87,7 +82,7 @@ export function SkeletonList({ items = 5 }: { items?: number }) {
         </div>
       ))}
     </div>
-  )
+  );
 }
 
 export function SkeletonStats({ count = 4 }: { count?: number }) {
@@ -100,5 +95,5 @@ export function SkeletonStats({ count = 4 }: { count?: number }) {
         </div>
       ))}
     </div>
-  )
+  );
 }

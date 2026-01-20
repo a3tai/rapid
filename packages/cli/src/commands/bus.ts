@@ -125,7 +125,9 @@ busCommand
         console.log(`    • rapid bus listen     ${chalk.dim('Watch messages in real-time')}`);
         console.log(`    • rapid bus history    ${chalk.dim('View message history')}`);
       } else {
-        console.log(`    • rapid dev            ${chalk.dim('Start development (auto-starts bus)')}`);
+        console.log(
+          `    • rapid dev            ${chalk.dim('Start development (auto-starts bus)')}`
+        );
       }
       console.log();
     } catch (error) {

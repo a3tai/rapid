@@ -1,16 +1,16 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import { ErrorBoundary } from '../../components/ErrorBoundary'
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { ErrorBoundary } from '../../components/ErrorBoundary';
 
 // Component that throws an error
 function ThrowError() {
-  throw new Error('Test error message')
+  throw new Error('Test error message');
 }
 
 // Component that renders successfully
 function SafeComponent() {
-  return <div>Safe content</div>
+  return <div>Safe content</div>;
 }
 
 // Note: ErrorBoundary tests are skipped due to React 18 concurrent mode
@@ -20,57 +20,57 @@ function SafeComponent() {
 describe.skip('ErrorBoundary', () => {
   beforeEach(() => {
     // Suppress console.error for error boundary tests
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-  })
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
 
   it('should render children when there is no error', () => {
     render(
       <ErrorBoundary>
         <SafeComponent />
       </ErrorBoundary>
-    )
+    );
 
-    expect(screen.getByText('Safe content')).toBeInTheDocument()
-  })
+    expect(screen.getByText('Safe content')).toBeInTheDocument();
+  });
 
   it.skip('should render error UI when child throws', () => {
     render(
       <ErrorBoundary>
         <ThrowError />
       </ErrorBoundary>
-    )
+    );
 
-    expect(screen.getByText('Something went wrong')).toBeInTheDocument()
-    expect(screen.getByText('Test error message')).toBeInTheDocument()
-  })
+    expect(screen.getByText('Something went wrong')).toBeInTheDocument();
+    expect(screen.getByText('Test error message')).toBeInTheDocument();
+  });
 
   it.skip('should provide retry functionality', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup();
 
     render(
       <ErrorBoundary>
         <ThrowError />
       </ErrorBoundary>
-    )
+    );
 
-    const retryButton = screen.getByRole('button', { name: /try again/i })
-    expect(retryButton).toBeInTheDocument()
+    const retryButton = screen.getByRole('button', { name: /try again/i });
+    expect(retryButton).toBeInTheDocument();
 
     // After clicking retry, error should still be shown (child still throws)
-    await user.click(retryButton)
-    expect(screen.getByText('Something went wrong')).toBeInTheDocument()
-  })
+    await user.click(retryButton);
+    expect(screen.getByText('Something went wrong')).toBeInTheDocument();
+  });
 
   it.skip('should provide reload page button', () => {
     render(
       <ErrorBoundary>
         <ThrowError />
       </ErrorBoundary>
-    )
+    );
 
-    const reloadButton = screen.getByRole('button', { name: /reload page/i })
-    expect(reloadButton).toBeInTheDocument()
-  })
+    const reloadButton = screen.getByRole('button', { name: /reload page/i });
+    expect(reloadButton).toBeInTheDocument();
+  });
 
   // Note: Following tests skipped due to React 18 concurrent mode conflicts
   // when running error boundary tests in sequence. Works correctly at runtime.
@@ -81,45 +81,45 @@ describe.skip('ErrorBoundary', () => {
         <p>Custom error: {error.message}</p>
         <button onClick={retry}>Custom retry</button>
       </div>
-    )
+    );
 
     render(
       <ErrorBoundary fallback={fallback}>
         <ThrowError />
       </ErrorBoundary>
-    )
+    );
 
-    expect(screen.getByText('Custom error: Test error message')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /custom retry/i })).toBeInTheDocument()
-  })
+    expect(screen.getByText('Custom error: Test error message')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /custom retry/i })).toBeInTheDocument();
+  });
 
   it.skip('should show stack trace in development mode', () => {
-    const originalEnv = process.env.NODE_ENV
-    process.env.NODE_ENV = 'development'
+    const originalEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
 
     render(
       <ErrorBoundary>
         <ThrowError />
       </ErrorBoundary>
-    )
+    );
 
-    expect(screen.getByText('Stack trace')).toBeInTheDocument()
+    expect(screen.getByText('Stack trace')).toBeInTheDocument();
 
-    process.env.NODE_ENV = originalEnv
-  })
+    process.env.NODE_ENV = originalEnv;
+  });
 
   it.skip('should hide stack trace in production mode', () => {
-    const originalEnv = process.env.NODE_ENV
-    process.env.NODE_ENV = 'production'
+    const originalEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
 
     render(
       <ErrorBoundary>
         <ThrowError />
       </ErrorBoundary>
-    )
+    );
 
-    expect(screen.queryByText('Stack trace')).not.toBeInTheDocument()
+    expect(screen.queryByText('Stack trace')).not.toBeInTheDocument();
 
-    process.env.NODE_ENV = originalEnv
-  })
-})
+    process.env.NODE_ENV = originalEnv;
+  });
+});

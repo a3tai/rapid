@@ -1,23 +1,23 @@
-import { useState, useEffect, useMemo } from 'react'
-import { clsx } from 'clsx'
-import { formatDistanceToNow } from 'date-fns'
-import { useMessages, useAgents, type Message } from '../stores/app'
+import { useState, useEffect, useMemo } from 'react';
+import { clsx } from 'clsx';
+import { formatDistanceToNow } from 'date-fns';
+import { useMessages, useAgents, type Message } from '../stores/app';
 
 interface ActivityItem {
-  id: string
-  type: 'message' | 'agent_join' | 'agent_leave' | 'task_update'
-  agentName: string
-  agentId: string
-  action: string
-  detail?: string
-  timestamp: string
-  color: string
+  id: string;
+  type: 'message' | 'agent_join' | 'agent_leave' | 'task_update';
+  agentName: string;
+  agentId: string;
+  action: string;
+  detail?: string;
+  timestamp: string;
+  color: string;
 }
 
 export function ActivityFeed() {
-  const messages = useMessages()
-  const agents = useAgents()
-  const [isLive, setIsLive] = useState(true)
+  const messages = useMessages();
+  const agents = useAgents();
+  const [isLive, setIsLive] = useState(true);
 
   // Convert messages to activity items
   const activities = useMemo(() => {
@@ -30,20 +30,20 @@ export function ActivityFeed() {
       detail: msg.payload.title || undefined,
       timestamp: msg.timestamp,
       color: getMessageColor(msg.type),
-    }))
-    return items
-  }, [messages])
+    }));
+    return items;
+  }, [messages]);
 
   // Pulse effect for new activity
-  const [pulseId, setPulseId] = useState<string | null>(null)
+  const [pulseId, setPulseId] = useState<string | null>(null);
 
   useEffect(() => {
     if (activities.length > 0 && isLive) {
-      setPulseId(activities[0].id)
-      const timer = setTimeout(() => setPulseId(null), 2000)
-      return () => clearTimeout(timer)
+      setPulseId(activities[0].id);
+      const timer = setTimeout(() => setPulseId(null), 2000);
+      return () => clearTimeout(timer);
     }
-  }, [activities, isLive])
+  }, [activities, isLive]);
 
   return (
     <div className="card h-full flex flex-col">
@@ -78,7 +78,12 @@ export function ActivityFeed() {
             <div className="text-center">
               <div className="w-8 h-8 mx-auto mb-2 rounded-full bg-rapid-elevated flex items-center justify-center">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  />
                 </svg>
               </div>
               <p>No activity yet</p>
@@ -125,19 +130,17 @@ export function ActivityFeed() {
               </div>
             )}
           </div>
-          {agents.length === 0 && (
-            <span className="text-xs text-rapid-muted">No agents</span>
-          )}
+          {agents.length === 0 && <span className="text-xs text-rapid-muted">No agents</span>}
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 interface ActivityRowProps {
-  activity: ActivityItem
-  isPulsing: boolean
-  isFirst: boolean
+  activity: ActivityItem;
+  isPulsing: boolean;
+  isFirst: boolean;
 }
 
 function ActivityRow({ activity, isPulsing, isFirst }: ActivityRowProps) {
@@ -156,9 +159,7 @@ function ActivityRow({ activity, isPulsing, isFirst }: ActivityRowProps) {
           isPulsing && 'ring-4 ring-rapid-accent/20'
         )}
       >
-        {isFirst && (
-          <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-        )}
+        {isFirst && <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />}
       </div>
 
       {/* Content */}
@@ -175,7 +176,7 @@ function ActivityRow({ activity, isPulsing, isFirst }: ActivityRowProps) {
         </span>
       </div>
     </div>
-  )
+  );
 }
 
 function getActionText(msg: Message): string {
@@ -189,8 +190,8 @@ function getActionText(msg: Message): string {
     heartbeat: 'is active',
     suggestion: 'suggested',
     vote: 'voted',
-  }
-  return actions[msg.type] || msg.type
+  };
+  return actions[msg.type] || msg.type;
 }
 
 function getMessageColor(type: Message['type']): string {
@@ -204,8 +205,8 @@ function getMessageColor(type: Message['type']): string {
     heartbeat: 'bg-gray-400',
     suggestion: 'bg-indigo-400',
     vote: 'bg-emerald-400',
-  }
-  return colors[type] || 'bg-gray-400'
+  };
+  return colors[type] || 'bg-gray-400';
 }
 
 function getAgentColor(name: string): string {
@@ -214,6 +215,6 @@ function getAgentColor(name: string): string {
     worker: 'bg-blue-500 text-white',
     designer: 'bg-pink-500 text-white',
     reviewer: 'bg-green-500 text-white',
-  }
-  return colors[name.toLowerCase()] || 'bg-rapid-accent text-white'
+  };
+  return colors[name.toLowerCase()] || 'bg-rapid-accent text-white';
 }

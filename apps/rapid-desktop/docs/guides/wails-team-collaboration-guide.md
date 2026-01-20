@@ -10,22 +10,24 @@ This guide establishes best practices for collaborative development on the RAPID
 
 ### Core Roles
 
-| Role | Responsibilities | Typical Time |
-|------|------------------|--------------|
-| **Frontend Lead** | Architecture decisions, component design, performance optimization | 40h/week |
-| **Backend Integration Lead** | Wails bindings, Go code, event server, daemon communication | 30h/week |
-| **QA/Test Lead** | Test strategy, test automation, performance testing, release validation | 20h/week |
-| **Product Designer** | UI/UX decisions, design system maintenance, user feedback integration | 10h/week |
-| **DevOps/Release** | CI/CD, deployment automation, monitoring setup | 15h/week |
+| Role                         | Responsibilities                                                        | Typical Time |
+| ---------------------------- | ----------------------------------------------------------------------- | ------------ |
+| **Frontend Lead**            | Architecture decisions, component design, performance optimization      | 40h/week     |
+| **Backend Integration Lead** | Wails bindings, Go code, event server, daemon communication             | 30h/week     |
+| **QA/Test Lead**             | Test strategy, test automation, performance testing, release validation | 20h/week     |
+| **Product Designer**         | UI/UX decisions, design system maintenance, user feedback integration   | 10h/week     |
+| **DevOps/Release**           | CI/CD, deployment automation, monitoring setup                          | 15h/week     |
 
 ### Team Communication
 
 **Synchronous Channels:**
+
 - Daily standup: 10:00 AM (15 minutes)
 - Weekly planning: Monday 9:00 AM (30 minutes)
 - Weekly retrospective: Friday 3:00 PM (30 minutes)
 
 **Asynchronous Channels:**
+
 - #wails-ui: General questions and discussion
 - #wails-ui-design: Design and UI decisions
 - #wails-ui-deployment: Release and deployment coordination
@@ -46,6 +48,7 @@ main                      # Production-ready code
 ```
 
 **Examples:**
+
 - `feature/RAPID-123-approval-workflow`
 - `bugfix/RAPID-456-websocket-reconnect`
 - `hotfix/RAPID-789-memory-leak`
@@ -104,29 +107,36 @@ git push -u origin feature/RAPID-123-approval-workflow
 
 ```markdown
 ## Description
+
 Brief description of what this PR does and why.
 
 ## Related Issues
+
 Closes #123
 
 ## Type of Change
+
 - [x] Bug fix
 - [ ] New feature
 - [ ] Breaking change
 - [ ] Documentation update
 
 ## How Has This Been Tested?
+
 Describe test coverage and manual testing performed.
 
 ## Screenshots (if applicable)
+
 [Attach screenshots for UI changes]
 
 ## Performance Impact
+
 - [ ] No performance impact
 - [ ] Improves performance
 - [ ] Possible performance impact (describe)
 
 ## Checklist
+
 - [x] Code follows project style
 - [x] Tests pass locally
 - [x] No new console warnings
@@ -170,6 +180,7 @@ Describe test coverage and manual testing performed.
 ### Review Comments Examples
 
 **Good:**
+
 ```
 The component will re-render on every state change here. Consider using
 useCallback for the handler function to prevent unnecessary re-renders
@@ -177,6 +188,7 @@ of child components. See: https://react.dev/reference/react/useCallback
 ```
 
 **Constructive:**
+
 ```
 I notice the error handling here only catches network errors. What about
 timeout or JSON parsing errors? We might want to add specific handling
@@ -184,6 +196,7 @@ for those cases, similar to how we handle them in ChatInput.
 ```
 
 **Collaborative:**
+
 ```
 I'm not familiar with this pattern. Can you explain the reasoning?
 Is this a common pattern in the Wails community, or something you've
@@ -222,6 +235,7 @@ developed specifically?
 **Remote Pair Programming:**
 
 1. **Using VS Code Live Share**
+
    ```bash
    # Host (Sharer)
    # Install VS Code Live Share extension
@@ -234,6 +248,7 @@ developed specifically?
    ```
 
 2. **Alternative: tmux + SSH**
+
    ```bash
    # On host machine
    tmux new-session -s rapid-dev
@@ -263,16 +278,19 @@ developed specifically?
 
 ```markdown
 ## Pair Programming Session
+
 Date: 2024-XX-XX
 Time: 2 hours
 Participants: Alice (Driver/Navigator), Bob (Navigator/Driver)
 
 ### Objectives
+
 1. Implement approval workflow component
 2. Debug WebSocket reconnection issue
 3. Review performance benchmarks
 
 ### Segments
+
 - 10:00-10:30 (Driver: Alice) - Component structure setup
 - 10:30-11:00 (Driver: Bob) - Event handling logic
 - 11:00-11:15 Break
@@ -280,11 +298,13 @@ Participants: Alice (Driver/Navigator), Bob (Navigator/Driver)
 - 11:45-12:00 (Driver: Alice) - Code review & cleanup
 
 ### Outcomes
+
 - Approval component 80% complete
 - WebSocket bug identified (race condition)
 - Created performance regression test
 
 ### Next Steps
+
 - Complete component implementation (Alice)
 - Deploy WebSocket fix (Bob)
 - Review PR #234 (Both)
@@ -448,6 +468,7 @@ Output:
 ### Escalation Path
 
 **Technical Disagreements:**
+
 ```
 Developer A ↔ Developer B
     ↓ (no consensus)
@@ -464,18 +485,18 @@ Product Lead
 
 ## 7. Code Ownership & Responsibility Matrix
 
-| Component | Owner | Reviewer | Backup |
-|-----------|-------|----------|--------|
-| ChatView | Alice | Bob | Charlie |
-| TaskBoard | Bob | Alice | Charlie |
-| ApprovalWorkflow | Charlie | Alice | Bob |
-| SettingsView | Alice | Bob | Charlie |
-| EventFeed | Bob | Charlie | Alice |
-| useEventStream | Bob | Charlie | Alice |
-| useWailsBinding | Alice | Bob | Charlie |
-| Zustand Store | Charlie | Alice | Bob |
-| Go bindings | Bob | Charlie | Alice |
-| EventServer | Bob | Charlie | Alice |
+| Component        | Owner   | Reviewer | Backup  |
+| ---------------- | ------- | -------- | ------- |
+| ChatView         | Alice   | Bob      | Charlie |
+| TaskBoard        | Bob     | Alice    | Charlie |
+| ApprovalWorkflow | Charlie | Alice    | Bob     |
+| SettingsView     | Alice   | Bob      | Charlie |
+| EventFeed        | Bob     | Charlie  | Alice   |
+| useEventStream   | Bob     | Charlie  | Alice   |
+| useWailsBinding  | Alice   | Bob      | Charlie |
+| Zustand Store    | Charlie | Alice    | Bob     |
+| Go bindings      | Bob     | Charlie  | Alice   |
+| EventServer      | Bob     | Charlie  | Alice   |
 
 ### Code Owner Responsibilities
 
@@ -493,6 +514,7 @@ Product Lead
 ### Week 1: Fundamentals
 
 - [ ] Set up development environment
+
   ```bash
   git clone https://github.com/rapid/rapid-desktop.git
   cd rapid-desktop
@@ -626,6 +648,7 @@ Implementation:
 ### For Everyone
 
 ✅ **Do:**
+
 - Communicate early and often
 - Ask for help when stuck
 - Review code thoroughly
@@ -634,6 +657,7 @@ Implementation:
 - Celebrate team wins
 
 ❌ **Don't:**
+
 - Work in isolation for days
 - Skip tests to save time
 - Commit directly to main
@@ -644,6 +668,7 @@ Implementation:
 ### For Code Review
 
 ✅ **Do:**
+
 - Review promptly (within 24h)
 - Be specific in suggestions
 - Acknowledge good work
@@ -651,6 +676,7 @@ Implementation:
 - Keep tone collaborative
 
 ❌ **Don't:**
+
 - Demand changes without explanation
 - Block PRs over style preferences
 - Leave reviews without actionable feedback
@@ -660,6 +686,7 @@ Implementation:
 ### For Pair Programming
 
 ✅ **Do:**
+
 - Communicate thoughts clearly
 - Swap roles regularly
 - Take notes on decisions
@@ -667,9 +694,9 @@ Implementation:
 - Document learnings
 
 ❌ **Don't:**
+
 - Let one person dominate
 - Work in silence
 - Skip breaks
 - Forget to test
 - Leave without documentation
-

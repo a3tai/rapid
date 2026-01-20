@@ -137,24 +137,17 @@ function percentile(sortedArr: number[], p: number): number {
 /**
  * Aggregate metrics for a time period
  */
-function aggregateMetrics(
-  sinceMs: number,
-  filterTags?: string[]
-): AggregatedMetrics {
+function aggregateMetrics(sinceMs: number, filterTags?: string[]): AggregatedMetrics {
   const now = Date.now();
   const cutoff = now - sinceMs;
   const cutoffIso = new Date(cutoff).toISOString();
 
   // Filter events by time
-  let filtered = events.filter(
-    (e) => new Date(e.timestamp).getTime() >= cutoff
-  );
+  let filtered = events.filter((e) => new Date(e.timestamp).getTime() >= cutoff);
 
   // Filter by tags if specified
   if (filterTags && filterTags.length > 0) {
-    filtered = filtered.filter(
-      (e) => e.tags?.some((t) => filterTags.includes(t))
-    );
+    filtered = filtered.filter((e) => e.tags?.some((t) => filterTags.includes(t)));
   }
 
   // Count by type
@@ -281,23 +274,19 @@ function aggregateMetrics(
       ? completionTimes.reduce((a, b) => a + b, 0) / completionTimes.length
       : 0;
   const avgClaimTime =
-    claimTimes.length > 0
-      ? claimTimes.reduce((a, b) => a + b, 0) / claimTimes.length
-      : 0;
+    claimTimes.length > 0 ? claimTimes.reduce((a, b) => a + b, 0) / claimTimes.length : 0;
 
   // Calculate per-agent averages
   for (const [agentId, times] of Object.entries(byAgentTimes)) {
     if (times.length > 0 && byAgent[agentId]) {
-      byAgent[agentId].avgCompletionTimeMs =
-        times.reduce((a, b) => a + b, 0) / times.length;
+      byAgent[agentId].avgCompletionTimeMs = times.reduce((a, b) => a + b, 0) / times.length;
     }
   }
 
   // Calculate per-tag averages
   for (const [tag, times] of Object.entries(byTagTimes)) {
     if (times.length > 0 && byTag[tag]) {
-      byTag[tag].avgCompletionTimeMs =
-        times.reduce((a, b) => a + b, 0) / times.length;
+      byTag[tag].avgCompletionTimeMs = times.reduce((a, b) => a + b, 0) / times.length;
     }
   }
 
@@ -318,14 +307,9 @@ function aggregateMetrics(
     p95CompletionTimeMs: Math.round(percentile(completionTimes, 95)),
     avgClaimTimeMs: Math.round(avgClaimTime),
 
-    claimSuccessRate:
-      totalClaims > 0 ? counts.task_claimed / totalClaims : 1,
-    completionRate:
-      totalCompleted > 0 ? counts.task_completed / totalCompleted : 1,
-    timeoutRate:
-      counts.task_created > 0
-        ? counts.task_timeout / counts.task_created
-        : 0,
+    claimSuccessRate: totalClaims > 0 ? counts.task_claimed / totalClaims : 1,
+    completionRate: totalCompleted > 0 ? counts.task_completed / totalCompleted : 1,
+    timeoutRate: counts.task_created > 0 ? counts.task_timeout / counts.task_created : 0,
 
     byAgent,
     byTag,
@@ -363,15 +347,9 @@ function toPrometheus(metrics: AggregatedMetrics): string {
   // Gauges
   lines.push(`# HELP ${prefix}_completion_time_ms Task completion time`);
   lines.push(`# TYPE ${prefix}_completion_time_ms gauge`);
-  lines.push(
-    `${prefix}_completion_time_ms{quantile="0.5"} ${metrics.p50CompletionTimeMs}`
-  );
-  lines.push(
-    `${prefix}_completion_time_ms{quantile="0.95"} ${metrics.p95CompletionTimeMs}`
-  );
-  lines.push(
-    `${prefix}_completion_time_ms{quantile="avg"} ${metrics.avgCompletionTimeMs}`
-  );
+  lines.push(`${prefix}_completion_time_ms{quantile="0.5"} ${metrics.p50CompletionTimeMs}`);
+  lines.push(`${prefix}_completion_time_ms{quantile="0.95"} ${metrics.p95CompletionTimeMs}`);
+  lines.push(`${prefix}_completion_time_ms{quantile="avg"} ${metrics.avgCompletionTimeMs}`);
 
   lines.push(`# HELP ${prefix}_claim_success_rate Task claim success rate`);
   lines.push(`# TYPE ${prefix}_claim_success_rate gauge`);
@@ -395,10 +373,7 @@ function toPrometheus(metrics: AggregatedMetrics): string {
 /**
  * Register metrics tools with the MCP server
  */
-export function registerMetricsTools(
-  server: McpServer,
-  context: ServerContext
-): void {
+export function registerMetricsTools(server: McpServer, context: ServerContext): void {
   // Initialize metrics store
   loadMetrics(context.projectDir).catch(console.error);
 
@@ -427,10 +402,7 @@ export function registerMetricsTools(
           .optional()
           .describe('Duration in milliseconds (for completion/claim events)'),
         tags: z.array(z.string()).optional().describe('Tags from the task'),
-        metadata: z
-          .record(z.unknown())
-          .optional()
-          .describe('Additional metadata'),
+        metadata: z.record(z.unknown()).optional().describe('Additional metadata'),
       },
       outputSchema: {
         recorded: z.boolean(),
@@ -477,21 +449,11 @@ export function registerMetricsTools(
     'metrics_get',
     {
       title: 'Get Metrics',
-      description:
-        'Get aggregated task metrics for monitoring and analysis.',
+      description: 'Get aggregated task metrics for monitoring and analysis.',
       inputSchema: {
-        periodHours: z
-          .number()
-          .default(24)
-          .describe('Time period in hours to aggregate'),
-        tags: z
-          .array(z.string())
-          .optional()
-          .describe('Filter by task tags'),
-        format: z
-          .enum(['json', 'prometheus'])
-          .default('json')
-          .describe('Output format'),
+        periodHours: z.number().default(24).describe('Time period in hours to aggregate'),
+        tags: z.array(z.string()).optional().describe('Filter by task tags'),
+        format: z.enum(['json', 'prometheus']).default('json').describe('Output format'),
       },
       outputSchema: z.union([
         z.object({
@@ -505,7 +467,11 @@ export function registerMetricsTools(
       ]),
     },
     async (args) => {
-      const { periodHours = 24, tags, format = 'json' } = args as {
+      const {
+        periodHours = 24,
+        tags,
+        format = 'json',
+      } = args as {
         periodHours?: number;
         tags?: string[];
         format?: 'json' | 'prometheus';
@@ -515,9 +481,7 @@ export function registerMetricsTools(
       const metrics = aggregateMetrics(periodMs, tags);
 
       if (context.verbose) {
-        console.error(
-          `[metrics_get] Aggregated ${metrics.eventCount} events over ${periodHours}h`
-        );
+        console.error(`[metrics_get] Aggregated ${metrics.eventCount} events over ${periodHours}h`);
       }
 
       if (format === 'prometheus') {
@@ -540,13 +504,9 @@ export function registerMetricsTools(
     'metrics_agent_report',
     {
       title: 'Agent Performance Report',
-      description:
-        'Get performance metrics for a specific agent or all agents.',
+      description: 'Get performance metrics for a specific agent or all agents.',
       inputSchema: {
-        agentId: z
-          .string()
-          .optional()
-          .describe('Filter by specific agent ID'),
+        agentId: z.string().optional().describe('Filter by specific agent ID'),
         periodHours: z.number().default(24).describe('Time period in hours'),
         sortBy: z
           .enum(['completed', 'avgTime', 'successRate'])
@@ -569,7 +529,11 @@ export function registerMetricsTools(
       },
     },
     async (args) => {
-      const { agentId, periodHours = 24, sortBy = 'completed' } = args as {
+      const {
+        agentId,
+        periodHours = 24,
+        sortBy = 'completed',
+      } = args as {
         agentId?: string;
         periodHours?: number;
         sortBy?: 'completed' | 'avgTime' | 'successRate';
@@ -581,8 +545,7 @@ export function registerMetricsTools(
       let agents = Object.entries(metrics.byAgent).map(([id, stats]) => ({
         agentId: id,
         ...stats,
-        successRate:
-          stats.claimed > 0 ? stats.completed / stats.claimed : 0,
+        successRate: stats.claimed > 0 ? stats.completed / stats.claimed : 0,
       }));
 
       // Filter by agent if specified
@@ -613,9 +576,7 @@ export function registerMetricsTools(
       };
 
       if (context.verbose) {
-        console.error(
-          `[metrics_agent_report] ${agents.length} agents, top: ${topPerformer}`
-        );
+        console.error(`[metrics_agent_report] ${agents.length} agents, top: ${topPerformer}`);
       }
 
       return {
@@ -632,9 +593,7 @@ export function registerMetricsTools(
       title: 'Reset Metrics',
       description: 'Clear all recorded metrics (use for testing only).',
       inputSchema: {
-        confirm: z
-          .boolean()
-          .describe('Must be true to confirm reset'),
+        confirm: z.boolean().describe('Must be true to confirm reset'),
       },
       outputSchema: {
         reset: z.boolean(),
@@ -646,9 +605,7 @@ export function registerMetricsTools(
 
       if (!confirm) {
         return {
-          content: [
-            { type: 'text', text: 'Reset not confirmed. Set confirm=true.' },
-          ],
+          content: [{ type: 'text', text: 'Reset not confirmed. Set confirm=true.' }],
           structuredContent: { reset: false, clearedCount: 0 },
         };
       }
@@ -662,9 +619,7 @@ export function registerMetricsTools(
       }
 
       return {
-        content: [
-          { type: 'text', text: JSON.stringify({ reset: true, clearedCount }) },
-        ],
+        content: [{ type: 'text', text: JSON.stringify({ reset: true, clearedCount }) }],
         structuredContent: { reset: true, clearedCount },
       };
     }

@@ -79,14 +79,14 @@ rapid start [options]
 
 ### Options
 
-| Option              | Default | Description                          |
-| ------------------- | ------- | ------------------------------------ |
-| `--rebuild`         | `false` | Force rebuild container              |
-| `--no-cache`        | `false` | Build without Docker cache           |
-| `--reinstall-tools` | `false` | Reinstall AI CLI tools               |
-| `--skip-secrets`    | `false` | Skip secret loading                  |
-| `--no-agents`       | `false` | Skip spawning team agents            |
-| `--detach`, `-d`    | `false` | Run in background                    |
+| Option              | Default | Description                |
+| ------------------- | ------- | -------------------------- |
+| `--rebuild`         | `false` | Force rebuild container    |
+| `--no-cache`        | `false` | Build without Docker cache |
+| `--reinstall-tools` | `false` | Reinstall AI CLI tools     |
+| `--skip-secrets`    | `false` | Skip secret loading        |
+| `--no-agents`       | `false` | Skip spawning team agents  |
+| `--detach`, `-d`    | `false` | Run in background          |
 
 ### Examples
 
@@ -176,11 +176,11 @@ rapid stop [options]
 
 ### Options
 
-| Option              | Default | Description                              |
-| ------------------- | ------- | ---------------------------------------- |
-| `--remove`          | `false` | Remove containers and volumes            |
+| Option              | Default | Description                               |
+| ------------------- | ------- | ----------------------------------------- |
+| `--remove`          | `false` | Remove containers and volumes             |
 | `--services-only`   | `false` | Only stop services, not the dev container |
-| `--prune-worktrees` | `false` | Automatically clean up merged worktrees  |
+| `--prune-worktrees` | `false` | Automatically clean up merged worktrees   |
 
 ### Examples
 
@@ -210,18 +210,18 @@ rapid approve <subcommand> [options]
 
 ### Subcommands
 
-| Subcommand | Description                  |
-| ---------- | ---------------------------- |
+| Subcommand | Description                    |
+| ---------- | ------------------------------ |
 | `list`     | List pending approval requests |
-| `approve`  | Approve a specific request    |
-| `reject`   | Reject a request              |
-| `defer`    | Defer a decision              |
+| `approve`  | Approve a specific request     |
+| `reject`   | Reject a request               |
+| `defer`    | Defer a decision               |
 
 ### Options
 
-| Option            | Description                |
-| ----------------- | -------------------------- |
-| `-r, --reason`    | Provide reason for decision |
+| Option         | Description                 |
+| -------------- | --------------------------- |
+| `-r, --reason` | Provide reason for decision |
 
 ### Examples
 
@@ -251,19 +251,19 @@ rapid worktree <subcommand> [options]
 
 ### Subcommands
 
-| Subcommand | Description             |
-| ---------- | ----------------------- |
-| `list`     | List active worktrees   |
-| `spawn`    | Create a new worktree   |
-| `remove`   | Remove a worktree       |
+| Subcommand | Description           |
+| ---------- | --------------------- |
+| `list`     | List active worktrees |
+| `spawn`    | Create a new worktree |
+| `remove`   | Remove a worktree     |
 
 ### Options
 
-| Option            | Description                   |
-| ----------------- | ----------------------------- |
-| `--json`          | Output in JSON format         |
-| `--no-checkout`   | Create branch without checkout |
-| `--force`         | Force removal without safety checks |
+| Option          | Description                         |
+| --------------- | ----------------------------------- |
+| `--json`        | Output in JSON format               |
+| `--no-checkout` | Create branch without checkout      |
+| `--force`       | Force removal without safety checks |
 
 ### Examples
 
@@ -512,14 +512,15 @@ Start the RAPID MCP server for secure command execution and inter-agent communic
 rapid mcp serve [--http] [--port <port>] [--project <dir>] [--verbose]
 ```
 
-| Option         | Default | Description                                    |
-| -------------- | ------- | ---------------------------------------------- |
-| `--http`       | `false` | Use HTTP transport instead of stdio            |
-| `--port <port>` | `3100` | HTTP port (when using `--http`)               |
-| `--project <dir>` | `.`   | Project directory for MCP context             |
-| `--verbose`    | `false` | Enable verbose logging                        |
+| Option            | Default | Description                         |
+| ----------------- | ------- | ----------------------------------- |
+| `--http`          | `false` | Use HTTP transport instead of stdio |
+| `--port <port>`   | `3100`  | HTTP port (when using `--http`)     |
+| `--project <dir>` | `.`     | Project directory for MCP context   |
+| `--verbose`       | `false` | Enable verbose logging              |
 
 **Features:**
+
 - Secure sandboxed command execution (`secure_exec`)
 - File operations with path access controls
 - Secrets retrieval from configured providers
@@ -714,11 +715,11 @@ rapid checkpoint list [--json]
 rapid checkpoint show <id> [--diff]
 ```
 
-| Option           | Description                |
-| ---------------- | -------------------------- |
-| `--message <msg>` | Checkpoint description    |
-| `--json`         | Output as JSON            |
-| `--diff`         | Show changes from previous |
+| Option            | Description                |
+| ----------------- | -------------------------- |
+| `--message <msg>` | Checkpoint description     |
+| `--json`          | Output as JSON             |
+| `--diff`          | Show changes from previous |
 
 ---
 

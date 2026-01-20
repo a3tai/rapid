@@ -9,11 +9,11 @@ services:
     image: redis:7-alpine
     container_name: rapid-redis
     ports:
-      - "6379:6379"
+      - '6379:6379'
     volumes:
       - rapid-redis-data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       timeout: 3s
       retries: 5
@@ -28,7 +28,7 @@ services:
       dockerfile: docker/Dockerfile.mcp
     container_name: rapid-mcp
     ports:
-      - "3100:3100"
+      - '3100:3100'
     environment:
       - REDIS_URL=redis://redis:6379
       - NODE_ENV=production
@@ -41,7 +41,13 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:3100/health').then(r => process.exit(r.ok ? 0 : 1))"]
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:3100/health').then(r => process.exit(r.ok ? 0 : 1))",
+        ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -56,13 +62,19 @@ services:
       dockerfile: docker/Dockerfile.gateway
     container_name: rapid-gateway
     ports:
-      - "4000:4000"
+      - '4000:4000'
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY:-}
     healthcheck:
-      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(2); s.connect(('localhost',4000)); s.close()"]
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import socket; s=socket.socket(); s.settimeout(2); s.connect(('localhost',4000)); s.close()",
+        ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -77,7 +89,7 @@ services:
       dockerfile: docker/Dockerfile.daemon
     container_name: rapid-daemon
     ports:
-      - "3200:3200"
+      - '3200:3200'
     environment:
       - REDIS_URL=redis://redis:6379
       - MCP_URL=http://mcp:3100

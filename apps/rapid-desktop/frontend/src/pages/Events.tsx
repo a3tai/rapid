@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react'
-import { clsx } from 'clsx'
-import { formatDistanceToNow, format } from 'date-fns'
-import { useMessages, type Message } from '../stores/app'
+import { useState, useMemo } from 'react';
+import { clsx } from 'clsx';
+import { formatDistanceToNow, format } from 'date-fns';
+import { useMessages, type Message } from '../stores/app';
 
 const MESSAGE_TYPES = [
   'all',
@@ -12,42 +12,42 @@ const MESSAGE_TYPES = [
   'question',
   'learning',
   'heartbeat',
-] as const
+] as const;
 
-type FilterType = (typeof MESSAGE_TYPES)[number]
+type FilterType = (typeof MESSAGE_TYPES)[number];
 
 export function EventsPage() {
-  const messages = useMessages()
-  const [filter, setFilter] = useState<FilterType>('all')
-  const [searchQuery, setSearchQuery] = useState('')
+  const messages = useMessages();
+  const [filter, setFilter] = useState<FilterType>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const filteredMessages = useMemo(() => {
-    let result = messages
+    let result = messages;
 
     if (filter !== 'all') {
-      result = result.filter((m) => m.type === filter)
+      result = result.filter((m) => m.type === filter);
     }
 
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase()
+      const query = searchQuery.toLowerCase();
       result = result.filter(
         (m) =>
           m.fromAgent.name.toLowerCase().includes(query) ||
           m.payload.title?.toLowerCase().includes(query) ||
           m.payload.content?.toLowerCase().includes(query)
-      )
+      );
     }
 
-    return result
-  }, [messages, filter, searchQuery])
+    return result;
+  }, [messages, filter, searchQuery]);
 
   const typeStats = useMemo(() => {
-    const stats: Record<string, number> = {}
+    const stats: Record<string, number> = {};
     for (const msg of messages) {
-      stats[msg.type] = (stats[msg.type] || 0) + 1
+      stats[msg.type] = (stats[msg.type] || 0) + 1;
     }
-    return stats
-  }, [messages])
+    return stats;
+  }, [messages]);
 
   return (
     <div className="space-y-6 h-full flex flex-col">
@@ -55,9 +55,7 @@ export function EventsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold">Event Bus</h2>
-          <p className="text-rapid-muted text-sm mt-1">
-            Real-time agent communication feed
-          </p>
+          <p className="text-rapid-muted text-sm mt-1">Real-time agent communication feed</p>
         </div>
         <div className="flex items-center gap-3">
           {/* Search */}
@@ -146,59 +144,104 @@ export function EventsPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function MessageItem({ message }: { message: Message }) {
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(false);
 
   const typeIcon = {
     discovery: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.5}
+          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+        />
       </svg>
     ),
     error: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.5}
+          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
       </svg>
     ),
     completion: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.5}
+          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
       </svg>
     ),
     question: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.5}
+          d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
       </svg>
     ),
     learning: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.5}
+          d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+        />
       </svg>
     ),
     coordination: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.5}
+          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+        />
       </svg>
     ),
     heartbeat: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.5}
+          d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+        />
       </svg>
     ),
     suggestion: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.5}
+          d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
       </svg>
     ),
     vote: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.5}
+          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
       </svg>
     ),
-  }
+  };
 
   const typeColor = {
     discovery: 'text-cyan-400 bg-cyan-400/10',
@@ -210,7 +253,7 @@ function MessageItem({ message }: { message: Message }) {
     heartbeat: 'text-gray-400 bg-gray-400/10',
     suggestion: 'text-indigo-400 bg-indigo-400/10',
     vote: 'text-emerald-400 bg-emerald-400/10',
-  }
+  };
 
   return (
     <div
@@ -228,9 +271,7 @@ function MessageItem({ message }: { message: Message }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-medium">{message.fromAgent.name}</span>
-            <span className={clsx('badge', getTypeBadgeClass(message.type))}>
-              {message.type}
-            </span>
+            <span className={clsx('badge', getTypeBadgeClass(message.type))}>{message.type}</span>
             <span className="text-sm text-rapid-muted ml-auto">
               {format(new Date(message.timestamp), 'HH:mm:ss')}
             </span>
@@ -262,7 +303,7 @@ function MessageItem({ message }: { message: Message }) {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function getTypeBadgeClass(type: Message['type']): string {
@@ -276,6 +317,6 @@ function getTypeBadgeClass(type: Message['type']): string {
     heartbeat: 'badge-neutral',
     suggestion: 'bg-indigo-500/20 text-indigo-400',
     vote: 'bg-emerald-500/20 text-emerald-400',
-  }
-  return classes[type] || 'badge-neutral'
+  };
+  return classes[type] || 'badge-neutral';
 }

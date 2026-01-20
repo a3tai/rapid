@@ -111,7 +111,8 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
     'task_create',
     {
       title: 'Create Task',
-      description: 'Create a new task for tracking work. Supports Phase 1 Task Assignment Protocol with capabilities and deadlines.',
+      description:
+        'Create a new task for tracking work. Supports Phase 1 Task Assignment Protocol with capabilities and deadlines.',
       inputSchema: {
         title: z.string().describe('Task title'),
         description: z.string().optional().describe('Detailed description'),
@@ -122,12 +123,21 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
         createdBy: z.string().describe('Agent ID or name creating the task'),
         // Phase 1 fields
         deadline: z.string().optional().describe('ISO8601 deadline for task completion'),
-        requiredCapabilities: z.array(z.string()).optional().describe('Required agent capabilities (e.g., ["read", "write", "bash"])'),
+        requiredCapabilities: z
+          .array(z.string())
+          .optional()
+          .describe('Required agent capabilities (e.g., ["read", "write", "bash"])'),
         estimatedDuration: z.number().optional().describe('Estimated seconds to complete'),
         dependencies: z.array(z.string()).optional().describe('Task IDs that must complete first'),
         // Human-in-the-Loop approval fields
-        requiresApproval: z.boolean().optional().describe('Whether task requires human approval before work can begin'),
-        approvalType: z.enum(['before_claim', 'before_commit', 'before_deploy']).optional().describe('When approval is needed'),
+        requiresApproval: z
+          .boolean()
+          .optional()
+          .describe('Whether task requires human approval before work can begin'),
+        approvalType: z
+          .enum(['before_claim', 'before_commit', 'before_deploy'])
+          .optional()
+          .describe('When approval is needed'),
         approvalReason: z.string().optional().describe('Reason why approval is required'),
       },
       outputSchema: {
@@ -197,7 +207,9 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
       await saveTasks();
 
       if (context.verbose) {
-        console.error(`[task_create] Created task ${task.id}: ${title}${requiredCapabilities ? ` [${requiredCapabilities.join(', ')}]` : ''}`);
+        console.error(
+          `[task_create] Created task ${task.id}: ${title}${requiredCapabilities ? ` [${requiredCapabilities.join(', ')}]` : ''}`
+        );
       }
 
       return {
@@ -426,7 +438,8 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
     'task_claim',
     {
       title: 'Claim Task',
-      description: "Claim a task (assign it to yourself and mark as in_progress). Implements Phase 1 Task Assignment Protocol with capability matching.",
+      description:
+        'Claim a task (assign it to yourself and mark as in_progress). Implements Phase 1 Task Assignment Protocol with capability matching.',
       inputSchema: {
         id: z.string().describe('Task ID to claim'),
         agentId: z.string().describe('Your agent ID'),
@@ -459,9 +472,10 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
 
       // Phase 1: Check if task is still pending
       if (task.status !== 'pending') {
-        const reason = task.status === 'in_progress' && task.assignedTo
-          ? `already claimed by ${task.assignedTo}`
-          : `already ${task.status}`;
+        const reason =
+          task.status === 'in_progress' && task.assignedTo
+            ? `already claimed by ${task.assignedTo}`
+            : `already ${task.status}`;
         return {
           content: [
             {
@@ -537,7 +551,9 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
       if (context.verbose) {
         console.error(
           `[task_claim] Agent ${agentName || agentId} claimed task ${id}${
-            task.requiredCapabilities ? ` (capabilities: ${task.requiredCapabilities.join(', ')})` : ''
+            task.requiredCapabilities
+              ? ` (capabilities: ${task.requiredCapabilities.join(', ')})`
+              : ''
           }`
         );
       }
@@ -554,7 +570,8 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
     'task_progress',
     {
       title: 'Update Task Progress',
-      description: 'Send progress update for an in-progress task. Phase 1 Task Assignment Protocol.',
+      description:
+        'Send progress update for an in-progress task. Phase 1 Task Assignment Protocol.',
       inputSchema: {
         id: z.string().describe('Task ID'),
         progress: z.number().min(0).max(1).describe('Progress percentage (0.0 - 1.0)'),
@@ -568,7 +585,12 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
       },
     },
     async (args) => {
-      const { id, progress, message, agentId: _agentId } = args as {
+      const {
+        id,
+        progress,
+        message,
+        agentId: _agentId,
+      } = args as {
         id: string;
         progress: number;
         message?: string;
@@ -586,7 +608,9 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
 
       if (task.status !== 'in_progress') {
         return {
-          content: [{ type: 'text', text: JSON.stringify({ error: `Task '${id}' is not in progress` }) }],
+          content: [
+            { type: 'text', text: JSON.stringify({ error: `Task '${id}' is not in progress` }) },
+          ],
           structuredContent: { task, updated: false, error: `Task '${id}' is not in progress` },
         };
       }
@@ -608,7 +632,9 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
       await saveTasks();
 
       if (context.verbose) {
-        console.error(`[task_progress] Task ${id}: ${Math.round(progress * 100)}%${message ? ` - ${message}` : ''}`);
+        console.error(
+          `[task_progress] Task ${id}: ${Math.round(progress * 100)}%${message ? ` - ${message}` : ''}`
+        );
       }
 
       return {
@@ -637,7 +663,12 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
       },
     },
     async (args) => {
-      const { id, summary, result, agentId: _agentId } = args as {
+      const {
+        id,
+        summary,
+        result,
+        agentId: _agentId,
+      } = args as {
         id: string;
         summary?: string;
         result?: Record<string, unknown>;
@@ -680,7 +711,8 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
     'task_fail',
     {
       title: 'Fail Task',
-      description: 'Mark a task as failed with error information. Phase 1 Task Assignment Protocol.',
+      description:
+        'Mark a task as failed with error information. Phase 1 Task Assignment Protocol.',
       inputSchema: {
         id: z.string().describe('Task ID'),
         error: z.string().describe('Error message'),
@@ -695,7 +727,13 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
       },
     },
     async (args) => {
-      const { id, error, errorCode, canRetry, agentId: _agentId } = args as {
+      const {
+        id,
+        error,
+        errorCode,
+        canRetry,
+        agentId: _agentId,
+      } = args as {
         id: string;
         error: string;
         errorCode?: string;
@@ -746,10 +784,17 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
     'task_detect_timeouts',
     {
       title: 'Detect Task Timeouts',
-      description: 'Detect and release tasks with claim or progress timeouts. Phase 1 Task Assignment Protocol timeout detection.',
+      description:
+        'Detect and release tasks with claim or progress timeouts. Phase 1 Task Assignment Protocol timeout detection.',
       inputSchema: {
-        progressTimeoutSeconds: z.number().default(60).describe('Seconds without progress before timeout'),
-        claimTimeoutSeconds: z.number().default(300).describe('Seconds to complete claim and start progress'),
+        progressTimeoutSeconds: z
+          .number()
+          .default(60)
+          .describe('Seconds without progress before timeout'),
+        claimTimeoutSeconds: z
+          .number()
+          .default(300)
+          .describe('Seconds to complete claim and start progress'),
       },
       outputSchema: {
         timedOut: z.array(
@@ -763,10 +808,11 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
       },
     },
     async (args) => {
-      const { progressTimeoutSeconds = 60, claimTimeoutSeconds: _claimTimeoutSeconds = 300 } = args as {
-        progressTimeoutSeconds?: number;
-        claimTimeoutSeconds?: number;
-      };
+      const { progressTimeoutSeconds = 60, claimTimeoutSeconds: _claimTimeoutSeconds = 300 } =
+        args as {
+          progressTimeoutSeconds?: number;
+          claimTimeoutSeconds?: number;
+        };
 
       const timedOut: Array<{
         taskId: string;
@@ -841,7 +887,9 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
       }
 
       return {
-        content: [{ type: 'text', text: JSON.stringify({ timedOut, count: timedOut.length }, null, 2) }],
+        content: [
+          { type: 'text', text: JSON.stringify({ timedOut, count: timedOut.length }, null, 2) },
+        ],
         structuredContent: { timedOut, count: timedOut.length },
       };
     }
@@ -852,7 +900,8 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
     'task_approve',
     {
       title: 'Approve Task',
-      description: 'Approve a task that requires human-in-the-loop approval. Transitions task from pending_approval to pending status.',
+      description:
+        'Approve a task that requires human-in-the-loop approval. Transitions task from pending_approval to pending status.',
       inputSchema: {
         taskId: z.string().describe('Task ID to approve'),
         approvedBy: z.string().describe('User or agent ID approving the task'),
@@ -869,7 +918,16 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
       const task = tasks.get(taskId);
       if (!task) {
         return {
-          content: [{ type: 'text', text: JSON.stringify({ approved: false, message: `Task ${taskId} not found` }, null, 2) }],
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                { approved: false, message: `Task ${taskId} not found` },
+                null,
+                2
+              ),
+            },
+          ],
           structuredContent: { approved: false, message: `Task ${taskId} not found` },
         };
       }
@@ -880,7 +938,10 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
             {
               type: 'text',
               text: JSON.stringify(
-                { approved: false, message: `Task is in ${task.status} status, not pending_approval` },
+                {
+                  approved: false,
+                  message: `Task is in ${task.status} status, not pending_approval`,
+                },
                 null,
                 2
               ),
@@ -916,7 +977,11 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
             ),
           },
         ],
-        structuredContent: { task, approved: true, message: `Task ${taskId} approved successfully` },
+        structuredContent: {
+          task,
+          approved: true,
+          message: `Task ${taskId} approved successfully`,
+        },
       };
     }
   );
@@ -939,12 +1004,25 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
       },
     },
     async (args) => {
-      const { taskId, rejectedBy, reason } = args as { taskId: string; rejectedBy: string; reason: string };
+      const { taskId, rejectedBy, reason } = args as {
+        taskId: string;
+        rejectedBy: string;
+        reason: string;
+      };
 
       const task = tasks.get(taskId);
       if (!task) {
         return {
-          content: [{ type: 'text', text: JSON.stringify({ rejected: false, message: `Task ${taskId} not found` }, null, 2) }],
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                { rejected: false, message: `Task ${taskId} not found` },
+                null,
+                2
+              ),
+            },
+          ],
           structuredContent: { rejected: false, message: `Task ${taskId} not found` },
         };
       }
@@ -955,7 +1033,10 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
             {
               type: 'text',
               text: JSON.stringify(
-                { rejected: false, message: `Task is in ${task.status} status, not pending_approval` },
+                {
+                  rejected: false,
+                  message: `Task is in ${task.status} status, not pending_approval`,
+                },
                 null,
                 2
               ),

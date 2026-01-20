@@ -3,13 +3,13 @@ version: '3'
 
 # Application information
 info:
-  companyName: "RAPID"
-  productName: "RAPID Dashboard"
-  productIdentifier: "io.rapid.desktop"
-  description: "Multi-agent AI development orchestration"
-  copyright: "(c) 2025, RAPID"
-  comments: "Control your AI agents from a single dashboard"
-  version: "0.1.0"
+  companyName: 'RAPID'
+  productName: 'RAPID Dashboard'
+  productIdentifier: 'io.rapid.desktop'
+  description: 'Multi-agent AI development orchestration'
+  copyright: '(c) 2025, RAPID'
+  comments: 'Control your AI agents from a single dashboard'
+  version: '0.1.0'
 
 # Dev mode configuration
 dev_mode:
@@ -27,14 +27,14 @@ dev_mode:
       - .gitignore
       - .gitkeep
     watched_extension:
-      - "*.go"
+      - '*.go'
     git_ignore: true
   executes:
-    - cmd: wails3 build DEV=true
+    - cmd: go build -tags desktop -ldflags="-s -w" -o bin/rapid-desktop .
       type: blocking
-    - cmd: wails3 task common:dev:frontend
+    - cmd: cd frontend && npm run dev -- --port 9245
       type: background
-    - cmd: wails3 task run
+    - cmd: ./bin/rapid-desktop
       type: primary
 
 # File Associations (optional)

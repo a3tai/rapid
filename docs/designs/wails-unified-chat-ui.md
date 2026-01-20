@@ -29,6 +29,7 @@ App.tsx
 ```
 
 **State Management**: Zustand store with types:
+
 - `Agent`: id, name, worktree, session
 - `Task`: id, title, description, status, priority, assignedTo, timestamps, tags
 - `Message`: id, type, fromAgent, timestamp, payload
@@ -39,15 +40,15 @@ App.tsx
 
 ### Gap Analysis
 
-| Feature | Current Status | Needs |
-|---------|---------------|-------|
-| Chat Interface | ❌ None | Primary interaction layer with streaming |
-| HITL Approvals | ❌ None | Inline chat prompts with one-click approve/reject |
-| Real-time Updates | ⚠️ Polling only | WebSocket for instant updates |
-| Task Board | ⚠️ List view only | Kanban drag-drop view |
-| Command Palette | ❌ None | Cmd+K quick actions |
-| Context Browser | ⚠️ Basic page | Enhanced context-specific UI |
-| Agent Management | ✅ List view | Add spawn/stop/reassign actions |
+| Feature           | Current Status    | Needs                                             |
+| ----------------- | ----------------- | ------------------------------------------------- |
+| Chat Interface    | ❌ None           | Primary interaction layer with streaming          |
+| HITL Approvals    | ❌ None           | Inline chat prompts with one-click approve/reject |
+| Real-time Updates | ⚠️ Polling only   | WebSocket for instant updates                     |
+| Task Board        | ⚠️ List view only | Kanban drag-drop view                             |
+| Command Palette   | ❌ None           | Cmd+K quick actions                               |
+| Context Browser   | ⚠️ Basic page     | Enhanced context-specific UI                      |
+| Agent Management  | ✅ List view      | Add spawn/stop/reassign actions                   |
 
 ## Proposed Unified Architecture
 
@@ -124,33 +125,33 @@ App.tsx
 
 ```typescript
 interface ChatMessage {
-  id: string
-  type: 'user' | 'agent' | 'system' | 'approval' | 'streaming'
-  fromAgent?: Agent
-  content: string
-  timestamp: string
+  id: string;
+  type: 'user' | 'agent' | 'system' | 'approval' | 'streaming';
+  fromAgent?: Agent;
+  content: string;
+  timestamp: string;
   metadata?: {
-    taskId?: string
-    approvalId?: string
-    contextRefs?: string[]
-    files?: string[]
-  }
+    taskId?: string;
+    approvalId?: string;
+    contextRefs?: string[];
+    files?: string[];
+  };
 }
 
 interface ApprovalRequest {
-  id: string
-  fromAgent: Agent
-  action: string
-  reason: string
-  risk: 'low' | 'medium' | 'high'
+  id: string;
+  fromAgent: Agent;
+  action: string;
+  reason: string;
+  risk: 'low' | 'medium' | 'high';
   context: {
-    files?: string[]
-    changes?: string
-    impact?: string
-  }
-  status: 'pending' | 'approved' | 'rejected'
-  respondedAt?: string
-  respondedBy?: string
+    files?: string[];
+    changes?: string;
+    impact?: string;
+  };
+  status: 'pending' | 'approved' | 'rejected';
+  respondedAt?: string;
+  respondedBy?: string;
 }
 
 // State additions to app.ts
@@ -158,20 +159,21 @@ interface AppState {
   // ... existing state
 
   // Chat state
-  chatMessages: ChatMessage[]
-  chatInput: string
-  isStreaming: boolean
-  activeApprovalRequest: ApprovalRequest | null
-  approvalHistory: ApprovalRequest[]
+  chatMessages: ChatMessage[];
+  chatInput: string;
+  isStreaming: boolean;
+  activeApprovalRequest: ApprovalRequest | null;
+  approvalHistory: ApprovalRequest[];
 
   // Actions
-  sendChatMessage: (content: string) => Promise<void>
-  addChatMessage: (message: ChatMessage) => void
-  handleApproval: (id: string, decision: 'approve' | 'reject', reason?: string) => Promise<void>
+  sendChatMessage: (content: string) => Promise<void>;
+  addChatMessage: (message: ChatMessage) => void;
+  handleApproval: (id: string, decision: 'approve' | 'reject', reason?: string) => Promise<void>;
 }
 ```
 
 **Features**:
+
 - Streaming text display with typewriter effect
 - Message threading (replies to specific messages)
 - Rich content: code blocks, file links, task references
@@ -182,6 +184,7 @@ interface AppState {
 - React to messages (like Slack reactions)
 
 **Keyboard Shortcuts**:
+
 - `Cmd+Enter`: Send message
 - `Cmd+K`: Open command palette
 - `Escape`: Clear input
@@ -193,24 +196,25 @@ interface AppState {
 
 ```typescript
 interface AgentPanelProps {
-  agents: Agent[]
-  onSpawn: (personaType: string) => Promise<void>
-  onStop: (agentId: string) => Promise<void>
-  onReassign: (taskId: string, agentId: string) => Promise<void>
+  agents: Agent[];
+  onSpawn: (personaType: string) => Promise<void>;
+  onStop: (agentId: string) => Promise<void>;
+  onReassign: (taskId: string, agentId: string) => Promise<void>;
 }
 
 interface EnhancedAgent extends Agent {
-  status: 'active' | 'idle' | 'working' | 'stale'
-  currentTask?: Task
-  capabilities: string[]
-  healthScore: number  // 0-100
-  lastHeartbeat: string
-  tasksCompleted: number
-  tasksInProgress: number
+  status: 'active' | 'idle' | 'working' | 'stale';
+  currentTask?: Task;
+  capabilities: string[];
+  healthScore: number; // 0-100
+  lastHeartbeat: string;
+  tasksCompleted: number;
+  tasksInProgress: number;
 }
 ```
 
 **Features**:
+
 - Real-time status indicators (🟢 active, 🟡 working, 🔴 stale)
 - Current task display (if assigned)
 - Capabilities badges (e.g., "TypeScript", "Security", "UI")
@@ -225,6 +229,7 @@ interface EnhancedAgent extends Agent {
 - Search/filter agents
 
 **Spawn Dialog**:
+
 ```
 ┌─────────────────────────────────────┐
 │  Spawn New Agent                     │
@@ -249,18 +254,18 @@ interface EnhancedAgent extends Agent {
 
 ```typescript
 interface TaskBoardProps {
-  tasks: Task[]
-  agents: Agent[]
-  onDragDrop: (taskId: string, newStatus: Task['status'], newAgent?: string) => Promise<void>
-  onTaskClick: (taskId: string) => void
+  tasks: Task[];
+  agents: Agent[];
+  onDragDrop: (taskId: string, newStatus: Task['status'], newAgent?: string) => Promise<void>;
+  onTaskClick: (taskId: string) => void;
 }
 
 interface TaskCard {
-  task: Task
-  agent?: Agent
-  dependencies?: Task[]
-  subtasks?: Task[]
-  approvalRequired?: boolean
+  task: Task;
+  agent?: Agent;
+  dependencies?: Task[];
+  subtasks?: Task[];
+  approvalRequired?: boolean;
 }
 ```
 
@@ -285,6 +290,7 @@ interface TaskCard {
 ```
 
 **Features**:
+
 - Drag-drop between columns (changes status)
 - Drag-drop to agent (assigns task)
 - Priority color coding
@@ -303,20 +309,21 @@ interface TaskCard {
 
 ```typescript
 interface EventFeedProps {
-  messages: Message[]
-  onFilter: (filters: EventFilter) => void
-  onExpand: (messageId: string) => void
+  messages: Message[];
+  onFilter: (filters: EventFilter) => void;
+  onExpand: (messageId: string) => void;
 }
 
 interface EventFilter {
-  types?: Message['type'][]
-  agents?: string[]
-  priority?: 'low' | 'normal' | 'high'
-  since?: Date
+  types?: Message['type'][];
+  agents?: string[];
+  priority?: 'low' | 'normal' | 'high';
+  since?: Date;
 }
 ```
 
 **Features**:
+
 - Collapsible sidebar (default: collapsed)
 - Real-time updates with animations
 - Type filtering (checkboxes for each type)
@@ -328,6 +335,7 @@ interface EventFilter {
 - Export to JSON/CSV
 
 **Collapsed View**:
+
 ```
 │ Activity (5 new)        │
 │ ▼ Last 5 minutes        │
@@ -340,6 +348,7 @@ interface EventFilter {
 ```
 
 **Expanded View**:
+
 ```
 │ Activity Feed           [X] │
 ├─────────────────────────────┤
@@ -370,18 +379,19 @@ interface EventFilter {
 
 ```typescript
 interface Command {
-  id: string
-  label: string
-  description?: string
-  category: 'task' | 'agent' | 'approval' | 'context' | 'system'
-  icon: string
-  action: () => void | Promise<void>
-  keywords?: string[]
-  shortcut?: string
+  id: string;
+  label: string;
+  description?: string;
+  category: 'task' | 'agent' | 'approval' | 'context' | 'system';
+  icon: string;
+  action: () => void | Promise<void>;
+  keywords?: string[];
+  shortcut?: string;
 }
 ```
 
 **Example Commands**:
+
 ```
 ┌─────────────────────────────────────────────┐
 │ Search commands...                          │
@@ -399,6 +409,7 @@ interface Command {
 ```
 
 **Features**:
+
 - Fuzzy search by label, description, keywords
 - Category filtering
 - Recent commands history
@@ -413,36 +424,37 @@ interface Command {
 
 ```typescript
 interface ContextEntry {
-  id: string
-  memoryType: 'episodic' | 'semantic' | 'procedural' | 'decision_trace'
-  key: string
-  value: any
-  embedding?: number[]
+  id: string;
+  memoryType: 'episodic' | 'semantic' | 'procedural' | 'decision_trace';
+  key: string;
+  value: any;
+  embedding?: number[];
   metadata: {
-    createdAt: string
-    updatedAt: string
-    createdBy: string
-    confidence: number
-    accessCount: number
-    lastAccessed: string
-    expiresAt?: string
-    tags: string[]
-    relatedKeys: string[]
-  }
+    createdAt: string;
+    updatedAt: string;
+    createdBy: string;
+    confidence: number;
+    accessCount: number;
+    lastAccessed: string;
+    expiresAt?: string;
+    tags: string[];
+    relatedKeys: string[];
+  };
 }
 
 interface ContextBrowserProps {
-  entries: ContextEntry[]
-  onSearch: (query: string) => Promise<ContextEntry[]>
-  onAdd: (entry: Omit<ContextEntry, 'id' | 'metadata'>) => Promise<void>
-  onEdit: (id: string, entry: Partial<ContextEntry>) => Promise<void>
-  onDelete: (id: string) => Promise<void>
-  onExport: (format: 'json' | 'csv') => Promise<void>
-  onImport: (file: File) => Promise<void>
+  entries: ContextEntry[];
+  onSearch: (query: string) => Promise<ContextEntry[]>;
+  onAdd: (entry: Omit<ContextEntry, 'id' | 'metadata'>) => Promise<void>;
+  onEdit: (id: string, entry: Partial<ContextEntry>) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+  onExport: (format: 'json' | 'csv') => Promise<void>;
+  onImport: (file: File) => Promise<void>;
 }
 ```
 
 **Layout**:
+
 ```
 ┌─────────────────────────────────────────────────────┐
 │ Context Engine                                       │
@@ -473,6 +485,7 @@ interface ContextBrowserProps {
 ```
 
 **Features**:
+
 - Semantic search with embeddings
 - Filter by memory type, tags, confidence
 - Sort by: relevance, recency, access count
@@ -489,14 +502,15 @@ interface ContextBrowserProps {
 
 ```typescript
 interface ApprovalPromptProps {
-  request: ApprovalRequest
-  onApprove: (reason?: string) => Promise<void>
-  onReject: (reason: string) => Promise<void>
-  onDetails: () => void
+  request: ApprovalRequest;
+  onApprove: (reason?: string) => Promise<void>;
+  onReject: (reason: string) => Promise<void>;
+  onDetails: () => void;
 }
 ```
 
 **Inline in Chat**:
+
 ```
 ┌────────────────────────────────────────────────┐
 │ ⚠️  APPROVAL REQUIRED                           │
@@ -524,6 +538,7 @@ interface ApprovalPromptProps {
 ```
 
 **Detailed View** (Modal):
+
 ```
 ┌─────────────────────────────────────────────────┐
 │ Approval Request Details                 [X]    │
@@ -567,6 +582,7 @@ interface ApprovalPromptProps {
 ```
 
 **Features**:
+
 - Risk assessment (AI-generated)
 - Impact analysis (files, lines, breaking changes)
 - Context from related approvals
@@ -585,45 +601,45 @@ interface ApprovalPromptProps {
 ```typescript
 // stores/chat.ts (new)
 interface ChatState {
-  messages: ChatMessage[]
-  input: string
-  isStreaming: boolean
-  streamingMessage: string
-  activeThread: string | null
+  messages: ChatMessage[];
+  input: string;
+  isStreaming: boolean;
+  streamingMessage: string;
+  activeThread: string | null;
 
-  sendMessage: (content: string) => Promise<void>
-  streamMessageChunk: (chunk: string) => void
-  finishStreaming: () => void
-  setActiveThread: (messageId: string | null) => void
+  sendMessage: (content: string) => Promise<void>;
+  streamMessageChunk: (chunk: string) => void;
+  finishStreaming: () => void;
+  setActiveThread: (messageId: string | null) => void;
 }
 
 // stores/approvals.ts (new)
 interface ApprovalState {
-  pending: ApprovalRequest[]
-  history: ApprovalRequest[]
+  pending: ApprovalRequest[];
+  history: ApprovalRequest[];
 
-  requestApproval: (request: Omit<ApprovalRequest, 'id' | 'status'>) => Promise<string>
-  approve: (id: string, reason?: string) => Promise<void>
-  reject: (id: string, reason: string) => Promise<void>
-  batchApprove: (ids: string[], reason?: string) => Promise<void>
+  requestApproval: (request: Omit<ApprovalRequest, 'id' | 'status'>) => Promise<string>;
+  approve: (id: string, reason?: string) => Promise<void>;
+  reject: (id: string, reason: string) => Promise<void>;
+  batchApprove: (ids: string[], reason?: string) => Promise<void>;
 }
 
 // stores/context.ts (new)
 interface ContextState {
-  entries: ContextEntry[]
-  searchResults: ContextEntry[]
+  entries: ContextEntry[];
+  searchResults: ContextEntry[];
   filters: {
-    memoryTypes: ContextEntry['memoryType'][]
-    tags: string[]
-    minConfidence: number
-  }
+    memoryTypes: ContextEntry['memoryType'][];
+    tags: string[];
+    minConfidence: number;
+  };
 
-  search: (query: string) => Promise<ContextEntry[]>
-  addEntry: (entry: Omit<ContextEntry, 'id' | 'metadata'>) => Promise<void>
-  updateEntry: (id: string, entry: Partial<ContextEntry>) => Promise<void>
-  deleteEntry: (id: string) => Promise<void>
-  exportContext: (format: 'json' | 'csv') => Promise<void>
-  importContext: (file: File) => Promise<void>
+  search: (query: string) => Promise<ContextEntry[]>;
+  addEntry: (entry: Omit<ContextEntry, 'id' | 'metadata'>) => Promise<void>;
+  updateEntry: (id: string, entry: Partial<ContextEntry>) => Promise<void>;
+  deleteEntry: (id: string) => Promise<void>;
+  exportContext: (format: 'json' | 'csv') => Promise<void>;
+  importContext: (file: File) => Promise<void>;
 }
 ```
 
@@ -631,58 +647,58 @@ interface ContextState {
 
 ```typescript
 // hooks/useWebSocket.ts (new)
-import { useEffect, useRef } from 'react'
-import { useAppStore, useChatStore, useApprovalStore } from '../stores'
+import { useEffect, useRef } from 'react';
+import { useAppStore, useChatStore, useApprovalStore } from '../stores';
 
 export function useWebSocket() {
-  const ws = useRef<WebSocket | null>(null)
-  const { addMessage } = useAppStore()
-  const { streamMessageChunk, finishStreaming } = useChatStore()
-  const { requestApproval } = useApprovalStore()
+  const ws = useRef<WebSocket | null>(null);
+  const { addMessage } = useAppStore();
+  const { streamMessageChunk, finishStreaming } = useChatStore();
+  const { requestApproval } = useApprovalStore();
 
   useEffect(() => {
     // Connect to Go backend WebSocket
-    ws.current = new WebSocket('ws://localhost:9000/ws')
+    ws.current = new WebSocket('ws://localhost:9000/ws');
 
     ws.current.onmessage = (event) => {
-      const data = JSON.parse(event.data)
+      const data = JSON.parse(event.data);
 
       switch (data.type) {
         case 'message':
-          addMessage(data.payload)
-          break
+          addMessage(data.payload);
+          break;
         case 'stream_chunk':
-          streamMessageChunk(data.payload.chunk)
-          break
+          streamMessageChunk(data.payload.chunk);
+          break;
         case 'stream_end':
-          finishStreaming()
-          break
+          finishStreaming();
+          break;
         case 'approval_request':
-          requestApproval(data.payload)
-          break
+          requestApproval(data.payload);
+          break;
         case 'agent_update':
           // Update agent status
-          break
+          break;
         case 'task_update':
           // Update task
-          break
+          break;
       }
-    }
+    };
 
     ws.current.onerror = (error) => {
-      console.error('WebSocket error:', error)
-    }
+      console.error('WebSocket error:', error);
+    };
 
     return () => {
-      ws.current?.close()
-    }
-  }, [])
+      ws.current?.close();
+    };
+  }, []);
 
   const sendMessage = (message: any) => {
-    ws.current?.send(JSON.stringify(message))
-  }
+    ws.current?.send(JSON.stringify(message));
+  };
 
-  return { sendMessage }
+  return { sendMessage };
 }
 ```
 
@@ -808,23 +824,23 @@ func (b *Bridge) Start() error {
 
 ```tsx
 // components/ChatInterface.tsx
-import { useEffect, useRef, useState } from 'react'
-import { useChatStore, useApprovalStore } from '../stores'
-import { MessageBubble } from './MessageBubble'
-import { ApprovalPrompt } from './ApprovalPrompt'
-import { ChatInput } from './ChatInput'
+import { useEffect, useRef, useState } from 'react';
+import { useChatStore, useApprovalStore } from '../stores';
+import { MessageBubble } from './MessageBubble';
+import { ApprovalPrompt } from './ApprovalPrompt';
+import { ChatInput } from './ChatInput';
 
 export function ChatInterface() {
-  const messages = useChatStore((s) => s.messages)
-  const approvals = useApprovalStore((s) => s.pending)
-  const streamingMessage = useChatStore((s) => s.streamingMessage)
-  const isStreaming = useChatStore((s) => s.isStreaming)
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const messages = useChatStore((s) => s.messages);
+  const approvals = useApprovalStore((s) => s.pending);
+  const streamingMessage = useChatStore((s) => s.streamingMessage);
+  const isStreaming = useChatStore((s) => s.isStreaming);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, streamingMessage])
+    scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, streamingMessage]);
 
   return (
     <div className="flex flex-col h-full">
@@ -846,7 +862,7 @@ export function ChatInterface() {
               id: 'streaming',
               type: 'agent',
               content: streamingMessage,
-              timestamp: new Date().toISOString()
+              timestamp: new Date().toISOString(),
             }}
             isStreaming
           />
@@ -858,7 +874,7 @@ export function ChatInterface() {
       {/* Input */}
       <ChatInput />
     </div>
-  )
+  );
 }
 ```
 
@@ -866,26 +882,29 @@ export function ChatInterface() {
 
 ```tsx
 // components/ApprovalPrompt.tsx
-import { useState } from 'react'
-import { useApprovalStore } from '../stores'
-import type { ApprovalRequest } from '../stores/approvals'
+import { useState } from 'react';
+import { useApprovalStore } from '../stores';
+import type { ApprovalRequest } from '../stores/approvals';
 
 interface ApprovalPromptProps {
-  request: ApprovalRequest
+  request: ApprovalRequest;
 }
 
 export function ApprovalPrompt({ request }: ApprovalPromptProps) {
-  const [showDetails, setShowDetails] = useState(false)
-  const { approve, reject } = useApprovalStore()
-  const [reason, setReason] = useState('')
+  const [showDetails, setShowDetails] = useState(false);
+  const { approve, reject } = useApprovalStore();
+  const [reason, setReason] = useState('');
 
   const getRiskColor = (risk: ApprovalRequest['risk']) => {
     switch (risk) {
-      case 'high': return 'text-red-400 bg-red-400/10'
-      case 'medium': return 'text-yellow-400 bg-yellow-400/10'
-      case 'low': return 'text-green-400 bg-green-400/10'
+      case 'high':
+        return 'text-red-400 bg-red-400/10';
+      case 'medium':
+        return 'text-yellow-400 bg-yellow-400/10';
+      case 'low':
+        return 'text-green-400 bg-green-400/10';
     }
-  }
+  };
 
   return (
     <div className="card p-4 border-l-4 border-yellow-400">
@@ -906,31 +925,23 @@ export function ApprovalPrompt({ request }: ApprovalPromptProps) {
           <div className="text-sm mb-3">{request.reason}</div>
 
           {request.context.impact && (
-            <div className="text-sm text-rapid-muted mb-3">
-              Impact: {request.context.impact}
-            </div>
+            <div className="text-sm text-rapid-muted mb-3">Impact: {request.context.impact}</div>
           )}
 
           <div className="flex gap-2">
-            <button
-              onClick={() => approve(request.id)}
-              className="btn btn-sm btn-success"
-            >
+            <button onClick={() => approve(request.id)} className="btn btn-sm btn-success">
               ✓ Approve
             </button>
             <button
               onClick={() => {
-                const reason = prompt('Reason for rejection:')
-                if (reason) reject(request.id, reason)
+                const reason = prompt('Reason for rejection:');
+                if (reason) reject(request.id, reason);
               }}
               className="btn btn-sm btn-error"
             >
               ✗ Reject
             </button>
-            <button
-              onClick={() => setShowDetails(!showDetails)}
-              className="btn btn-sm btn-ghost"
-            >
+            <button onClick={() => setShowDetails(!showDetails)} className="btn btn-sm btn-ghost">
               👁 Details
             </button>
           </div>
@@ -946,7 +957,7 @@ export function ApprovalPrompt({ request }: ApprovalPromptProps) {
         </div>
       </div>
     </div>
-  )
+  );
 }
 ```
 
@@ -957,6 +968,7 @@ export function ApprovalPrompt({ request }: ApprovalPromptProps) {
 **Goals**: Basic chat interface with WebSocket
 
 **Tasks**:
+
 1. Create chat state management (Zustand store)
 2. Build ChatInterface component
 3. Implement WebSocket hook
@@ -971,6 +983,7 @@ export function ApprovalPrompt({ request }: ApprovalPromptProps) {
 **Goals**: Enhanced agent panel and task board
 
 **Tasks**:
+
 1. Enhance agent panel with health indicators
 2. Add spawn/stop/reassign actions
 3. Build Kanban task board with drag-drop
@@ -984,6 +997,7 @@ export function ApprovalPrompt({ request }: ApprovalPromptProps) {
 **Goals**: Human-in-the-loop approval workflow
 
 **Tasks**:
+
 1. Create approval state management
 2. Build ApprovalPrompt component
 3. Add approval modal for details
@@ -998,6 +1012,7 @@ export function ApprovalPrompt({ request }: ApprovalPromptProps) {
 **Goals**: Context browser and search
 
 **Tasks**:
+
 1. Create context state management
 2. Build ContextBrowser component
 3. Implement semantic search
@@ -1012,6 +1027,7 @@ export function ApprovalPrompt({ request }: ApprovalPromptProps) {
 **Goals**: Performance, UX improvements, testing
 
 **Tasks**:
+
 1. Add keyboard shortcuts
 2. Implement message threading
 3. Add code syntax highlighting
@@ -1054,6 +1070,7 @@ This design transforms RAPID Wails Desktop into a unified, chat-centric interfac
 The phased approach allows for incremental delivery of value while maintaining quality and allows for user feedback to shape later phases.
 
 **Next Steps**:
+
 1. Get stakeholder feedback on this design
 2. Create detailed wireframes/mockups for key screens
 3. Begin Phase 1 implementation

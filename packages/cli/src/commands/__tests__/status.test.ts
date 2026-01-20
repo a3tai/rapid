@@ -400,13 +400,7 @@ describe('rapid status command', () => {
     });
 
     it('should group output by category', () => {
-      const categories = [
-        'Configuration',
-        'Container',
-        'Agents',
-        'Secrets',
-        'Tools',
-      ];
+      const categories = ['Configuration', 'Container', 'Agents', 'Secrets', 'Tools'];
       expect(categories.length).toBeGreaterThan(4);
     });
   });
@@ -477,10 +471,10 @@ describe('rapid status command', () => {
 
     it('should show check timing if verbose', () => {
       const timing = {
-        'config_load': '10ms',
-        'container_check': '250ms',
-        'agent_check': '150ms',
-        'total': '410ms',
+        config_load: '10ms',
+        container_check: '250ms',
+        agent_check: '150ms',
+        total: '410ms',
       };
       expect(timing.total).toBeTruthy();
     });

@@ -7,25 +7,25 @@ includes:
   windows: ./build/windows/Taskfile.yml
 
 vars:
-  APP_NAME: "rapid-desktop"
-  BIN_DIR: "bin"
+  APP_NAME: 'rapid-desktop'
+  BIN_DIR: 'bin'
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
 
 tasks:
   build:
     summary: Builds the application
     cmds:
-      - task: "{{OS}}:build"
+      - task: '{{OS}}:build'
 
   package:
     summary: Packages a production build of the application
     cmds:
-      - task: "{{OS}}:package"
+      - task: '{{OS}}:package'
 
   run:
     summary: Runs the application
     cmds:
-      - task: "{{OS}}:run"
+      - task: '{{OS}}:run'
 
   dev:
     summary: Runs the application in development mode

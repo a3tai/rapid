@@ -376,9 +376,11 @@ describe('Task Timeout Recovery', () => {
 
         const currentAvg = recoveryStats.averageRecoveryTime;
         recoveryStats.averageRecoveryTime =
-          (currentAvg * (recoveryStats.totalTimeouts - 1) + recoveryTimeMs) / recoveryStats.totalTimeouts;
+          (currentAvg * (recoveryStats.totalTimeouts - 1) + recoveryTimeMs) /
+          recoveryStats.totalTimeouts;
 
-        recoveryStats.timeoutsByWorker[workerId] = (recoveryStats.timeoutsByWorker[workerId] || 0) + 1;
+        recoveryStats.timeoutsByWorker[workerId] =
+          (recoveryStats.timeoutsByWorker[workerId] || 0) + 1;
       };
 
       recordTimeout('worker-1', true, 500);

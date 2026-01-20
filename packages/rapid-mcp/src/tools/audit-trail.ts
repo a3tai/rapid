@@ -219,7 +219,10 @@ export function registerAuditTrailTools(server: McpServer, context: ServerContex
           .optional()
           .describe('Filter by event type'),
         since: z.string().optional().describe('ISO timestamp - only return events after this time'),
-        until: z.string().optional().describe('ISO timestamp - only return events before this time'),
+        until: z
+          .string()
+          .optional()
+          .describe('ISO timestamp - only return events before this time'),
         allowedOnly: z.boolean().optional().describe('Only show allowed events'),
         deniedOnly: z.boolean().optional().describe('Only show denied events'),
       },
@@ -570,7 +573,9 @@ export function registerAuditTrailTools(server: McpServer, context: ServerContex
           structuredContent: output,
         };
       } catch (error) {
-        throw new Error(`Failed to cleanup audit logs: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(
+          `Failed to cleanup audit logs: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
   );

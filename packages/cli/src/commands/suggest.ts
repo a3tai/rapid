@@ -13,10 +13,17 @@ import chalk from 'chalk';
 export const suggestCommand = new Command('suggest')
   .description('Manage agent suggestions and voting')
   .argument('[description]', 'Description of the suggestion to propose')
-  .option('--category <category>', 'Category: feature, fix, improvement, refactor, or docs', 'feature')
+  .option(
+    '--category <category>',
+    'Category: feature, fix, improvement, refactor, or docs',
+    'feature'
+  )
   .option('--list', 'List all suggestions')
   .option('--list-status <status>', 'List suggestions with specific status')
-  .option('--vote <suggestionId>:<vote>', 'Vote on a suggestion (format: id:approve|reject|abstain)')
+  .option(
+    '--vote <suggestionId>:<vote>',
+    'Vote on a suggestion (format: id:approve|reject|abstain)'
+  )
   .option('--approve <suggestionId>', 'Orchestrator: Approve a suggestion')
   .option('--veto <suggestionId>', 'Orchestrator: Veto a suggestion')
   .option('--reason <reason>', 'Reason for orchestrator decision')

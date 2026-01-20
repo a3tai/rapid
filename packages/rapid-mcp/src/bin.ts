@@ -330,7 +330,9 @@ async function validateSecurityStartup(config: RapidMcpServerConfig, port: numbe
   try {
     const domains = process.env.RAPID_ALLOWED_DOMAINS || '';
     if (domains && config.verbose) {
-      console.error(`[validation] Domain whitelist configured: ${domains.split(',').length} domains`);
+      console.error(
+        `[validation] Domain whitelist configured: ${domains.split(',').length} domains`
+      );
     }
   } catch (err) {
     warnings.push(`Cannot verify domain whitelist: ${String(err)}`);

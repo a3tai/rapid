@@ -33,22 +33,15 @@ let roundRobinIndex = 0;
  * Get available workers (healthy with capacity)
  */
 function getAvailableWorkers(): WorkerState[] {
-  return Array.from(workers.values()).filter(
-    (w) => w.healthy && w.currentTasks < w.maxTasks
-  );
+  return Array.from(workers.values()).filter((w) => w.healthy && w.currentTasks < w.maxTasks);
 }
 
 /**
  * Filter workers by capabilities
  */
-function filterByCapabilities(
-  available: WorkerState[],
-  required: string[]
-): WorkerState[] {
+function filterByCapabilities(available: WorkerState[], required: string[]): WorkerState[] {
   if (required.length === 0) return available;
-  return available.filter((w) =>
-    required.every((cap) => w.capabilities.includes(cap))
-  );
+  return available.filter((w) => required.every((cap) => w.capabilities.includes(cap)));
 }
 
 /**
@@ -133,10 +126,7 @@ function selectRoundRobin(available: WorkerState[]): WorkerState | null {
 /**
  * Register load balancer tools with the MCP server
  */
-export function registerLoadBalancerTools(
-  server: McpServer,
-  context: ServerContext
-): void {
+export function registerLoadBalancerTools(server: McpServer, context: ServerContext): void {
   // Tool: Register a worker
   server.registerTool(
     'lb_register_worker',
@@ -147,10 +137,7 @@ export function registerLoadBalancerTools(
         agentId: z.string().describe('Worker agent ID'),
         name: z.string().describe('Worker name'),
         worktree: z.string().optional().describe('Current worktree'),
-        capabilities: z
-          .array(z.string())
-          .default([])
-          .describe('Worker capabilities'),
+        capabilities: z.array(z.string()).default([]).describe('Worker capabilities'),
         maxTasks: z.number().default(3).describe('Max concurrent tasks'),
       },
       outputSchema: {
@@ -159,14 +146,19 @@ export function registerLoadBalancerTools(
       },
     },
     async (args) => {
-      const { agentId, name, worktree, capabilities = [], maxTasks = 3 } =
-        args as {
-          agentId: string;
-          name: string;
-          worktree?: string;
-          capabilities?: string[];
-          maxTasks?: number;
-        };
+      const {
+        agentId,
+        name,
+        worktree,
+        capabilities = [],
+        maxTasks = 3,
+      } = args as {
+        agentId: string;
+        name: string;
+        worktree?: string;
+        capabilities?: string[];
+        maxTasks?: number;
+      };
 
       const worker: WorkerState = {
         agentId,
@@ -222,9 +214,7 @@ export function registerLoadBalancerTools(
       const removed = workers.delete(agentId);
 
       if (context.verbose) {
-        console.error(
-          `[lb_unregister_worker] ${removed ? 'Removed' : 'Not found'}: ${agentId}`
-        );
+        console.error(`[lb_unregister_worker] ${removed ? 'Removed' : 'Not found'}: ${agentId}`);
       }
 
       return {
@@ -244,8 +234,7 @@ export function registerLoadBalancerTools(
     'lb_select_worker',
     {
       title: 'Select Worker',
-      description:
-        'Select the best available worker for a task based on load and capabilities.',
+      description: 'Select the best available worker for a task based on load and capabilities.',
       inputSchema: {
         requiredCapabilities: z
           .array(z.string())
@@ -255,10 +244,7 @@ export function registerLoadBalancerTools(
           .array(z.string())
           .optional()
           .describe('Preferred capabilities (used for scoring)'),
-        taskWorktree: z
-          .string()
-          .optional()
-          .describe('Task worktree for affinity matching'),
+        taskWorktree: z.string().optional().describe('Task worktree for affinity matching'),
         strategy: z
           .enum(['best', 'round-robin', 'least-loaded'])
           .default('best')
@@ -345,19 +331,13 @@ export function registerLoadBalancerTools(
           selected = selectRoundRobin(qualified);
           break;
         case 'least-loaded': {
-          const sorted = [...qualified].sort(
-            (a, b) => a.currentTasks - b.currentTasks
-          );
+          const sorted = [...qualified].sort((a, b) => a.currentTasks - b.currentTasks);
           selected = sorted[0] ?? null;
           break;
         }
         case 'best':
         default:
-          selected = selectBestWorker(
-            qualified,
-            taskWorktree,
-            preferredCapabilities
-          );
+          selected = selectBestWorker(qualified, taskWorktree, preferredCapabilities);
       }
 
       if (!selected) {
@@ -476,8 +456,7 @@ export function registerLoadBalancerTools(
         worker.totalCompleted++;
         // Running average
         worker.avgCompletionTimeMs =
-          (worker.avgCompletionTimeMs * (worker.totalCompleted - 1) +
-            completionTimeMs) /
+          (worker.avgCompletionTimeMs * (worker.totalCompleted - 1) + completionTimeMs) /
           worker.totalCompleted;
       }
 
@@ -486,9 +465,7 @@ export function registerLoadBalancerTools(
       }
 
       if (context.verbose) {
-        console.error(
-          `[lb_update_load] ${worker.name}: ${worker.currentTasks} tasks`
-        );
+        console.error(`[lb_update_load] ${worker.name}: ${worker.currentTasks} tasks`);
       }
 
       return {
@@ -540,9 +517,7 @@ export function registerLoadBalancerTools(
       worker.healthy = healthy;
 
       if (context.verbose) {
-        console.error(
-          `[lb_set_health] ${worker.name}: ${healthy ? 'healthy' : 'unhealthy'}`
-        );
+        console.error(`[lb_set_health] ${worker.name}: ${healthy ? 'healthy' : 'unhealthy'}`);
       }
 
       return {
@@ -593,8 +568,7 @@ export function registerLoadBalancerTools(
       const healthy = allWorkers.filter((w) => w.healthy);
       const totalCapacity = healthy.reduce((sum, w) => sum + w.maxTasks, 0);
       const currentLoad = allWorkers.reduce((sum, w) => sum + w.currentTasks, 0);
-      const utilization =
-        totalCapacity > 0 ? (currentLoad / totalCapacity) * 100 : 0;
+      const utilization = totalCapacity > 0 ? (currentLoad / totalCapacity) * 100 : 0;
 
       const output: {
         totalWorkers: number;
@@ -647,8 +621,7 @@ export function registerLoadBalancerTools(
     'lb_rebalance',
     {
       title: 'Rebalance Workers',
-      description:
-        'Identify overloaded workers and suggest task reassignments.',
+      description: 'Identify overloaded workers and suggest task reassignments.',
       inputSchema: {
         overloadThreshold: z
           .number()
@@ -698,13 +671,14 @@ export function registerLoadBalancerTools(
 
       // Calculate possible moves
       const totalExcess = overloaded.reduce((sum, w) => sum + w.excessTasks, 0);
-      const totalAvailable = underutilized.reduce(
-        (sum, w) => sum + w.availableCapacity,
-        0
-      );
+      const totalAvailable = underutilized.reduce((sum, w) => sum + w.availableCapacity, 0);
       const suggestedMoves = Math.min(totalExcess, totalAvailable);
 
-      const output = { overloadedWorkers: overloaded, underutilizedWorkers: underutilized, suggestedMoves };
+      const output = {
+        overloadedWorkers: overloaded,
+        underutilizedWorkers: underutilized,
+        suggestedMoves,
+      };
 
       if (context.verbose) {
         console.error(

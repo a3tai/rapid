@@ -45,12 +45,7 @@ export async function registerContextEngineTools(
           .enum(['episodic', 'semantic', 'procedural', 'decision_trace'])
           .default('semantic')
           .describe('Type of memory'),
-        confidence: z
-          .number()
-          .min(0)
-          .max(1)
-          .default(0.8)
-          .describe('Confidence level (0-1)'),
+        confidence: z.number().min(0).max(1).default(0.8).describe('Confidence level (0-1)'),
         tags: z.array(z.string()).optional().describe('Tags for organization'),
         relatedKeys: z.array(z.string()).optional().describe('Related knowledge keys'),
       }),

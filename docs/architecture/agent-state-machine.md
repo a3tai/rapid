@@ -15,13 +15,14 @@ Worker agents in RAPID operate as finite state machines (FSMs) with well-defined
 
 After evaluating available options, **XState v5** is recommended for implementing agent state machines:
 
-| Library | Pros | Cons |
-|---------|------|------|
-| **XState** | Full statechart support, TypeScript-first, actors, visual tools | Learning curve, bundle size |
-| Robot | Lightweight, simple API | Limited features, no actors |
-| JavaScript-state-machine | Simple, small | No TypeScript, dated |
+| Library                  | Pros                                                            | Cons                        |
+| ------------------------ | --------------------------------------------------------------- | --------------------------- |
+| **XState**               | Full statechart support, TypeScript-first, actors, visual tools | Learning curve, bundle size |
+| Robot                    | Lightweight, simple API                                         | Limited features, no actors |
+| JavaScript-state-machine | Simple, small                                                   | No TypeScript, dated        |
 
 XState provides:
+
 - TypeScript inference with `setup()` function
 - Actor model for spawning child processes
 - Guards for conditional transitions
@@ -69,15 +70,17 @@ stateDiagram-v2
 ### State Descriptions
 
 #### 1. Idle
+
 **Purpose**: Agent is ready to accept work.
 
-| Property | Value |
-|----------|-------|
-| Entry actions | Clear task context, send heartbeat |
-| Exit actions | Stop heartbeat timer |
-| Self-transitions | `heartbeat` (every 30s) |
+| Property         | Value                              |
+| ---------------- | ---------------------------------- |
+| Entry actions    | Clear task context, send heartbeat |
+| Exit actions     | Stop heartbeat timer               |
+| Self-transitions | `heartbeat` (every 30s)            |
 
 **Context when entering**:
+
 ```typescript
 {
   taskId: null,
@@ -89,34 +92,39 @@ stateDiagram-v2
 ```
 
 #### 2. Claiming
+
 **Purpose**: Agent is attempting to claim a task.
 
-| Property | Value |
-|----------|-------|
-| Entry actions | Send claim request to orchestrator |
-| Timeout | 10 seconds |
-| Guards | `canClaimTask` - check capabilities match |
+| Property      | Value                                     |
+| ------------- | ----------------------------------------- |
+| Entry actions | Send claim request to orchestrator        |
+| Timeout       | 10 seconds                                |
+| Guards        | `canClaimTask` - check capabilities match |
 
 **Events**:
+
 - `task_claimed` → Working (with task context)
 - `claim_failed` → Idle (task taken by another agent)
 - `claim_timeout` → Idle (orchestrator unresponsive)
 
 #### 3. Working
+
 **Purpose**: Agent is actively executing a task.
 
-| Property | Value |
-|----------|-------|
+| Property      | Value                              |
+| ------------- | ---------------------------------- |
 | Entry actions | Initialize task context, log start |
-| Ongoing | Progress updates every 60s |
-| Timeout | Task-specific (default: 30min) |
+| Ongoing       | Progress updates every 60s         |
+| Timeout       | Task-specific (default: 30min)     |
 
 **Parallel sub-states**:
+
 - `execution` - Running the actual task
 - `monitoring` - Sending progress updates
 - `watching` - Detecting interrupts/cancellations
 
 **Context additions**:
+
 ```typescript
 {
   taskId: string,
@@ -127,45 +135,51 @@ stateDiagram-v2
 ```
 
 #### 4. Blocked
+
 **Purpose**: Agent cannot proceed without external intervention.
 
-| Property | Value |
-|----------|-------|
+| Property      | Value                                 |
+| ------------- | ------------------------------------- |
 | Entry actions | Notify orchestrator, log block reason |
-| Timeout | 5 minutes (configurable) |
+| Timeout       | 5 minutes (configurable)              |
 
 **Block reasons**:
+
 - Waiting for human review
 - Dependency on another task
 - Resource contention
 - External service unavailable
 
 **Events**:
+
 - `unblocked` → Working (continue task)
 - `block_timeout` → Error
 - `task_cancelled` → Idle
 
 #### 5. Completed
+
 **Purpose**: Task finished successfully.
 
-| Property | Value |
-|----------|-------|
+| Property      | Value                           |
+| ------------- | ------------------------------- |
 | Entry actions | Report completion, update stats |
-| Exit actions | Clean up task context |
+| Exit actions  | Clean up task context           |
 
 **Actions on entry**:
+
 1. Send completion message to event bus
 2. Increment `tasksCompleted` counter
 3. Update average completion time
 4. Trigger cleanup routines
 
 #### 6. Error
+
 **Purpose**: Something went wrong during task execution.
 
-| Property | Value |
-|----------|-------|
+| Property      | Value                          |
+| ------------- | ------------------------------ |
 | Entry actions | Log error, notify orchestrator |
-| Exit actions | Clear error state |
+| Exit actions  | Clear error state              |
 
 **Error categories**:
 | Category | Recovery | Action |
@@ -176,6 +190,7 @@ stateDiagram-v2
 | Fatal | Shutdown | Terminate agent |
 
 **Context additions**:
+
 ```typescript
 {
   error: {
@@ -189,29 +204,33 @@ stateDiagram-v2
 ```
 
 #### 7. Recovering
+
 **Purpose**: Attempting automatic recovery from error.
 
-| Property | Value |
-|----------|-------|
+| Property      | Value                    |
+| ------------- | ------------------------ |
 | Entry actions | Start recovery procedure |
-| Timeout | 2 minutes |
-| Max retries | 3 |
+| Timeout       | 2 minutes                |
+| Max retries   | 3                        |
 
 **Recovery strategies**:
+
 1. **Retry with backoff**: 1s, 2s, 4s delays
 2. **Checkpoint restore**: Resume from last known good state
 3. **Context reset**: Clear and reinitialize
 4. **Escalate**: Notify orchestrator for intervention
 
 #### 8. Shutdown
+
 **Purpose**: Agent is terminating.
 
-| Property | Value |
-|----------|-------|
+| Property      | Value                                  |
+| ------------- | -------------------------------------- |
 | Entry actions | Deregister from bus, cleanup resources |
-| Final action | Exit process |
+| Final action  | Exit process                           |
 
 **Cleanup checklist**:
+
 - [ ] Send final heartbeat (status: offline)
 - [ ] Return uncompleted task to queue
 - [ ] Close file handles and connections
@@ -258,7 +277,7 @@ const guards = {
   // Can only claim if capabilities match
   canClaimTask: ({ context, event }) => {
     const required = event.requirements || [];
-    return required.every(cap => context.capabilities.includes(cap));
+    return required.every((cap) => context.capabilities.includes(cap));
   },
 
   // Allow auto-recovery only if under retry limit
@@ -560,14 +579,14 @@ const workerMachine = setup({
 
 ## Timeout Handling
 
-| State | Timeout | Action |
-|-------|---------|--------|
-| Idle | None | Periodic heartbeat (30s) |
-| Claiming | 10s | Return to Idle |
-| Working | 30min (configurable) | Transition to Error |
-| Blocked | 5min | Transition to Error |
-| Recovering | 2min | Retry or give up |
-| Error | None | Wait for manual/auto intervention |
+| State      | Timeout              | Action                            |
+| ---------- | -------------------- | --------------------------------- |
+| Idle       | None                 | Periodic heartbeat (30s)          |
+| Claiming   | 10s                  | Return to Idle                    |
+| Working    | 30min (configurable) | Transition to Error               |
+| Blocked    | 5min                 | Transition to Error               |
+| Recovering | 2min                 | Retry or give up                  |
+| Error      | None                 | Wait for manual/auto intervention |
 
 ## Checkpointing & Resumption
 
@@ -588,12 +607,14 @@ interface Checkpoint {
 ```
 
 **Checkpoint triggers**:
+
 1. Phase completion (e.g., "analysis done", "tests passing")
 2. Periodic (every 5 minutes during active work)
 3. Before blocking operations
 4. On graceful shutdown
 
 **Resumption flow**:
+
 1. New worker claims abandoned task
 2. Loads checkpoint from task metadata
 3. Validates checkpoint is recent (< 1 hour)

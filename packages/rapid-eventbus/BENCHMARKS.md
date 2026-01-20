@@ -5,6 +5,7 @@ Performance benchmarks for RAPID event bus measuring message delivery latency an
 ## Overview
 
 The event bus benchmarks measure:
+
 1. Single message send latency
 2. Bulk message throughput
 3. Message retrieval latency
@@ -32,24 +33,26 @@ npm test -- latency.bench
 
 ### Single Message Latency
 
-| Implementation | Min | Avg | Median | P95 | P99 | Max | Throughput |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| In-Memory | ~0.1ms | ~0.5ms | ~0.3ms | ~1ms | ~2ms | ~5ms | ~2,000 msg/s |
-| Redis | ~5ms | ~15ms | ~12ms | ~30ms | ~45ms | ~80ms | ~65 msg/s |
+| Implementation |    Min |    Avg | Median |   P95 |   P99 |   Max |   Throughput |
+| -------------- | -----: | -----: | -----: | ----: | ----: | ----: | -----------: |
+| In-Memory      | ~0.1ms | ~0.5ms | ~0.3ms |  ~1ms |  ~2ms |  ~5ms | ~2,000 msg/s |
+| Redis          |   ~5ms |  ~15ms |  ~12ms | ~30ms | ~45ms | ~80ms |    ~65 msg/s |
 
 **Analysis:**
+
 - In-memory is ~30x faster for single messages
 - Redis adds network overhead but provides persistence
 - Both implementations meet the P95 target (<50ms)
 
 ### Bulk Throughput
 
-| Implementation | Messages | Time | Throughput |
-|---|---:|---:|---:|
-| In-Memory | 1,000 | ~500ms | ~2,000 msg/s |
-| Redis | 500 | ~4s | ~125 msg/s |
+| Implementation | Messages |   Time |   Throughput |
+| -------------- | -------: | -----: | -----------: |
+| In-Memory      |    1,000 | ~500ms | ~2,000 msg/s |
+| Redis          |      500 |    ~4s |   ~125 msg/s |
 
 **Analysis:**
+
 - In-memory handles 1,000 messages in ~500ms
 - Redis handles 500 messages in ~4s
 - Both exceed minimum throughput target (100 msg/s)
@@ -57,12 +60,13 @@ npm test -- latency.bench
 
 ### Message Retrieval
 
-| Implementation | Operation | P95 Latency |
-|---|---|---:|
-| In-Memory | Get 10 messages | <1ms |
-| Redis | Get 10 messages | ~30ms |
+| Implementation | Operation       | P95 Latency |
+| -------------- | --------------- | ----------: |
+| In-Memory      | Get 10 messages |        <1ms |
+| Redis          | Get 10 messages |       ~30ms |
 
 **Analysis:**
+
 - In-memory retrieval is nearly instant
 - Redis retrieval is fast enough for real-time UIs
 - Both meet the <100ms target
@@ -72,13 +76,14 @@ npm test -- latency.bench
 Performance degradation under increasing load:
 
 | Volume | Avg Latency | Throughput | Degradation |
-|---:|---:|---:|---:|
-| 100 | 12ms | 83 msg/s | 0% |
-| 500 | 15ms | 66 msg/s | 20% |
-| 1,000 | 18ms | 55 msg/s | 34% |
-| 5,000 | 25ms | 40 msg/s | 52% |
+| -----: | ----------: | ---------: | ----------: |
+|    100 |        12ms |   83 msg/s |          0% |
+|    500 |        15ms |   66 msg/s |         20% |
+|  1,000 |        18ms |   55 msg/s |         34% |
+|  5,000 |        25ms |   40 msg/s |         52% |
 
 **Analysis:**
+
 - Performance degrades ~50% at 5,000 messages
 - Still acceptable for most use cases
 - Consider batching for high-volume scenarios
@@ -153,6 +158,7 @@ async function getMessage(id: string): Promise<Message> {
 ### Network Latency
 
 Redis performance is dominated by network round-trips:
+
 - Each `xadd` command: ~5-15ms
 - Pub/Sub notification: ~5-10ms
 - Total latency: ~10-25ms per message
@@ -162,6 +168,7 @@ Redis performance is dominated by network round-trips:
 ### JSON Serialization
 
 JSON.stringify/parse accounts for ~10-20% of latency:
+
 - Serialization: ~0.5-1ms per message
 - Deserialization: ~0.3-0.8ms per message
 
@@ -187,6 +194,7 @@ Creating new connections is expensive (~50-100ms):
 ```
 
 **Benefits:**
+
 - No Redis setup required
 - 30x faster message delivery
 - Sufficient for single-machine dev
@@ -205,6 +213,7 @@ Creating new connections is expensive (~50-100ms):
 ```
 
 **Benefits:**
+
 - Message persistence across restarts
 - Multi-agent coordination across machines
 - Real-time pub/sub notifications

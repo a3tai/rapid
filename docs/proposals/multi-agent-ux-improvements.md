@@ -7,6 +7,7 @@ RAPID's multi-agent coordination system is powerful but could benefit from UX im
 ## Current State
 
 RAPID currently provides:
+
 - Event bus for inter-agent communication
 - Task management system with claiming workflow
 - CLI tools for manual task management
@@ -19,24 +20,27 @@ RAPID currently provides:
 **Problem**: Agents must manually poll for pending tasks using `task_list`.
 
 **Solution**:
+
 - Implement `task_watch` command that automatically notifies agents when new tasks matching their capabilities become available
 - Create a background task monitor that polls periodically and sends `coordination` messages to relevant agents
 - Add task filter by capability tags so agents only get notified about work they can do
 
 **Benefits**:
+
 - Reduces manual polling overhead
 - Faster task assignment
 - Better resource utilization
 - More responsive to urgent tasks
 
 **Implementation Approach**:
+
 ```typescript
 // Pseudo-code for task_watch
 const watcherConfig = {
-  agentId: "worker-1",
-  capabilities: ["typescript", "testing"],
+  agentId: 'worker-1',
+  capabilities: ['typescript', 'testing'],
   pollInterval: 5000,
-  autoNotify: true
+  autoNotify: true,
 };
 await bus.watchTasks(watcherConfig);
 ```
@@ -46,6 +50,7 @@ await bus.watchTasks(watcherConfig);
 **Problem**: Orchestrators must manually match agent capabilities to tasks.
 
 **Solution**:
+
 - Add capability metadata to task definitions (required skills, model type, estimated duration)
 - Implement `task_auto_assign` that selects best agent based on:
   - Capability match (tags, skills)
@@ -55,18 +60,20 @@ await bus.watchTasks(watcherConfig);
 - Create scoring system to rank agents for each task
 
 **Benefits**:
+
 - Reduces orchestrator cognitive load
 - Better utilization of specialist agents
 - Load balancing across team
 - Faster task assignment
 
 **Implementation Approach**:
+
 ```typescript
 const task = {
-  title: "Implement authentication",
-  capabilities: ["typescript", "backend", "security"],
-  estimatedTime: "2h",
-  urgency: "high"
+  title: 'Implement authentication',
+  capabilities: ['typescript', 'backend', 'security'],
+  estimatedTime: '2h',
+  urgency: 'high',
 };
 
 // Orchestrator suggests best agent
@@ -79,6 +86,7 @@ const suggestion = await orchestrator.suggestAgent(task);
 **Problem**: No real-time visibility into agent activity and progress.
 
 **Solution**:
+
 - Enhance the existing Wails desktop app dashboard with:
   - **Agent Status Panel**: Show each agent's current task, workload, health
   - **Task Pipeline**: Kanban board with pending → in_progress → completed
@@ -87,6 +95,7 @@ const suggestion = await orchestrator.suggestAgent(task);
   - **Dependency Graph**: Visualize task dependencies and blockers
 
 **Benefits**:
+
 - Better project visibility
 - Faster problem detection
 - Easier team coordination
@@ -97,6 +106,7 @@ const suggestion = await orchestrator.suggestAgent(task);
 **Problem**: Agents don't get real-time notifications when task states change.
 
 **Solution**:
+
 - Implement notification system with multiple channels:
   - **Event Bus Messages**: Priority-based messages for task state changes
   - **CLI Alerts**: Show notifications in running CLI sessions
@@ -105,18 +115,20 @@ const suggestion = await orchestrator.suggestAgent(task);
   - **Email/Slack Integration**: Optional integrations for critical updates
 
 **Configuration**:
+
 ```typescript
 const notificationConfig = {
-  events: ["task.assigned", "task.blocked", "task.completed"],
-  channels: ["event_bus", "cli_alert"],
+  events: ['task.assigned', 'task.blocked', 'task.completed'],
+  channels: ['event_bus', 'cli_alert'],
   priority: {
-    "task.blocked": "high",
-    "task.completed": "normal"
-  }
+    'task.blocked': 'high',
+    'task.completed': 'normal',
+  },
 };
 ```
 
 **Benefits**:
+
 - Immediate awareness of blockers
 - Better task handoff between agents
 - Reduced need for manual polling
@@ -127,6 +139,7 @@ const notificationConfig = {
 **Problem**: Failed tasks may not be automatically recoverable.
 
 **Solution**:
+
 - Implement intelligent retry logic:
   - **Transient Error Recovery**: Auto-retry network/timeout errors after delay
   - **Capability Fallback**: If agent can't handle task, suggest alternative with different capability
@@ -135,17 +148,19 @@ const notificationConfig = {
 - Add error classification and recovery suggestions
 
 **Implementation**:
+
 ```typescript
 const taskRetryPolicy = {
   maxRetries: 3,
-  backoffStrategy: "exponential", // 1s, 2s, 4s
-  retryableErrors: ["TIMEOUT", "NETWORK_ERROR", "TEMPORARY_FAILURE"],
-  fallbackCapabilities: ["typescript", "backend"], // Try these next
-  escalation: "slack" // Notify on final failure
+  backoffStrategy: 'exponential', // 1s, 2s, 4s
+  retryableErrors: ['TIMEOUT', 'NETWORK_ERROR', 'TEMPORARY_FAILURE'],
+  fallbackCapabilities: ['typescript', 'backend'], // Try these next
+  escalation: 'slack', // Notify on final failure
 };
 ```
 
 **Benefits**:
+
 - Reduced manual intervention
 - Better resilience
 - Clearer failure patterns
@@ -156,6 +171,7 @@ const taskRetryPolicy = {
 **Problem**: RAPID works independently from CI/CD systems.
 
 **Solution**:
+
 - Add CI/CD webhook handlers:
   - **GitHub**: Listen for PR/push events, trigger relevant tasks
   - **GitLab**: Similar webhook integration
@@ -166,17 +182,19 @@ const taskRetryPolicy = {
   - Structured logs for log aggregation
 
 **Use Case**:
+
 ```yaml
 # .github/workflows/rapid-ci.yml
 - name: Run RAPID Tasks
   uses: a3t/rapid-action@v1
   with:
-    task: "Run tests and linting"
-    timeout: "300s"
-    notify: "pr-comment"
+    task: 'Run tests and linting'
+    timeout: '300s'
+    notify: 'pr-comment'
 ```
 
 **Benefits**:
+
 - Seamless CI/CD integration
 - Automated triggered work
 - Results directly in PR/MR
@@ -208,6 +226,7 @@ rapid dashboard
 ```
 
 **Benefits**:
+
 - Lower barrier to entry
 - Faster workflow execution
 - Less context switching
@@ -216,18 +235,21 @@ rapid dashboard
 ## Implementation Roadmap
 
 ### Phase 1 (High Priority - 2 weeks)
+
 - [ ] Task auto-discovery (`task_watch`)
 - [ ] Capability-based suggestion system
 - [ ] Enhanced dashboard with real-time feed
 - [ ] Basic notification system
 
 ### Phase 2 (Medium Priority - 3 weeks)
+
 - [ ] Intelligent retry mechanism
 - [ ] Task state change notifications
 - [ ] CLI workflow commands
 - [ ] Performance metrics tracking
 
 ### Phase 3 (Lower Priority - 4 weeks)
+
 - [ ] CI/CD integrations (GitHub, GitLab)
 - [ ] Webhook handlers
 - [ ] Advanced dashboard features
@@ -244,6 +266,7 @@ rapid dashboard
 ## Technical Considerations
 
 ### API Additions Needed
+
 ```typescript
 // New MCP tools
 - task_watch(config: WatchConfig): void
@@ -253,12 +276,14 @@ rapid dashboard
 ```
 
 ### Database/State Changes
+
 - Add `capabilities` array to Task schema
 - Add `performance_metrics` to Agent tracking
 - Add `notification_config` to AppState
 - Add `retry_policy` to Task execution config
 
 ### Architecture Impact
+
 - Minimal: Most improvements are additive
 - Event bus already supports required messaging
 - Dashboard already has websocket foundation
@@ -266,12 +291,12 @@ rapid dashboard
 
 ## Risks and Mitigations
 
-| Risk | Mitigation |
-|------|-----------|
-| Over-automation obscures issues | Keep manual overrides available, logging |
+| Risk                                  | Mitigation                               |
+| ------------------------------------- | ---------------------------------------- |
+| Over-automation obscures issues       | Keep manual overrides available, logging |
 | CI/CD integration too tightly coupled | Use webhooks, keep integrations optional |
-| Performance with many tasks | Implement pagination, lazy loading |
-| Notifications become noisy | Implement filtering, user preferences |
+| Performance with many tasks           | Implement pagination, lazy loading       |
+| Notifications become noisy            | Implement filtering, user preferences    |
 
 ## Conclusion
 

@@ -32,7 +32,7 @@ const DEFAULT_THRESHOLDS: PerformanceThresholds = {
   cpuWarning: 75,
   responseTimeWarning: 1000,
   errorRateWarning: 5,
-  goroutineWarning: 300
+  goroutineWarning: 300,
 };
 
 export const PerformanceMonitor: React.FC = () => {
@@ -68,11 +68,11 @@ export const PerformanceMonitor: React.FC = () => {
         eventsThroughput: Math.floor(Math.random() * 100) + 10,
         errorRate: Math.random() * 3,
         uptime: Date.now(),
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
 
       setMetrics(newMetrics);
-      setHistory(prev => [...prev.slice(-59), newMetrics]); // Keep 60 data points
+      setHistory((prev) => [...prev.slice(-59), newMetrics]); // Keep 60 data points
 
       // Check for warnings
       const newWarnings: string[] = [];
@@ -121,7 +121,10 @@ export const PerformanceMonitor: React.FC = () => {
     <div className="space-y-4">
       {/* Summary Bar */}
       <div className="bg-slate-900 border border-slate-700 rounded-lg p-3">
-        <div className="flex items-center justify-between cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
+        <div
+          className="flex items-center justify-between cursor-pointer"
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
           <div className="flex items-center gap-3">
             <span className="text-lg text-cyan-500">📊</span>
             <span className="font-medium text-sm">Performance Metrics</span>
@@ -132,9 +135,7 @@ export const PerformanceMonitor: React.FC = () => {
               </div>
             )}
           </div>
-          <div className="text-xs text-slate-400">
-            {isExpanded ? '▼' : '▶'}
-          </div>
+          <div className="text-xs text-slate-400">{isExpanded ? '▼' : '▶'}</div>
         </div>
 
         {/* Quick Stats Row */}
@@ -184,7 +185,7 @@ export const PerformanceMonitor: React.FC = () => {
                   100
                 )}`}
                 style={{
-                  width: `${Math.min((metrics.avgResponseTime / thresholds.responseTimeWarning) * 100, 100)}%`
+                  width: `${Math.min((metrics.avgResponseTime / thresholds.responseTimeWarning) * 100, 100)}%`,
                 }}
               />
             </div>
@@ -204,7 +205,7 @@ export const PerformanceMonitor: React.FC = () => {
                   100
                 )}`}
                 style={{
-                  width: `${Math.min((metrics.errorRate / thresholds.errorRateWarning) * 100, 100)}%`
+                  width: `${Math.min((metrics.errorRate / thresholds.errorRateWarning) * 100, 100)}%`,
                 }}
               />
             </div>
@@ -222,7 +223,10 @@ export const PerformanceMonitor: React.FC = () => {
               <h3 className="text-xs font-semibold text-red-300 uppercase">Active Warnings</h3>
               <div className="space-y-1">
                 {warnings.map((warning, i) => (
-                  <div key={i} className="flex items-start gap-2 p-2 bg-red-900/20 border border-red-800 rounded text-xs text-red-300">
+                  <div
+                    key={i}
+                    className="flex items-start gap-2 p-2 bg-red-900/20 border border-red-800 rounded text-xs text-red-300"
+                  >
                     <span className="text-sm flex-shrink-0">⚠️</span>
                     <span>{warning}</span>
                   </div>
@@ -233,7 +237,10 @@ export const PerformanceMonitor: React.FC = () => {
 
           {/* Detailed Metrics */}
           <div className="grid grid-cols-2 gap-3">
-            <MetricCard label="Heap Size" value={`${(metrics.heapSize / (1024 * 1024)).toFixed(1)} MB`} />
+            <MetricCard
+              label="Heap Size"
+              value={`${(metrics.heapSize / (1024 * 1024)).toFixed(1)} MB`}
+            />
             <MetricCard label="Goroutines" value={metrics.goroutines.toString()} />
             <MetricCard
               label="Events Throughput"
@@ -280,9 +287,7 @@ export const PerformanceMonitor: React.FC = () => {
               {metrics.goroutines > 250 && (
                 <li>• High goroutine count. There may be connection leaks</li>
               )}
-              {warnings.length === 0 && (
-                <li>✓ All systems performing normally</li>
-              )}
+              {warnings.length === 0 && <li>✓ All systems performing normally</li>}
             </ul>
           </div>
         </div>
@@ -292,15 +297,15 @@ export const PerformanceMonitor: React.FC = () => {
 };
 
 // Metric Card Component
-const MetricCard: React.FC<{ label: string; value: string; status?: 'ok' | 'warning' | 'error' }> = ({
-  label,
-  value,
-  status = 'ok'
-}) => {
+const MetricCard: React.FC<{
+  label: string;
+  value: string;
+  status?: 'ok' | 'warning' | 'error';
+}> = ({ label, value, status = 'ok' }) => {
   const statusColor = {
     ok: 'text-emerald-400',
     warning: 'text-amber-400',
-    error: 'text-red-400'
+    error: 'text-red-400',
   };
 
   return (

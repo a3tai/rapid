@@ -108,7 +108,10 @@ async function saveSuggestions(): Promise<void> {
 /**
  * Register suggestion tools with MCP server
  */
-export async function registerSuggestionTools(server: McpServer, context: ServerContext): Promise<void> {
+export async function registerSuggestionTools(
+  server: McpServer,
+  context: ServerContext
+): Promise<void> {
   // Load suggestions on startup
   await loadSuggestions(context.projectDir);
 
@@ -124,7 +127,9 @@ export async function registerSuggestionTools(server: McpServer, context: Server
       inputSchema: z.object({
         title: z.string().describe('Short title of the suggestion'),
         description: z.string().describe('Detailed description of what is being suggested'),
-        category: SuggestionCategorySchema.describe('Category: feature, fix, improvement, refactor, or docs'),
+        category: SuggestionCategorySchema.describe(
+          'Category: feature, fix, improvement, refactor, or docs'
+        ),
         agentId: z.string().describe('ID of agent making the suggestion'),
         agentName: z.string().describe('Name of agent making the suggestion'),
         tags: z.array(z.string()).optional().describe('Tags for categorization'),
@@ -272,7 +277,10 @@ export async function registerSuggestionTools(server: McpServer, context: Server
       inputSchema: z.object({
         status: SuggestionStatusSchema.optional().describe('Filter by status'),
         category: SuggestionCategorySchema.optional().describe('Filter by category'),
-        limit: z.number().optional().describe('Maximum number of suggestions to return (default: 20)'),
+        limit: z
+          .number()
+          .optional()
+          .describe('Maximum number of suggestions to return (default: 20)'),
         proposedBy: z.string().optional().describe('Filter by proposing agent ID'),
       }),
       outputSchema: z.object({
@@ -360,7 +368,8 @@ export async function registerSuggestionTools(server: McpServer, context: Server
         throw new Error(`Suggestion ${args.suggestionId} not found`);
       }
 
-      const decision = args.decision === 'approved' ? 'orchestrator_approved' : 'orchestrator_vetoed';
+      const decision =
+        args.decision === 'approved' ? 'orchestrator_approved' : 'orchestrator_vetoed';
 
       suggestion.status = decision;
       suggestion.orchestratorDecision = {

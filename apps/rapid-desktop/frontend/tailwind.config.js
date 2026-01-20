@@ -1,9 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
@@ -11,9 +8,9 @@ export default {
         // Clean, minimal dark theme with violet-blue accent
         rapid: {
           // Backgrounds
-          bg: 'hsl(240 10% 4%)',        // Main background
-          surface: 'hsl(240 10% 6%)',   // Card/surface background
-          elevated: 'hsl(240 6% 10%)',  // Elevated surfaces
+          bg: 'hsl(240 10% 4%)', // Main background
+          surface: 'hsl(240 10% 6%)', // Card/surface background
+          elevated: 'hsl(240 6% 10%)', // Elevated surfaces
 
           // Borders
           border: 'hsl(240 4% 16%)',
@@ -59,15 +56,15 @@ export default {
       },
       borderRadius: {
         DEFAULT: '0.5rem',
-        'sm': '0.375rem',
-        'md': '0.5rem',
-        'lg': '0.75rem',
+        sm: '0.375rem',
+        md: '0.5rem',
+        lg: '0.75rem',
       },
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'fade-in': 'fadeIn 0.2s ease-out',
         'slide-up': 'slideUp 0.2s ease-out',
-        'glow': 'glow 2s ease-in-out infinite',
+        glow: 'glow 2s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: {
@@ -91,10 +88,10 @@ export default {
         xs: '2px',
       },
       boxShadow: {
-        'glow': '0 0 20px hsl(245 85% 67% / 0.15)',
+        glow: '0 0 20px hsl(245 85% 67% / 0.15)',
         'glow-strong': '0 4px 20px hsl(245 85% 67% / 0.3)',
       },
     },
   },
   plugins: [],
-}
+};

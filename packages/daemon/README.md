@@ -87,67 +87,70 @@ await daemon.start();
 
 ### Session Management
 
-| Method | Parameters | Description |
-|--------|------------|-------------|
-| `session.create` | `projectDir`, `agent`, `provider?`, `env?` | Create new session |
-| `session.start` | `sessionId` | Start session |
-| `session.stop` | `sessionId` | Stop session |
-| `session.list` | - | List all sessions |
-| `session.get` | `sessionId` | Get session details |
+| Method           | Parameters                                 | Description         |
+| ---------------- | ------------------------------------------ | ------------------- |
+| `session.create` | `projectDir`, `agent`, `provider?`, `env?` | Create new session  |
+| `session.start`  | `sessionId`                                | Start session       |
+| `session.stop`   | `sessionId`                                | Stop session        |
+| `session.list`   | -                                          | List all sessions   |
+| `session.get`    | `sessionId`                                | Get session details |
 
 ### Daemon Control
 
-| Method | Parameters | Description |
-|--------|------------|-------------|
-| `daemon.status` | - | Get daemon status |
-| `daemon.shutdown` | - | Graceful shutdown |
+| Method            | Parameters | Description       |
+| ----------------- | ---------- | ----------------- |
+| `daemon.status`   | -          | Get daemon status |
+| `daemon.shutdown` | -          | Graceful shutdown |
 
 ### Configuration
 
-| Method | Parameters | Description |
-|--------|------------|-------------|
-| `config.get` | `projectDir` | Get project config |
+| Method          | Parameters   | Description         |
+| --------------- | ------------ | ------------------- |
+| `config.get`    | `projectDir` | Get project config  |
 | `config.reload` | `projectDir` | Force reload config |
 
 ### Secrets
 
-| Method | Parameters | Description |
-|--------|------------|-------------|
-| `secrets.get` | `key`, `projectDir` | Get cached secret |
-| `secrets.refresh` | `projectDir` | Refresh all secrets |
+| Method            | Parameters          | Description         |
+| ----------------- | ------------------- | ------------------- |
+| `secrets.get`     | `key`, `projectDir` | Get cached secret   |
+| `secrets.refresh` | `projectDir`        | Refresh all secrets |
 
 ## Configuration
 
 ```typescript
 interface DaemonConfig {
-  socketPath?: string;    // Default: ~/.rapid/rapid.sock
-  pidFile?: string;       // Default: ~/.rapid/rapid.pid
-  cacheDir?: string;      // Default: ~/.rapid/cache
-  httpPort?: number;      // Optional HTTP server port
-  secretsTtl?: number;    // Secret cache TTL in ms (default: 300000)
-  logFile?: string;       // Optional log file path
-  verbose?: boolean;      // Enable verbose logging
+  socketPath?: string; // Default: ~/.rapid/rapid.sock
+  pidFile?: string; // Default: ~/.rapid/rapid.pid
+  cacheDir?: string; // Default: ~/.rapid/cache
+  httpPort?: number; // Optional HTTP server port
+  secretsTtl?: number; // Secret cache TTL in ms (default: 300000)
+  logFile?: string; // Optional log file path
+  verbose?: boolean; // Enable verbose logging
 }
 ```
 
 ## Environment Providers
 
 ### LocalProvider
+
 Runs sessions in the current local environment. No isolation.
 
 ### DevcontainerProvider
+
 Runs sessions inside VS Code DevContainers. Requires Docker.
 
 ### LimaProvider
+
 Runs sessions in Lima VMs (macOS). Provides Linux environment on Mac.
 
 ## Files
 
-| Path | Description |
-|------|-------------|
-| `~/.rapid/rapid.sock` | Unix socket for IPC |
-| `~/.rapid/rapid.pid` | PID file |
-| `~/.rapid/cache/` | Secrets and config cache |
+| Path                  | Description              |
+| --------------------- | ------------------------ |
+| `~/.rapid/rapid.sock` | Unix socket for IPC      |
+| `~/.rapid/rapid.pid`  | PID file                 |
+| `~/.rapid/cache/`     | Secrets and config cache |
 
 ## Integration with RAPID
 

@@ -1,128 +1,143 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState } from 'react'
-import { clsx } from 'clsx'
-import { formatDistanceToNow } from 'date-fns'
-import { useTasks, useAppStore, type Task } from '../stores/app'
-import { useWails } from '../hooks/useWails'
-import { useMcp } from '../hooks/useMcp'
-import { useToast } from '../components/Toast'
+import { useState } from 'react';
+import { clsx } from 'clsx';
+import { formatDistanceToNow } from 'date-fns';
+import { useTasks, useAppStore, type Task } from '../stores/app';
+import { useWails } from '../hooks/useWails';
+import { useMcp } from '../hooks/useMcp';
+import { useToast } from '../components/Toast';
 
 // Re-export useState for use in component functions
-export { useState }
+export { useState };
 
-type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'blocked' | 'cancelled'
+type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'blocked' | 'cancelled';
 
 const COLUMNS: { id: TaskStatus; label: string; color: string }[] = [
   { id: 'pending', label: 'Pending', color: 'bg-rapid-muted' },
   { id: 'in_progress', label: 'In Progress', color: 'bg-yellow-400' },
   { id: 'completed', label: 'Completed', color: 'bg-green-400' },
   { id: 'blocked', label: 'Blocked', color: 'bg-red-400' },
-]
+];
 
-type SortBy = 'date' | 'priority' | 'status' | 'assignee'
-type SortOrder = 'asc' | 'desc'
+type SortBy = 'date' | 'priority' | 'status' | 'assignee';
+type SortOrder = 'asc' | 'desc';
 
 export function TasksPage() {
-  const tasks = useTasks()
-  const [viewMode, setViewMode] = useState<'board' | 'list'>('board')
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [filterStatus, setFilterStatus] = useState<TaskStatus | 'all'>('all')
-  const [filterPriority, setFilterPriority] = useState<'all' | 'urgent' | 'high' | 'normal' | 'low'>('all')
-  const [filterAssignee, setFilterAssignee] = useState<'all' | 'unassigned' | string>('all')
-  const [sortBy, setSortBy] = useState<SortBy>('date')
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
-  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set())
-  const { createTask } = useWails()
-  const { updateTaskStatus } = useMcp()
-  const toast = useToast()
+  const tasks = useTasks();
+  const [viewMode, setViewMode] = useState<'board' | 'list'>('board');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<TaskStatus | 'all'>('all');
+  const [filterPriority, setFilterPriority] = useState<
+    'all' | 'urgent' | 'high' | 'normal' | 'low'
+  >('all');
+  const [filterAssignee, setFilterAssignee] = useState<'all' | 'unassigned' | string>('all');
+  const [sortBy, setSortBy] = useState<SortBy>('date');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
+  const { createTask } = useWails();
+  const { updateTaskStatus } = useMcp();
+  const toast = useToast();
 
   // Apply filters
   const filteredTasks = tasks.filter((t) => {
-    if (filterStatus !== 'all' && t.status !== filterStatus) return false
-    if (filterPriority !== 'all' && t.priority !== filterPriority) return false
-    if (filterAssignee === 'unassigned' && t.assignedTo) return false
-    if (filterAssignee !== 'all' && filterAssignee !== 'unassigned' && t.assignedTo !== filterAssignee) return false
-    return true
-  })
+    if (filterStatus !== 'all' && t.status !== filterStatus) return false;
+    if (filterPriority !== 'all' && t.priority !== filterPriority) return false;
+    if (filterAssignee === 'unassigned' && t.assignedTo) return false;
+    if (
+      filterAssignee !== 'all' &&
+      filterAssignee !== 'unassigned' &&
+      t.assignedTo !== filterAssignee
+    )
+      return false;
+    return true;
+  });
 
   // Apply sorting
   const sortedTasks = [...filteredTasks].sort((a, b) => {
-    let aVal: string | number, bVal: string | number
+    let aVal: string | number, bVal: string | number;
 
     switch (sortBy) {
       case 'date':
-        aVal = new Date(a.updatedAt).getTime()
-        bVal = new Date(b.updatedAt).getTime()
-        break
+        aVal = new Date(a.updatedAt).getTime();
+        bVal = new Date(b.updatedAt).getTime();
+        break;
       case 'priority': {
-        const priorityOrder = { urgent: 0, high: 1, normal: 2, low: 3 }
-        aVal = priorityOrder[a.priority as keyof typeof priorityOrder]
-        bVal = priorityOrder[b.priority as keyof typeof priorityOrder]
-        break
+        const priorityOrder = { urgent: 0, high: 1, normal: 2, low: 3 };
+        aVal = priorityOrder[a.priority as keyof typeof priorityOrder];
+        bVal = priorityOrder[b.priority as keyof typeof priorityOrder];
+        break;
       }
       case 'status':
-        aVal = a.status
-        bVal = b.status
-        break
+        aVal = a.status;
+        bVal = b.status;
+        break;
       case 'assignee':
-        aVal = a.assignedTo || 'zzz'
-        bVal = b.assignedTo || 'zzz'
-        break
+        aVal = a.assignedTo || 'zzz';
+        bVal = b.assignedTo || 'zzz';
+        break;
       default:
-        return 0
+        return 0;
     }
 
-    if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1
-    if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1
-    return 0
-  })
+    if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1;
+    return 0;
+  });
 
-  const tasksByStatus = COLUMNS.reduce((acc, col) => {
-    acc[col.id] = tasks.filter((t) => t.status === col.id)
-    return acc
-  }, {} as Record<TaskStatus, Task[]>)
+  const tasksByStatus = COLUMNS.reduce(
+    (acc, col) => {
+      acc[col.id] = tasks.filter((t) => t.status === col.id);
+      return acc;
+    },
+    {} as Record<TaskStatus, Task[]>
+  );
 
   // Get unique assignees for filter dropdown
-  const uniqueAssignees = Array.from(new Set(tasks.filter((t) => t.assignedTo).map((t) => t.assignedTo)))
+  const uniqueAssignees = Array.from(
+    new Set(tasks.filter((t) => t.assignedTo).map((t) => t.assignedTo))
+  );
 
   // Bulk selection handlers
   const toggleTaskSelection = (taskId: string) => {
-    const newSelected = new Set(selectedTasks)
+    const newSelected = new Set(selectedTasks);
     if (newSelected.has(taskId)) {
-      newSelected.delete(taskId)
+      newSelected.delete(taskId);
     } else {
-      newSelected.add(taskId)
+      newSelected.add(taskId);
     }
-    setSelectedTasks(newSelected)
-  }
+    setSelectedTasks(newSelected);
+  };
 
   const selectAll = () => {
-    setSelectedTasks(new Set(sortedTasks.map((t) => t.id)))
-  }
+    setSelectedTasks(new Set(sortedTasks.map((t) => t.id)));
+  };
 
   const deselectAll = () => {
-    setSelectedTasks(new Set())
-  }
+    setSelectedTasks(new Set());
+  };
 
   const bulkChangeStatus = async (newStatus: TaskStatus) => {
     try {
-      const taskIds = Array.from(selectedTasks)
-      const updates = taskIds.map(id => updateTaskStatus(id, newStatus))
-      await Promise.all(updates)
-      toast.success('Bulk Action', `Updated ${selectedTasks.size} tasks to ${newStatus}`)
-      deselectAll()
+      const taskIds = Array.from(selectedTasks);
+      const updates = taskIds.map((id) => updateTaskStatus(id, newStatus));
+      await Promise.all(updates);
+      toast.success('Bulk Action', `Updated ${selectedTasks.size} tasks to ${newStatus}`);
+      deselectAll();
     } catch (err) {
-      toast.error('Bulk Status Update Failed', err instanceof Error ? err.message : 'Unknown error')
+      toast.error(
+        'Bulk Status Update Failed',
+        err instanceof Error ? err.message : 'Unknown error'
+      );
     }
-  }
+  };
 
   const bulkDelete = () => {
-    if (selectedTasks.size === 0) return
+    if (selectedTasks.size === 0) return;
     if (confirm(`Delete ${selectedTasks.size} selected tasks? This cannot be undone.`)) {
-      toast.success('Bulk Delete', `Deleted ${selectedTasks.size} tasks`)
-      deselectAll()
+      toast.success('Bulk Delete', `Deleted ${selectedTasks.size} tasks`);
+      deselectAll();
     }
-  }
+  };
 
   return (
     <div className="space-y-6 h-full flex flex-col">
@@ -130,9 +145,7 @@ export function TasksPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold">Task Board</h2>
-          <p className="text-rapid-muted text-sm mt-1">
-            {tasks.length} tasks total
-          </p>
+          <p className="text-rapid-muted text-sm mt-1">{tasks.length} tasks total</p>
         </div>
         <div className="flex items-center gap-3">
           {/* View toggle */}
@@ -160,12 +173,14 @@ export function TasksPage() {
               List
             </button>
           </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="btn btn-primary"
-          >
+          <button onClick={() => setShowCreateModal(true)} className="btn btn-primary">
             <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+              />
             </svg>
             New Task
           </button>
@@ -179,11 +194,11 @@ export function TasksPage() {
             <h3 className="text-sm font-medium">Filters & Sorting</h3>
             <button
               onClick={() => {
-                setFilterStatus('all')
-                setFilterPriority('all')
-                setFilterAssignee('all')
-                setSortBy('date')
-                setSortOrder('desc')
+                setFilterStatus('all');
+                setFilterPriority('all');
+                setFilterAssignee('all');
+                setSortBy('date');
+                setSortOrder('desc');
               }}
               className="text-xs text-rapid-accent hover:underline"
             >
@@ -277,7 +292,8 @@ export function TasksPage() {
       {viewMode === 'list' && selectedTasks.size > 0 && (
         <div className="card p-3 bg-rapid-accent/10 border border-rapid-accent flex items-center justify-between">
           <div className="text-sm">
-            <span className="font-medium">{selectedTasks.size}</span> task{selectedTasks.size !== 1 ? 's' : ''} selected
+            <span className="font-medium">{selectedTasks.size}</span> task
+            {selectedTasks.size !== 1 ? 's' : ''} selected
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -296,9 +312,9 @@ export function TasksPage() {
             <select
               onChange={(e) => {
                 if (e.target.value) {
-                  bulkChangeStatus(e.target.value as TaskStatus)
+                  bulkChangeStatus(e.target.value as TaskStatus);
                 }
-                e.target.value = ''
+                e.target.value = '';
               }}
               className="text-xs px-2 py-1 rounded border border-rapid-accent bg-rapid-elevated hover:bg-rapid-border"
             >
@@ -322,15 +338,15 @@ export function TasksPage() {
       {viewMode === 'board' ? (
         <div className="flex-1 grid grid-cols-4 gap-4 overflow-hidden">
           {COLUMNS.map((column) => (
-            <TaskColumn
-              key={column.id}
-              column={column}
-              tasks={tasksByStatus[column.id]}
-            />
+            <TaskColumn key={column.id} column={column} tasks={tasksByStatus[column.id]} />
           ))}
         </div>
       ) : (
-        <TaskList tasks={sortedTasks} selectedTasks={selectedTasks} onToggleSelect={toggleTaskSelection} />
+        <TaskList
+          tasks={sortedTasks}
+          selectedTasks={selectedTasks}
+          onToggleSelect={toggleTaskSelection}
+        />
       )}
 
       {/* Create modal */}
@@ -339,23 +355,26 @@ export function TasksPage() {
           onClose={() => setShowCreateModal(false)}
           onCreate={async (title, description, priority, tags) => {
             try {
-              const result = await createTask(title, description, priority, tags)
-              toast.success('Task Created', `"${title}" has been added to the board`)
-              return result
+              const result = await createTask(title, description, priority, tags);
+              toast.success('Task Created', `"${title}" has been added to the board`);
+              return result;
             } catch (err) {
-              toast.error('Failed to Create Task', err instanceof Error ? err.message : 'Unknown error')
-              throw err
+              toast.error(
+                'Failed to Create Task',
+                err instanceof Error ? err.message : 'Unknown error'
+              );
+              throw err;
             }
           }}
         />
       )}
     </div>
-  )
+  );
 }
 
 interface TaskColumnProps {
-  column: { id: TaskStatus; label: string; color: string }
-  tasks: Task[]
+  column: { id: TaskStatus; label: string; color: string };
+  tasks: Task[];
 }
 
 function TaskColumn({ column, tasks }: TaskColumnProps) {
@@ -371,27 +390,25 @@ function TaskColumn({ column, tasks }: TaskColumnProps) {
           <TaskCard key={task.id} task={task} />
         ))}
         {tasks.length === 0 && (
-          <div className="text-center py-8 text-rapid-muted text-sm">
-            No tasks
-          </div>
+          <div className="text-center py-8 text-rapid-muted text-sm">No tasks</div>
         )}
       </div>
     </div>
-  )
+  );
 }
 
 function TaskCard({ task }: { task: Task }) {
-  const setSelectedTask = useAppStore((s) => s.setSelectedTask)
-  const toast = useToast()
-  const { updateTaskStatus } = useMcp()
-  const [isChangingStatus, setIsChangingStatus] = useState(false)
+  const setSelectedTask = useAppStore((s) => s.setSelectedTask);
+  const toast = useToast();
+  const { updateTaskStatus } = useMcp();
+  const [isChangingStatus, setIsChangingStatus] = useState(false);
 
   const priorityColors = {
     urgent: 'border-l-red-500',
     high: 'border-l-orange-500',
     normal: 'border-l-blue-500',
     low: 'border-l-gray-500',
-  }
+  };
 
   const statusIndicators = {
     pending: { icon: '⏳', label: 'Pending', color: 'text-rapid-muted' },
@@ -399,23 +416,26 @@ function TaskCard({ task }: { task: Task }) {
     completed: { icon: '✓', label: 'Completed', color: 'text-green-400' },
     blocked: { icon: '🚫', label: 'Blocked', color: 'text-red-400' },
     cancelled: { icon: '✕', label: 'Cancelled', color: 'text-gray-400' },
-  }
+  };
 
   const handleStatusChange = async (newStatus: TaskStatus) => {
-    if (newStatus === task.status) return
+    if (newStatus === task.status) return;
 
-    setIsChangingStatus(true)
+    setIsChangingStatus(true);
     try {
-      await updateTaskStatus(task.id, newStatus)
-      toast.success('Status Updated', `Task moved to ${statusIndicators[newStatus as keyof typeof statusIndicators]?.label || newStatus}`)
+      await updateTaskStatus(task.id, newStatus);
+      toast.success(
+        'Status Updated',
+        `Task moved to ${statusIndicators[newStatus as keyof typeof statusIndicators]?.label || newStatus}`
+      );
     } catch (err) {
-      toast.error('Status Update Failed', err instanceof Error ? err.message : 'Unknown error')
+      toast.error('Status Update Failed', err instanceof Error ? err.message : 'Unknown error');
     } finally {
-      setIsChangingStatus(false)
+      setIsChangingStatus(false);
     }
-  }
+  };
 
-  const status = statusIndicators[task.status as TaskStatus]
+  const status = statusIndicators[task.status as TaskStatus];
 
   return (
     <div
@@ -431,9 +451,7 @@ function TaskCard({ task }: { task: Task }) {
           <div className="font-medium text-sm">{task.title}</div>
 
           {task.description && (
-            <div className="text-xs text-rapid-muted mt-1 line-clamp-2">
-              {task.description}
-            </div>
+            <div className="text-xs text-rapid-muted mt-1 line-clamp-2">{task.description}</div>
           )}
         </div>
 
@@ -492,13 +510,21 @@ function TaskCard({ task }: { task: Task }) {
         </div>
       )}
     </div>
-  )
+  );
 }
 
-function TaskList({ tasks, selectedTasks, onToggleSelect }: { tasks: Task[]; selectedTasks?: Set<string>; onToggleSelect?: (id: string) => void }) {
-  const [statusChanging, setStatusChanging] = useState<Set<string>>(new Set())
-  const toast = useToast()
-  const { updateTaskStatus } = useMcp()
+function TaskList({
+  tasks,
+  selectedTasks,
+  onToggleSelect,
+}: {
+  tasks: Task[];
+  selectedTasks?: Set<string>;
+  onToggleSelect?: (id: string) => void;
+}) {
+  const [statusChanging, setStatusChanging] = useState<Set<string>>(new Set());
+  const toast = useToast();
+  const { updateTaskStatus } = useMcp();
 
   const statusBadge = {
     pending: 'badge-neutral',
@@ -506,34 +532,34 @@ function TaskList({ tasks, selectedTasks, onToggleSelect }: { tasks: Task[]; sel
     completed: 'badge-success',
     blocked: 'badge-error',
     cancelled: 'badge-neutral',
-  }
+  };
 
   const priorityBadge = {
     urgent: 'badge-error',
     high: 'badge-warning',
     normal: 'badge-info',
     low: 'badge-neutral',
-  }
+  };
 
   const handleStatusChange = async (taskId: string, newStatus: TaskStatus) => {
-    const task = tasks.find((t) => t.id === taskId)
-    if (!task || newStatus === task.status) return
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task || newStatus === task.status) return;
 
-    setStatusChanging((prev) => new Set([...prev, taskId]))
+    setStatusChanging((prev) => new Set([...prev, taskId]));
 
     try {
-      await updateTaskStatus(taskId, newStatus)
-      toast.success('Status Updated', `"${task.title}" moved to ${newStatus.replace('_', ' ')}`)
+      await updateTaskStatus(taskId, newStatus);
+      toast.success('Status Updated', `"${task.title}" moved to ${newStatus.replace('_', ' ')}`);
     } catch (err) {
-      toast.error('Status Update Failed', err instanceof Error ? err.message : 'Unknown error')
+      toast.error('Status Update Failed', err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setStatusChanging((prev) => {
-        const next = new Set(prev)
-        next.delete(taskId)
-        return next
-      })
+        const next = new Set(prev);
+        next.delete(taskId);
+        return next;
+      });
     }
-  }
+  };
 
   return (
     <div className="card overflow-hidden">
@@ -544,12 +570,14 @@ function TaskList({ tasks, selectedTasks, onToggleSelect }: { tasks: Task[]; sel
               <th className="text-left p-3 w-10">
                 <input
                   type="checkbox"
-                  checked={tasks.length > 0 && selectedTasks && tasks.every((t) => selectedTasks.has(t.id))}
+                  checked={
+                    tasks.length > 0 && selectedTasks && tasks.every((t) => selectedTasks.has(t.id))
+                  }
                   onChange={(e) => {
                     if (e.target.checked) {
-                      tasks.forEach((t) => onToggleSelect(t.id))
+                      tasks.forEach((t) => onToggleSelect(t.id));
                     } else {
-                      tasks.forEach((t) => selectedTasks?.has(t.id) && onToggleSelect(t.id))
+                      tasks.forEach((t) => selectedTasks?.has(t.id) && onToggleSelect(t.id));
                     }
                   }}
                   className="rounded"
@@ -569,7 +597,9 @@ function TaskList({ tasks, selectedTasks, onToggleSelect }: { tasks: Task[]; sel
               key={task.id}
               className={clsx(
                 'border-b border-rapid-border transition-all',
-                selectedTasks?.has(task.id) ? 'bg-rapid-accent/10 hover:bg-rapid-accent/20' : 'hover:bg-rapid-elevated',
+                selectedTasks?.has(task.id)
+                  ? 'bg-rapid-accent/10 hover:bg-rapid-accent/20'
+                  : 'hover:bg-rapid-elevated',
                 statusChanging.has(task.id) && 'opacity-75'
               )}
             >
@@ -615,13 +645,9 @@ function TaskList({ tasks, selectedTasks, onToggleSelect }: { tasks: Task[]; sel
                 </select>
               </td>
               <td className="p-3">
-                <span className={clsx('badge', priorityBadge[task.priority])}>
-                  {task.priority}
-                </span>
+                <span className={clsx('badge', priorityBadge[task.priority])}>{task.priority}</span>
               </td>
-              <td className="p-3 text-sm text-rapid-muted">
-                {task.assignedTo || '-'}
-              </td>
+              <td className="p-3 text-sm text-rapid-muted">{task.assignedTo || '-'}</td>
               <td className="p-3 text-sm text-rapid-muted">
                 {formatDistanceToNow(new Date(task.updatedAt), { addSuffix: true })}
               </td>
@@ -630,34 +656,42 @@ function TaskList({ tasks, selectedTasks, onToggleSelect }: { tasks: Task[]; sel
         </tbody>
       </table>
     </div>
-  )
+  );
 }
 
 interface CreateTaskModalProps {
-  onClose: () => void
-  onCreate: (title: string, description: string, priority: string, tags: string[]) => Promise<{ id: string }>
+  onClose: () => void;
+  onCreate: (
+    title: string,
+    description: string,
+    priority: string,
+    tags: string[]
+  ) => Promise<{ id: string }>;
 }
 
 function CreateTaskModal({ onClose, onCreate }: CreateTaskModalProps) {
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [priority, setPriority] = useState('normal')
-  const [tagsInput, setTagsInput] = useState('')
-  const [isCreating, setIsCreating] = useState(false)
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [priority, setPriority] = useState('normal');
+  const [tagsInput, setTagsInput] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
 
   const handleCreate = async () => {
-    if (!title.trim()) return
-    setIsCreating(true)
+    if (!title.trim()) return;
+    setIsCreating(true);
     try {
-      const tags = tagsInput.split(',').map((t) => t.trim()).filter(Boolean)
-      await onCreate(title, description, priority, tags)
-      onClose()
+      const tags = tagsInput
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
+      await onCreate(title, description, priority, tags);
+      onClose();
     } catch (err) {
-      console.error('Failed to create task:', err)
+      console.error('Failed to create task:', err);
     } finally {
-      setIsCreating(false)
+      setIsCreating(false);
     }
-  }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -730,5 +764,5 @@ function CreateTaskModal({ onClose, onCreate }: CreateTaskModalProps) {
         </div>
       </div>
     </div>
-  )
+  );
 }

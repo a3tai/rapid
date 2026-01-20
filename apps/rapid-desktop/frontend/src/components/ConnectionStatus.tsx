@@ -1,11 +1,11 @@
-import { useRealtimeUpdates } from '../hooks/useEnhancedPolling'
-import { clsx } from 'clsx'
-import { useEffect, useState } from 'react'
+import { useRealtimeUpdates } from '../hooks/useEnhancedPolling';
+import { clsx } from 'clsx';
+import { useEffect, useState } from 'react';
 
 export interface ConnectionStatusProps {
-  variant?: 'compact' | 'full'
-  showDataSource?: boolean
-  showLastUpdate?: boolean
+  variant?: 'compact' | 'full';
+  showDataSource?: boolean;
+  showLastUpdate?: boolean;
 }
 
 /**
@@ -17,36 +17,36 @@ export function ConnectionStatus({
   showDataSource = true,
   showLastUpdate = true,
 }: ConnectionStatusProps) {
-  const status = useRealtimeUpdates()
-  const [displayTime, setDisplayTime] = useState('')
+  const status = useRealtimeUpdates();
+  const [displayTime, setDisplayTime] = useState('');
 
   // Format last update time
   useEffect(() => {
     if (!status.lastUpdate) {
-      setDisplayTime('')
-      return
+      setDisplayTime('');
+      return;
     }
 
-    const lastUpdate = status.lastUpdate
+    const lastUpdate = status.lastUpdate;
     const updateDisplay = () => {
-      const now = Date.now()
-      const diff = now - lastUpdate
-      const seconds = Math.floor(diff / 1000)
-      const minutes = Math.floor(seconds / 60)
+      const now = Date.now();
+      const diff = now - lastUpdate;
+      const seconds = Math.floor(diff / 1000);
+      const minutes = Math.floor(seconds / 60);
 
       if (seconds < 60) {
-        setDisplayTime(`${seconds}s ago`)
+        setDisplayTime(`${seconds}s ago`);
       } else if (minutes < 60) {
-        setDisplayTime(`${minutes}m ago`)
+        setDisplayTime(`${minutes}m ago`);
       } else {
-        setDisplayTime(`${Math.floor(minutes / 60)}h ago`)
+        setDisplayTime(`${Math.floor(minutes / 60)}h ago`);
       }
-    }
+    };
 
-    updateDisplay()
-    const interval = setInterval(updateDisplay, 1000)
-    return () => clearInterval(interval)
-  }, [status.lastUpdate])
+    updateDisplay();
+    const interval = setInterval(updateDisplay, 1000);
+    return () => clearInterval(interval);
+  }, [status.lastUpdate]);
 
   if (variant === 'compact') {
     return (
@@ -63,11 +63,9 @@ export function ConnectionStatus({
             status.connected ? 'bg-green-400 animate-pulse' : 'bg-red-400'
           )}
         />
-        <span className="hidden sm:inline">
-          {status.connected ? 'Live' : 'Offline'}
-        </span>
+        <span className="hidden sm:inline">{status.connected ? 'Live' : 'Offline'}</span>
       </div>
-    )
+    );
   }
 
   return (
@@ -127,7 +125,7 @@ export function ConnectionStatus({
         )}
       </div>
     </div>
-  )
+  );
 }
 
 /**
@@ -135,40 +133,36 @@ export function ConnectionStatus({
  * Good for headers and toolbars
  */
 export function ConnectionStatusBadge() {
-  return <ConnectionStatus variant="compact" showDataSource={false} showLastUpdate={false} />
+  return <ConnectionStatus variant="compact" showDataSource={false} showLastUpdate={false} />;
 }
 
 /**
  * Displays connection metrics
  */
 export function ConnectionMetrics() {
-  const status = useRealtimeUpdates()
+  const status = useRealtimeUpdates();
   const [metrics, setMetrics] = useState({
     updateCount: 0,
     uptime: '0s',
-  })
+  });
 
   useEffect(() => {
-    if (!status.lastUpdate) return
+    if (!status.lastUpdate) return;
 
-    let updateCount = 0
+    let updateCount = 0;
     const interval = setInterval(() => {
-      updateCount++
+      updateCount++;
       setMetrics((prev) => ({
         ...prev,
         updateCount,
-      }))
-    }, 1000)
+      }));
+    }, 1000);
 
-    return () => clearInterval(interval)
-  }, [status.lastUpdate])
+    return () => clearInterval(interval);
+  }, [status.lastUpdate]);
 
   if (!status.connected) {
-    return (
-      <div className="text-xs text-red-400 font-medium">
-        Disconnected
-      </div>
-    )
+    return <div className="text-xs text-red-400 font-medium">Disconnected</div>;
   }
 
   return (
@@ -184,5 +178,5 @@ export function ConnectionMetrics() {
         <span className="text-rapid-text font-medium">{metrics.updateCount}</span>
       </div>
     </div>
-  )
+  );
 }

@@ -154,9 +154,7 @@ function topologicalSort(tasks: Task[]): { sorted: Task[]; hasCycle: boolean } {
  * Get tasks that are ready to execute (all dependencies met)
  */
 function getReadyTasks(tasks: Task[]): Task[] {
-  const completedIds = new Set(
-    tasks.filter((t) => t.status === 'completed').map((t) => t.id)
-  );
+  const completedIds = new Set(tasks.filter((t) => t.status === 'completed').map((t) => t.id));
 
   return tasks.filter((task) => {
     // Must be pending
@@ -179,9 +177,7 @@ function getReadyTasks(tasks: Task[]): Task[] {
  * Get tasks that are blocked (have unmet dependencies)
  */
 function getBlockedTasks(tasks: Task[]): Array<{ task: Task; unmetDependencies: string[] }> {
-  const completedIds = new Set(
-    tasks.filter((t) => t.status === 'completed').map((t) => t.id)
-  );
+  const completedIds = new Set(tasks.filter((t) => t.status === 'completed').map((t) => t.id));
   const taskMap = new Map(tasks.map((t) => [t.id, t]));
 
   const blocked: Array<{ task: Task; unmetDependencies: string[] }> = [];
@@ -265,9 +261,7 @@ export function registerDependencyTools(server: McpServer, context: ServerContex
       const { taskIds } = args as { taskIds?: string[] };
 
       const allTasks = await loadTasks();
-      const tasks = taskIds
-        ? allTasks.filter((t) => taskIds.includes(t.id))
-        : allTasks;
+      const tasks = taskIds ? allTasks.filter((t) => taskIds.includes(t.id)) : allTasks;
 
       const taskMap = new Map(allTasks.map((t) => [t.id, t]));
       const graph = buildDependencyGraph(tasks);
@@ -434,10 +428,7 @@ export function registerDependencyTools(server: McpServer, context: ServerContex
         'Get tasks that are ready to execute (all dependencies completed). ' +
         'Use this to find work that can be claimed immediately.',
       inputSchema: {
-        tags: z
-          .array(z.string())
-          .optional()
-          .describe('Filter by tags'),
+        tags: z.array(z.string()).optional().describe('Filter by tags'),
         priority: z
           .enum(['low', 'normal', 'high', 'urgent'])
           .optional()
@@ -478,8 +469,8 @@ export function registerDependencyTools(server: McpServer, context: ServerContex
 
       // Filter by tags
       if (tags && tags.length > 0) {
-        ready = ready.filter((t) =>
-          t.tags && tags.some((tag) => (t.tags as string[]).includes(tag))
+        ready = ready.filter(
+          (t) => t.tags && tags.some((tag) => (t.tags as string[]).includes(tag))
         );
       }
 
@@ -513,9 +504,7 @@ export function registerDependencyTools(server: McpServer, context: ServerContex
       };
 
       if (context.verbose) {
-        console.error(
-          `[task_get_ready] Found ${ready.length} ready, ${blocked.length} blocked`
-        );
+        console.error(`[task_get_ready] Found ${ready.length} ready, ${blocked.length} blocked`);
       }
 
       return {
@@ -597,7 +586,11 @@ export function registerDependencyTools(server: McpServer, context: ServerContex
           ...task,
           dependencies: [...(task.dependencies || []), dependsOn],
         };
-        const testTasks: Task[] = [...tasks.slice(0, taskIndex), testTask, ...tasks.slice(taskIndex + 1)];
+        const testTasks: Task[] = [
+          ...tasks.slice(0, taskIndex),
+          testTask,
+          ...tasks.slice(taskIndex + 1),
+        ];
         const graph = buildDependencyGraph(testTasks);
         const cycle = detectCircularDependency(graph, taskId);
 
@@ -725,10 +718,7 @@ export function registerDependencyTools(server: McpServer, context: ServerContex
         'Call this after completing a task to trigger dependent work.',
       inputSchema: {
         completedTaskId: z.string().describe('ID of the task that was just completed'),
-        notifyReady: z
-          .boolean()
-          .default(true)
-          .describe('Return list of tasks now ready to claim'),
+        notifyReady: z.boolean().default(true).describe('Return list of tasks now ready to claim'),
       },
       outputSchema: {
         unblocked: z.array(
@@ -767,9 +757,7 @@ export function registerDependencyTools(server: McpServer, context: ServerContex
         };
       }
 
-      const completedIds = new Set(
-        tasks.filter((t) => t.status === 'completed').map((t) => t.id)
-      );
+      const completedIds = new Set(tasks.filter((t) => t.status === 'completed').map((t) => t.id));
 
       // Find tasks that depended on the completed task
       const dependents = tasks.filter(

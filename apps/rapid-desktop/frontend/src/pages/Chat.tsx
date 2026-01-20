@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
-import { clsx } from 'clsx'
-import { formatDistanceToNow } from 'date-fns'
-import { useAgents, useMessages } from '../stores/app'
-import { useWails } from '../hooks/useWails'
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { clsx } from 'clsx';
+import { formatDistanceToNow } from 'date-fns';
+import { useAgents, useMessages } from '../stores/app';
+import { useWails } from '../hooks/useWails';
 
 const MESSAGE_TYPES = [
   'coordination',
@@ -11,75 +11,81 @@ const MESSAGE_TYPES = [
   'error',
   'question',
   'learning',
-] as const
+] as const;
 
-type MessageType = (typeof MESSAGE_TYPES)[number]
+type MessageType = (typeof MESSAGE_TYPES)[number];
 
 export function ChatPage() {
-  const agents = useAgents()
-  const messages = useMessages()
-  const { sendMessage } = useWails()
+  const agents = useAgents();
+  const messages = useMessages();
+  const { sendMessage } = useWails();
 
-  const [selectedAgent, setSelectedAgent] = useState<string>('all')
-  const [messageContent, setMessageContent] = useState('')
-  const [messageType, setMessageType] = useState<MessageType>('coordination')
-  const [isSending, setIsSending] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [chatHistory, setChatHistory] = useState(messages)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [selectedAgent, setSelectedAgent] = useState<string>('all');
+  const [messageContent, setMessageContent] = useState('');
+  const [messageType, setMessageType] = useState<MessageType>('coordination');
+  const [isSending, setIsSending] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [chatHistory, setChatHistory] = useState(messages);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Filter messages based on selected agent and search query
   const filteredMessages = useMemo(() => {
-    let result = chatHistory
+    let result = chatHistory;
 
     if (selectedAgent !== 'all') {
-      result = result.filter((m) => m.fromAgent.id === selectedAgent || m.fromAgent.name === selectedAgent)
+      result = result.filter(
+        (m) => m.fromAgent.id === selectedAgent || m.fromAgent.name === selectedAgent
+      );
     }
 
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase()
+      const query = searchQuery.toLowerCase();
       result = result.filter(
         (m) =>
           m.fromAgent.name.toLowerCase().includes(query) ||
           m.payload.title?.toString().toLowerCase().includes(query) ||
           m.payload.content?.toString().toLowerCase().includes(query)
-      )
+      );
     }
 
-    return result
-  }, [chatHistory, selectedAgent, searchQuery])
+    return result;
+  }, [chatHistory, selectedAgent, searchQuery]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [filteredMessages])
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [filteredMessages]);
 
   // Update chat history from global messages
   useEffect(() => {
-    setChatHistory(messages)
-  }, [messages])
+    setChatHistory(messages);
+  }, [messages]);
 
   // Handle sending message
   const handleSendMessage = async () => {
     if (!messageContent.trim()) {
-      return
+      return;
     }
 
-    setIsSending(true)
+    setIsSending(true);
     try {
-      await sendMessage(selectedAgent === 'all' ? 'all' : selectedAgent, messageType, messageContent)
-      setMessageContent('')
+      await sendMessage(
+        selectedAgent === 'all' ? 'all' : selectedAgent,
+        messageType,
+        messageContent
+      );
+      setMessageContent('');
     } catch (err) {
-      console.error('Failed to send message:', err)
+      console.error('Failed to send message:', err);
     } finally {
-      setIsSending(false)
+      setIsSending(false);
     }
-  }
+  };
 
   // Get agent status (mock for now)
   const isAgentOnline = (agentId: string) => {
-    return agents.some((a) => a.id === agentId)
-  }
+    return agents.some((a) => a.id === agentId);
+  };
 
   return (
     <div className="space-y-6 h-full flex flex-col">
@@ -108,9 +114,7 @@ export function ChatPage() {
           {/* Agent List */}
           <div className="flex-1 overflow-y-auto">
             {agents.length === 0 ? (
-              <div className="p-4 text-center text-rapid-muted text-sm">
-                No agents available
-              </div>
+              <div className="p-4 text-center text-rapid-muted text-sm">No agents available</div>
             ) : (
               <div className="space-y-1 p-2">
                 {agents.map((agent) => (
@@ -166,7 +170,12 @@ export function ChatPage() {
                   <div key={message.id} className="space-y-1">
                     <div className="flex items-center gap-2">
                       <div className="font-semibold text-sm">{message.fromAgent.name}</div>
-                      <div className={clsx('text-xs px-2 py-0.5 rounded', getMessageTypeClass(message.type))}>
+                      <div
+                        className={clsx(
+                          'text-xs px-2 py-0.5 rounded',
+                          getMessageTypeClass(message.type)
+                        )}
+                      >
                         {message.type}
                       </div>
                       <div className="text-xs text-rapid-muted ml-auto">
@@ -234,7 +243,7 @@ export function ChatPage() {
               onChange={(e) => setMessageContent(e.target.value)}
               onKeyDown={(e) => {
                 if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                  handleSendMessage()
+                  handleSendMessage();
                 }
               }}
               placeholder="Type your message... (Cmd+Enter to send)"
@@ -256,25 +265,25 @@ export function ChatPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function getMessageTypeClass(type: string): string {
-  const baseClass = 'text-xs font-medium'
+  const baseClass = 'text-xs font-medium';
   switch (type) {
     case 'coordination':
-      return `${baseClass} bg-blue-500/20 text-blue-400`
+      return `${baseClass} bg-blue-500/20 text-blue-400`;
     case 'discovery':
-      return `${baseClass} bg-green-500/20 text-green-400`
+      return `${baseClass} bg-green-500/20 text-green-400`;
     case 'completion':
-      return `${baseClass} bg-emerald-500/20 text-emerald-400`
+      return `${baseClass} bg-emerald-500/20 text-emerald-400`;
     case 'error':
-      return `${baseClass} bg-red-500/20 text-red-400`
+      return `${baseClass} bg-red-500/20 text-red-400`;
     case 'question':
-      return `${baseClass} bg-yellow-500/20 text-yellow-400`
+      return `${baseClass} bg-yellow-500/20 text-yellow-400`;
     case 'learning':
-      return `${baseClass} bg-purple-500/20 text-purple-400`
+      return `${baseClass} bg-purple-500/20 text-purple-400`;
     default:
-      return `${baseClass} bg-rapid-elevated text-rapid-muted`
+      return `${baseClass} bg-rapid-elevated text-rapid-muted`;
   }
 }

@@ -162,6 +162,7 @@ RAPID supports multiple AI agents working together via an event bus:
 ### Event Bus Communication
 
 1. **Register on startup**: Use `bus_register` to join the event bus
+
    ```
    bus_register(agentName: "worker", worktree: "main")
    ```
@@ -177,18 +178,22 @@ RAPID supports multiple AI agents working together via an event bus:
 ### Task Claiming Workflow
 
 1. **Check available tasks**: Use `task_list` with status filter
+
    ```
    task_list(status: "pending")
    ```
 
 2. **Claim a task**: Use `task_claim` with your agent ID
+
    ```
    task_claim(id: "task-id", agentId: "worker-123")
    ```
+
    - First come, first served - tasks can only be claimed once
    - Check capabilities match before claiming
 
 3. **Report progress**: Send progress updates via event bus
+
    ```
    bus_send(type: "coordination", title: "Progress update", ...)
    ```
@@ -211,7 +216,7 @@ RAPID supports multiple AI agents working together via an event bus:
 3. Claim only tasks matching your capabilities
 4. Report task completion promptly
 5. Send heartbeats to indicate you're still active
-</coordination>
+   </coordination>
 
 ## Getting Started
 

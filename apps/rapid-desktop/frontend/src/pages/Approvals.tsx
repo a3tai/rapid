@@ -1,21 +1,21 @@
-import { useState, useEffect, useCallback } from 'react'
-import { clsx } from 'clsx'
-import { formatDistanceToNow } from 'date-fns'
-import { useMcp } from '../hooks/useMcp'
-import { useToast } from '../components/Toast'
+import { useState, useEffect, useCallback } from 'react';
+import { clsx } from 'clsx';
+import { formatDistanceToNow } from 'date-fns';
+import { useMcp } from '../hooks/useMcp';
+import { useToast } from '../components/Toast';
 
 interface ApprovalRequest {
-  id: string
-  toolName: string
-  agentId: string
-  agentName: string
-  action: string
-  args: Record<string, unknown>
-  reason?: string
-  riskLevel: 'low' | 'medium' | 'high' | 'critical'
-  createdAt: string
-  expiresAt?: string
-  status: 'pending' | 'approved' | 'rejected' | 'expired'
+  id: string;
+  toolName: string;
+  agentId: string;
+  agentName: string;
+  action: string;
+  args: Record<string, unknown>;
+  reason?: string;
+  riskLevel: 'low' | 'medium' | 'high' | 'critical';
+  createdAt: string;
+  expiresAt?: string;
+  status: 'pending' | 'approved' | 'rejected' | 'expired';
 }
 
 const RISK_COLORS = {
@@ -23,96 +23,98 @@ const RISK_COLORS = {
   medium: { bg: 'bg-yellow-500/10', text: 'text-yellow-400', border: 'border-yellow-500/30' },
   high: { bg: 'bg-orange-500/10', text: 'text-orange-400', border: 'border-orange-500/30' },
   critical: { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/30' },
-}
+};
 
 export function ApprovalsPage() {
-  const { fetchApprovals } = useMcp()
-  const toast = useToast()
-  const [requests, setRequests] = useState<ApprovalRequest[]>([])
-  const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<'all' | 'pending' | 'resolved'>('pending')
-  const [selectedRequest, setSelectedRequest] = useState<ApprovalRequest | null>(null)
-  const [processingId, setProcessingId] = useState<string | null>(null)
+  const { fetchApprovals } = useMcp();
+  const toast = useToast();
+  const [requests, setRequests] = useState<ApprovalRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'pending' | 'resolved'>('pending');
+  const [selectedRequest, setSelectedRequest] = useState<ApprovalRequest | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   const fetchRequests = useCallback(async () => {
-    setLoading(true)
+    setLoading(true);
     try {
       // Fetch real approvals from backend via MCP (no mock fallback - real data only)
-      const approvals = await fetchApprovals()
-      setRequests(approvals)
+      const approvals = await fetchApprovals();
+      setRequests(approvals);
     } catch (err) {
-      console.error('Failed to fetch approval requests:', err)
-      setRequests([])
-      toast.error('Failed to Load Approvals', 'Backend not responding - ensure daemon is running')
+      console.error('Failed to fetch approval requests:', err);
+      setRequests([]);
+      toast.error('Failed to Load Approvals', 'Backend not responding - ensure daemon is running');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [fetchApprovals, toast])
+  }, [fetchApprovals, toast]);
 
   useEffect(() => {
-    fetchRequests()
+    fetchRequests();
     // Poll for new requests
-    const interval = setInterval(fetchRequests, 10000)
-    return () => clearInterval(interval)
-  }, [fetchRequests])
+    const interval = setInterval(fetchRequests, 10000);
+    return () => clearInterval(interval);
+  }, [fetchRequests]);
 
-  const { approveRequest, rejectRequest } = useMcp()
+  const { approveRequest, rejectRequest } = useMcp();
 
   const handleApprove = async (id: string) => {
-    setProcessingId(id)
-    const request = requests.find((r) => r.id === id)
+    setProcessingId(id);
+    const request = requests.find((r) => r.id === id);
     try {
       // Call backend to approve request
-      await approveRequest(id, `Approved via desktop UI`)
+      await approveRequest(id, `Approved via desktop UI`);
 
       // Update local state
-      setRequests((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, status: 'approved' } : r))
-      )
-      setSelectedRequest(null)
-      toast.success('Request Approved', request?.action || 'Action has been authorized')
+      setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status: 'approved' } : r)));
+      setSelectedRequest(null);
+      toast.success('Request Approved', request?.action || 'Action has been authorized');
 
       // Refresh list after approval
-      await fetchRequests()
+      await fetchRequests();
     } catch (err) {
-      console.error('Failed to approve:', err)
-      toast.error('Approval Failed', err instanceof Error ? err.message : 'Could not process the approval request')
+      console.error('Failed to approve:', err);
+      toast.error(
+        'Approval Failed',
+        err instanceof Error ? err.message : 'Could not process the approval request'
+      );
     } finally {
-      setProcessingId(null)
+      setProcessingId(null);
     }
-  }
+  };
 
   const handleReject = async (id: string) => {
-    setProcessingId(id)
-    const request = requests.find((r) => r.id === id)
+    setProcessingId(id);
+    const request = requests.find((r) => r.id === id);
     try {
       // Call backend to reject request
-      await rejectRequest(id, `Rejected via desktop UI`)
+      await rejectRequest(id, `Rejected via desktop UI`);
 
       // Update local state
-      setRequests((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, status: 'rejected' } : r))
-      )
-      setSelectedRequest(null)
-      toast.warning('Request Rejected', request?.action || 'Action has been denied')
+      setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status: 'rejected' } : r)));
+      setSelectedRequest(null);
+      toast.warning('Request Rejected', request?.action || 'Action has been denied');
 
       // Refresh list after rejection
-      await fetchRequests()
+      await fetchRequests();
     } catch (err) {
-      console.error('Failed to reject:', err)
-      toast.error('Rejection Failed', err instanceof Error ? err.message : 'Could not process the rejection')
+      console.error('Failed to reject:', err);
+      toast.error(
+        'Rejection Failed',
+        err instanceof Error ? err.message : 'Could not process the rejection'
+      );
     } finally {
-      setProcessingId(null)
+      setProcessingId(null);
     }
-  }
+  };
 
   const filteredRequests = requests.filter((r) => {
-    if (filter === 'pending') return r.status === 'pending'
-    if (filter === 'resolved') return r.status !== 'pending'
-    return true
-  })
+    if (filter === 'pending') return r.status === 'pending';
+    if (filter === 'resolved') return r.status !== 'pending';
+    return true;
+  });
 
-  const pendingCount = requests.filter((r) => r.status === 'pending').length
+  const pendingCount = requests.filter((r) => r.status === 'pending').length;
 
   return (
     <div className="space-y-6 h-full flex flex-col">
@@ -142,9 +144,7 @@ export function ApprovalsPage() {
             onClick={() => setFilter(f)}
             className={clsx(
               'badge cursor-pointer transition-colors capitalize',
-              filter === f
-                ? 'bg-rapid-accent text-white'
-                : 'badge-neutral hover:bg-rapid-border'
+              filter === f ? 'bg-rapid-accent text-white' : 'badge-neutral hover:bg-rapid-border'
             )}
           >
             {f}
@@ -220,16 +220,16 @@ export function ApprovalsPage() {
         )}
       </div>
     </div>
-  )
+  );
 }
 
 interface ApprovalRowProps {
-  request: ApprovalRequest
-  isSelected: boolean
-  isProcessing: boolean
-  onClick: () => void
-  onApprove: () => void
-  onReject: () => void
+  request: ApprovalRequest;
+  isSelected: boolean;
+  isProcessing: boolean;
+  onClick: () => void;
+  onApprove: () => void;
+  onReject: () => void;
 }
 
 function ApprovalRow({
@@ -240,8 +240,8 @@ function ApprovalRow({
   onApprove,
   onReject,
 }: ApprovalRowProps) {
-  const riskColors = RISK_COLORS[request.riskLevel]
-  const isPending = request.status === 'pending'
+  const riskColors = RISK_COLORS[request.riskLevel];
+  const isPending = request.status === 'pending';
 
   return (
     <div
@@ -278,8 +278,8 @@ function ApprovalRow({
                   request.status === 'approved'
                     ? 'badge-success'
                     : request.status === 'rejected'
-                    ? 'badge-error'
-                    : 'badge-neutral'
+                      ? 'badge-error'
+                      : 'badge-neutral'
                 )}
               >
                 {request.status}
@@ -310,7 +310,12 @@ function ApprovalRow({
               title="Reject"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
             <button
@@ -320,22 +325,27 @@ function ApprovalRow({
               title="Approve"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
               </svg>
             </button>
           </div>
         )}
       </div>
     </div>
-  )
+  );
 }
 
 interface ApprovalDetailProps {
-  request: ApprovalRequest
-  isProcessing: boolean
-  onClose: () => void
-  onApprove: () => void
-  onReject: () => void
+  request: ApprovalRequest;
+  isProcessing: boolean;
+  onClose: () => void;
+  onApprove: () => void;
+  onReject: () => void;
 }
 
 function ApprovalDetail({
@@ -345,8 +355,8 @@ function ApprovalDetail({
   onApprove,
   onReject,
 }: ApprovalDetailProps) {
-  const riskColors = RISK_COLORS[request.riskLevel]
-  const isPending = request.status === 'pending'
+  const riskColors = RISK_COLORS[request.riskLevel];
+  const isPending = request.status === 'pending';
 
   return (
     <div className="w-96 card p-4 overflow-auto flex flex-col">
@@ -372,7 +382,12 @@ function ApprovalDetail({
         </div>
         <button onClick={onClose} className="text-rapid-muted hover:text-rapid-text">
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
           </svg>
         </button>
       </div>
@@ -448,11 +463,11 @@ function ApprovalDetail({
         </div>
       )}
     </div>
-  )
+  );
 }
 
 function RiskIcon({ level }: { level: ApprovalRequest['riskLevel'] }) {
-  const color = RISK_COLORS[level].text
+  const color = RISK_COLORS[level].text;
 
   if (level === 'critical') {
     return (
@@ -463,7 +478,7 @@ function RiskIcon({ level }: { level: ApprovalRequest['riskLevel'] }) {
           clipRule="evenodd"
         />
       </svg>
-    )
+    );
   }
 
   if (level === 'high') {
@@ -476,7 +491,7 @@ function RiskIcon({ level }: { level: ApprovalRequest['riskLevel'] }) {
           d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
         />
       </svg>
-    )
+    );
   }
 
   if (level === 'medium') {
@@ -489,7 +504,7 @@ function RiskIcon({ level }: { level: ApprovalRequest['riskLevel'] }) {
           d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
         />
       </svg>
-    )
+    );
   }
 
   return (
@@ -501,5 +516,5 @@ function RiskIcon({ level }: { level: ApprovalRequest['riskLevel'] }) {
         d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
       />
     </svg>
-  )
+  );
 }

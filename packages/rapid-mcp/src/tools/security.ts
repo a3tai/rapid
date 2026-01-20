@@ -355,7 +355,13 @@ async function scanDirectory(
       }
 
       if (entry.isDirectory()) {
-        const subFiles = await scanDirectory(dir, includePatterns, excludePatterns, maxDepth, currentDepth + 1);
+        const subFiles = await scanDirectory(
+          dir,
+          includePatterns,
+          excludePatterns,
+          maxDepth,
+          currentDepth + 1
+        );
         files.push(...subFiles);
       } else if (entry.isFile()) {
         // Check include patterns

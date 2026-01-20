@@ -1,56 +1,53 @@
-import { useState, useCallback } from 'react'
-import { useMcp } from '../hooks/useMcp'
+import { useState, useCallback } from 'react';
+import { useMcp } from '../hooks/useMcp';
 
 interface SpawnAgentModalProps {
-  isOpen: boolean
-  onClose: () => void
-  type?: 'worker' | 'orchestrator'
+  isOpen: boolean;
+  onClose: () => void;
+  type?: 'worker' | 'orchestrator';
 }
 
 /**
  * Modal for spawning new agents (workers or orchestrators)
  */
 export function SpawnAgentModal({ isOpen, onClose, type = 'worker' }: SpawnAgentModalProps) {
-  const [personaName, setPersonaName] = useState('')
-  const [worktree, setWorktree] = useState('main')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [personaName, setPersonaName] = useState('');
+  const [worktree, setWorktree] = useState('main');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const { spawnAgent } = useMcp()
+  const { spawnAgent } = useMcp();
 
   const handleSpawn = useCallback(async () => {
     if (!personaName.trim()) {
-      setError('Persona name is required')
-      return
+      setError('Persona name is required');
+      return;
     }
 
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
 
     try {
-      const persona = type === 'orchestrator' ? 'orchestrator' : 'claude'
-      await spawnAgent(persona, worktree)
+      const persona = type === 'orchestrator' ? 'orchestrator' : 'claude';
+      await spawnAgent(persona, worktree);
 
-      setPersonaName('')
-      setWorktree('main')
-      onClose()
+      setPersonaName('');
+      setWorktree('main');
+      onClose();
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to spawn agent'
-      setError(message)
+      const message = err instanceof Error ? err.message : 'Failed to spawn agent';
+      setError(message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [personaName, worktree, type, spawnAgent, onClose])
+  }, [personaName, worktree, type, spawnAgent, onClose]);
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
       <div className="relative bg-rapid-surface border border-rapid-border rounded-lg shadow-xl max-w-md w-full">
@@ -64,12 +61,7 @@ export function SpawnAgentModal({ isOpen, onClose, type = 'worker' }: SpawnAgent
               onClick={onClose}
               className="text-rapid-muted hover:text-rapid-text transition-colors"
             >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -92,23 +84,19 @@ export function SpawnAgentModal({ isOpen, onClose, type = 'worker' }: SpawnAgent
 
           {/* Persona name */}
           <div>
-            <label className="block text-sm font-medium text-rapid-text mb-2">
-              Persona Name
-            </label>
+            <label className="block text-sm font-medium text-rapid-text mb-2">Persona Name</label>
             <input
               type="text"
               value={personaName}
               onChange={(e) => {
-                setPersonaName(e.target.value)
-                setError(null)
+                setPersonaName(e.target.value);
+                setError(null);
               }}
               placeholder={type === 'orchestrator' ? 'e.g., orchestrator-1' : 'e.g., claude'}
               className="w-full px-3 py-2 bg-rapid-elevated border border-rapid-border rounded-lg text-rapid-text placeholder-rapid-muted focus:outline-none focus:border-rapid-accent"
               disabled={loading}
             />
-            <p className="mt-1 text-xs text-rapid-muted">
-              Name for this agent instance
-            </p>
+            <p className="mt-1 text-xs text-rapid-muted">Name for this agent instance</p>
           </div>
 
           {/* Worktree */}
@@ -124,9 +112,7 @@ export function SpawnAgentModal({ isOpen, onClose, type = 'worker' }: SpawnAgent
               className="w-full px-3 py-2 bg-rapid-elevated border border-rapid-border rounded-lg text-rapid-text placeholder-rapid-muted focus:outline-none focus:border-rapid-accent"
               disabled={loading}
             />
-            <p className="mt-1 text-xs text-rapid-muted">
-              Git branch or worktree for this agent
-            </p>
+            <p className="mt-1 text-xs text-rapid-muted">Git branch or worktree for this agent</p>
           </div>
 
           {/* Agent type info */}
@@ -158,11 +144,7 @@ export function SpawnAgentModal({ isOpen, onClose, type = 'worker' }: SpawnAgent
           >
             {loading ? (
               <>
-                <svg
-                  className="w-4 h-4 animate-spin"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle
                     className="opacity-25"
                     cx="12"
@@ -181,12 +163,7 @@ export function SpawnAgentModal({ isOpen, onClose, type = 'worker' }: SpawnAgent
               </>
             ) : (
               <>
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -201,5 +178,5 @@ export function SpawnAgentModal({ isOpen, onClose, type = 'worker' }: SpawnAgent
         </div>
       </div>
     </div>
-  )
+  );
 }

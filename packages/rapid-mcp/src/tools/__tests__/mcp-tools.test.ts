@@ -199,12 +199,7 @@ describe('secure_exec Tool', () => {
 describe('check_security Tool', () => {
   describe('Secret Scanning', () => {
     it('should scan for API keys', () => {
-      const patterns = [
-        'sk-',
-        'ghp_',
-        'npm_',
-        'AKIA',
-      ];
+      const patterns = ['sk-', 'ghp_', 'npm_', 'AKIA'];
       expect(patterns.length).toBeGreaterThan(0);
     });
 
@@ -228,12 +223,7 @@ describe('check_security Tool', () => {
     });
 
     it('should skip excluded directories', () => {
-      const skipPatterns = [
-        /node_modules/,
-        /\.git/,
-        /dist/,
-        /coverage/,
-      ];
+      const skipPatterns = [/node_modules/, /\.git/, /dist/, /coverage/];
       const testPath = '/project/node_modules/package.txt';
       const shouldSkip = skipPatterns.some((p) => p.test(testPath));
       expect(shouldSkip).toBe(true);
@@ -264,7 +254,7 @@ describe('check_security Tool', () => {
     it('should parse vulnerability data', () => {
       const audit = {
         vulnerabilities: {
-          'lodash': {
+          lodash: {
             severity: 'high',
             via: [{ title: 'Prototype pollution' }],
           },
@@ -787,7 +777,7 @@ describe('Task Tools', () => {
     it('should update assignedTo', () => {
       const task: { id: string; assignedTo: string | undefined; status?: string } = {
         id: 'uuid',
-        assignedTo: undefined
+        assignedTo: undefined,
       };
       task.assignedTo = 'agent-1';
       expect(task.assignedTo).toBe('agent-1');
@@ -804,10 +794,15 @@ describe('Task Tools', () => {
 
   describe('task_claim Tool', () => {
     it('should claim pending task', () => {
-      const task: { id: string; status: string; assignedTo: string | undefined; claimedAt?: string } = {
+      const task: {
+        id: string;
+        status: string;
+        assignedTo: string | undefined;
+        claimedAt?: string;
+      } = {
         id: 'uuid',
         status: 'pending',
-        assignedTo: undefined
+        assignedTo: undefined,
       };
       task.assignedTo = 'agent-1';
       task.status = 'in_progress';
@@ -836,18 +831,14 @@ describe('Task Tools', () => {
     it('should verify required capabilities', () => {
       const task = { requiredCapabilities: ['read', 'write'] };
       const agentCapabilities = ['read', 'write', 'bash'];
-      const hasAllCaps = task.requiredCapabilities.every((c) =>
-        agentCapabilities.includes(c)
-      );
+      const hasAllCaps = task.requiredCapabilities.every((c) => agentCapabilities.includes(c));
       expect(hasAllCaps).toBe(true);
     });
 
     it('should reject claim if capabilities insufficient', () => {
       const task = { requiredCapabilities: ['read', 'write', 'bash'] };
       const agentCapabilities = ['read', 'write'];
-      const hasAllCaps = task.requiredCapabilities.every((c) =>
-        agentCapabilities.includes(c)
-      );
+      const hasAllCaps = task.requiredCapabilities.every((c) => agentCapabilities.includes(c));
       expect(hasAllCaps).toBe(false);
     });
   });
@@ -860,11 +851,12 @@ describe('Task Tools', () => {
     });
 
     it('should store result data', () => {
-      const task: { id: string; status: string; result: { output: string; filesChanged: number } } = {
-        id: 'uuid',
-        status: 'completed',
-        result: { output: 'success', filesChanged: 5 },
-      };
+      const task: { id: string; status: string; result: { output: string; filesChanged: number } } =
+        {
+          id: 'uuid',
+          status: 'completed',
+          result: { output: 'success', filesChanged: 5 },
+        };
       expect(task.result).toBeDefined();
       expect(task.result.filesChanged).toBe(5);
     });
@@ -872,7 +864,7 @@ describe('Task Tools', () => {
     it('should clear assignedTo', () => {
       const task: { id: string; assignedTo: string | undefined } = {
         id: 'uuid',
-        assignedTo: 'agent-1'
+        assignedTo: 'agent-1',
       };
       task.assignedTo = undefined;
       expect(task.assignedTo).toBeUndefined();
@@ -915,9 +907,7 @@ describe('Task Tools', () => {
     });
 
     it('should reject if dependencies not met', () => {
-      const depTasks = new Map([
-        ['task-1', { status: 'pending' }],
-      ]);
+      const depTasks = new Map([['task-1', { status: 'pending' }]]);
       const dependencies = ['task-1'];
       const allMet = dependencies.every((d) => depTasks.get(d)?.status === 'completed');
       expect(allMet).toBe(false);
@@ -1028,11 +1018,7 @@ describe('Event Bus Tools', () => {
     });
 
     it('should support filtering by message type', () => {
-      const messages = [
-        { type: 'discovery' },
-        { type: 'error' },
-        { type: 'completion' },
-      ];
+      const messages = [{ type: 'discovery' }, { type: 'error' }, { type: 'completion' }];
       const filtered = messages.filter((m) => m.type === 'error');
       expect(filtered).toHaveLength(1);
     });
@@ -1115,9 +1101,7 @@ describe('Event Bus Tools', () => {
 
   describe('bus_agents Tool', () => {
     it('should list connected agents', () => {
-      const agents = [
-        { id: 'worker-1', name: 'worker', status: 'connected' },
-      ];
+      const agents = [{ id: 'worker-1', name: 'worker', status: 'connected' }];
       expect(Array.isArray(agents)).toBe(true);
     });
 
@@ -1156,12 +1140,7 @@ describe('fetch_via_proxy Tool', () => {
     });
 
     it('should have default allowed domains', () => {
-      const defaults = [
-        'github.com',
-        'npmjs.org',
-        'pypi.org',
-        'crates.io',
-      ];
+      const defaults = ['github.com', 'npmjs.org', 'pypi.org', 'crates.io'];
       expect(defaults.length).toBeGreaterThan(0);
     });
 
@@ -1219,7 +1198,7 @@ describe('fetch_via_proxy Tool', () => {
 
   describe('Request Handling', () => {
     it('should send custom headers', () => {
-      const headers = { 'Authorization': 'Bearer token' };
+      const headers = { Authorization: 'Bearer token' };
       expect(headers).toHaveProperty('Authorization');
     });
 

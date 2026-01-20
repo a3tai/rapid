@@ -8,9 +8,7 @@
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import {
-  getRedisStatus,
-} from '@a3t/rapid-eventbus';
+import { getRedisStatus } from '@a3t/rapid-eventbus';
 import type { ServerContext } from '../server.js';
 
 /**
@@ -20,7 +18,12 @@ export interface KnowledgeEntry {
   id: string;
   key: string;
   value: string;
-  category: 'codebase_patterns' | 'user_preferences' | 'project_conventions' | 'common_errors' | 'other';
+  category:
+    | 'codebase_patterns'
+    | 'user_preferences'
+    | 'project_conventions'
+    | 'common_errors'
+    | 'other';
   metadata: {
     createdAt: string;
     updatedAt: string;
@@ -71,7 +74,9 @@ class InMemoryKnowledgeStore {
   listByCategory(category: string): KnowledgeEntry[] {
     const ids = this.categoryIndex.get(category);
     if (!ids) return [];
-    return Array.from(ids).map((id) => this.store.get(id)!).filter(Boolean);
+    return Array.from(ids)
+      .map((id) => this.store.get(id)!)
+      .filter(Boolean);
   }
 
   delete(id: string): boolean {
@@ -311,11 +316,20 @@ export function registerKnowledgeTools(server: McpServer, context: ServerContext
         key: z.string().describe('Unique key for this knowledge item'),
         value: z.string().describe('The knowledge content/value'),
         category: z
-          .enum(['codebase_patterns', 'user_preferences', 'project_conventions', 'common_errors', 'other'])
+          .enum([
+            'codebase_patterns',
+            'user_preferences',
+            'project_conventions',
+            'common_errors',
+            'other',
+          ])
           .optional()
           .describe('Category of knowledge'),
         tags: z.array(z.string()).optional().describe('Tags for categorization'),
-        source: z.string().optional().describe('Source of this knowledge (e.g., task_id, file_path)'),
+        source: z
+          .string()
+          .optional()
+          .describe('Source of this knowledge (e.g., task_id, file_path)'),
         confidence: z.number().optional().describe('Confidence score (0-1)'),
         expiresAt: z.string().optional().describe('ISO timestamp when knowledge expires'),
       },
@@ -377,12 +391,14 @@ export function registerKnowledgeTools(server: McpServer, context: ServerContext
       },
       outputSchema: {
         found: z.boolean(),
-        knowledge: z.object({
-          key: z.string(),
-          value: z.string(),
-          category: z.string(),
-          tags: z.array(z.string()),
-        }).optional(),
+        knowledge: z
+          .object({
+            key: z.string(),
+            value: z.string(),
+            category: z.string(),
+            tags: z.array(z.string()),
+          })
+          .optional(),
       },
     },
     async (input: any) => {

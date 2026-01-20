@@ -1,21 +1,21 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useRef, useCallback, useState } from 'react'
-import { useData } from './useData'
-import { useWebSocket } from './useWebSocket'
+import { useEffect, useRef, useCallback, useState } from 'react';
+import { useData } from './useData';
+import { useWebSocket } from './useWebSocket';
 
 export interface EnhancedPollingOptions {
-  pollingInterval?: number
-  websocketUrl?: string
-  enableWebSocket?: boolean
-  fallbackToPolling?: boolean
-  debug?: boolean
+  pollingInterval?: number;
+  websocketUrl?: string;
+  enableWebSocket?: boolean;
+  fallbackToPolling?: boolean;
+  debug?: boolean;
 }
 
 export interface PollingState {
-  dataSource: 'websocket' | 'polling'
-  connected: boolean
-  lastUpdate: number | null
-  error: Error | null
+  dataSource: 'websocket' | 'polling';
+  connected: boolean;
+  lastUpdate: number | null;
+  error: Error | null;
 }
 
 /**
@@ -29,17 +29,17 @@ export function useEnhancedPolling(options: EnhancedPollingOptions = {}) {
     enableWebSocket = true,
     fallbackToPolling = true,
     debug = false,
-  } = options
+  } = options;
 
-  const { fetchAgents, fetchTasks, fetchMessages, fetchDaemonStatus } = useData()
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const { fetchAgents, fetchTasks, fetchMessages, fetchDaemonStatus } = useData();
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const [state, setState] = useState<PollingState>({
     dataSource: 'polling',
     connected: false,
     lastUpdate: null,
     error: null,
-  })
+  });
 
   // WebSocket hook - only initialize if enabled and URL is provided
   const wsState = useWebSocket(
@@ -51,14 +51,14 @@ export function useEnhancedPolling(options: EnhancedPollingOptions = {}) {
           heartbeatInterval: 30000,
           debug,
         }
-      : null as any // Type workaround for conditional hook
-  )
+      : (null as any) // Type workaround for conditional hook
+  );
 
   // Handle WebSocket messages for data updates
   useEffect(() => {
     const handleUpdate = (event: Event) => {
       if (event instanceof CustomEvent) {
-        const { detail } = event
+        const { detail } = event;
         if (
           detail?.type === 'agents' ||
           detail?.type === 'tasks' ||
@@ -66,7 +66,7 @@ export function useEnhancedPolling(options: EnhancedPollingOptions = {}) {
           detail?.type === 'status'
         ) {
           if (debug) {
-            console.log('[EnhancedPolling] Received update via WebSocket:', detail.type)
+            console.log('[EnhancedPolling] Received update via WebSocket:', detail.type);
           }
 
           setState((prev) => ({
@@ -74,67 +74,76 @@ export function useEnhancedPolling(options: EnhancedPollingOptions = {}) {
             dataSource: 'websocket',
             connected: true,
             lastUpdate: Date.now(),
-          }))
+          }));
         }
       }
-    }
+    };
 
     if (enableWebSocket && websocketUrl) {
-      window.addEventListener('websocket-message', handleUpdate)
+      window.addEventListener('websocket-message', handleUpdate);
       return () => {
-        window.removeEventListener('websocket-message', handleUpdate)
-      }
+        window.removeEventListener('websocket-message', handleUpdate);
+      };
     }
-  }, [enableWebSocket, websocketUrl, debug])
+  }, [enableWebSocket, websocketUrl, debug]);
 
   // Set up polling as fallback
   const startPolling = useCallback(() => {
     if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current)
+      clearInterval(pollingIntervalRef.current);
     }
 
     pollingIntervalRef.current = setInterval(() => {
       if (debug) {
-        console.log('[EnhancedPolling] Polling for updates')
+        console.log('[EnhancedPolling] Polling for updates');
       }
 
-      fetchDaemonStatus()
-      fetchAgents()
-      fetchTasks()
-      fetchMessages()
+      fetchDaemonStatus();
+      fetchAgents();
+      fetchTasks();
+      fetchMessages();
 
       setState((prev) => ({
         ...prev,
         dataSource: wsState.connected ? 'websocket' : 'polling',
         connected: wsState.connected || fallbackToPolling,
         lastUpdate: Date.now(),
-      }))
-    }, pollingInterval)
-  }, [pollingInterval, fetchAgents, fetchTasks, fetchMessages, fetchDaemonStatus, debug, wsState.connected, fallbackToPolling])
+      }));
+    }, pollingInterval);
+  }, [
+    pollingInterval,
+    fetchAgents,
+    fetchTasks,
+    fetchMessages,
+    fetchDaemonStatus,
+    debug,
+    wsState.connected,
+    fallbackToPolling,
+  ]);
 
   // Initialize polling
   useEffect(() => {
     // If WebSocket is not enabled or URL not provided, start polling immediately
     if (!enableWebSocket || !websocketUrl) {
-      startPolling()
+      startPolling();
     } else if (fallbackToPolling) {
       // If WebSocket is enabled but connection failed, fall back to polling
       if (!wsState.connected) {
-        startPolling()
+        startPolling();
       } else {
         // Clear polling interval if WebSocket connected
         if (pollingIntervalRef.current) {
-          clearInterval(pollingIntervalRef.current)
+          clearInterval(pollingIntervalRef.current);
         }
       }
     }
 
     return () => {
       if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current)
+        clearInterval(pollingIntervalRef.current);
       }
-    }
-  }, [enableWebSocket, websocketUrl, fallbackToPolling, wsState.connected, startPolling])
+    };
+  }, [enableWebSocket, websocketUrl, fallbackToPolling, wsState.connected, startPolling]);
 
   // Update state based on WebSocket connection
   useEffect(() => {
@@ -142,13 +151,13 @@ export function useEnhancedPolling(options: EnhancedPollingOptions = {}) {
       ...prev,
       connected: wsState.connected || (fallbackToPolling && pollingIntervalRef.current !== null),
       error: wsState.error,
-    }))
-  }, [wsState.connected, wsState.error, fallbackToPolling])
+    }));
+  }, [wsState.connected, wsState.error, fallbackToPolling]);
 
   return {
     ...state,
     websocketState: wsState,
-  }
+  };
 }
 
 /**
@@ -156,7 +165,7 @@ export function useEnhancedPolling(options: EnhancedPollingOptions = {}) {
  * Provides a simpler API for consuming real-time updates
  */
 export function useRealtimeUpdates(options: EnhancedPollingOptions = {}) {
-  const pollingState = useEnhancedPolling(options)
+  const pollingState = useEnhancedPolling(options);
 
   return {
     dataSource: pollingState.dataSource,
@@ -165,5 +174,5 @@ export function useRealtimeUpdates(options: EnhancedPollingOptions = {}) {
     error: pollingState.error,
     isWebSocket: pollingState.dataSource === 'websocket',
     isPolling: pollingState.dataSource === 'polling',
-  }
+  };
 }

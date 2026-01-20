@@ -85,11 +85,7 @@ function filterTasksByCapabilities(tasks: Task[], capabilities: string[]): Task[
 /**
  * Score a task for the agent (higher = better match)
  */
-function scoreTask(
-  task: Task,
-  agentWorktree?: string,
-  agentCapabilities: string[] = []
-): number {
+function scoreTask(task: Task, agentWorktree?: string, agentCapabilities: string[] = []): number {
   let score = 0;
 
   // Priority bonus
@@ -139,17 +135,16 @@ export function registerTaskWatchTools(server: McpServer, context: ServerContext
       inputSchema: z.object({
         capabilities: z
           .array(z.string())
-          .describe('List of capabilities this agent has (e.g., ["python", "testing", "documentation"])'),
+          .describe(
+            'List of capabilities this agent has (e.g., ["python", "testing", "documentation"])'
+          ),
         worktree: z.string().optional().describe('Current worktree/branch for affinity scoring'),
         maxResults: z.number().optional().default(10).describe('Maximum tasks to return'),
         minPriority: z
           .enum(['low', 'normal', 'high', 'urgent'])
           .optional()
           .describe('Minimum priority level to return'),
-        tags: z
-          .array(z.string())
-          .optional()
-          .describe('Only return tasks with any of these tags'),
+        tags: z.array(z.string()).optional().describe('Only return tasks with any of these tags'),
       }),
       outputSchema: z.object({
         tasks: z.array(

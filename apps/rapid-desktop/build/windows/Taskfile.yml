@@ -1,25 +1,25 @@
 version: '3'
 
 vars:
-  APP_NAME: "rapid-desktop"
-  BIN_DIR: "bin"
+  APP_NAME: 'rapid-desktop'
+  BIN_DIR: 'bin'
 
 tasks:
   build:
     summary: Build the application for Windows
-    dir: "{{.ROOT_DIR}}"
+    dir: '{{.ROOT_DIR}}'
     cmds:
       - task: common:build:frontend
       - go build -tags desktop -ldflags="-s -w -H windowsgui" -o {{.BIN_DIR}}/{{.APP_NAME}}.exe .
 
   run:
     summary: Run the Windows application
-    dir: "{{.ROOT_DIR}}"
+    dir: '{{.ROOT_DIR}}'
     cmds:
       - ./{{.BIN_DIR}}/{{.APP_NAME}}.exe
 
   package:
     summary: Package the Windows application
-    dir: "{{.ROOT_DIR}}"
+    dir: '{{.ROOT_DIR}}'
     cmds:
       - echo "Windows packaging not yet implemented"

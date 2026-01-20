@@ -1,7 +1,7 @@
 name: code-reviewer
 description: Comprehensive code reviewer for quality, style, and correctness
 
-model: sonnet  # Good reasoning for nuanced reviews
+model: sonnet # Good reasoning for nuanced reviews
 
 systemPrompt: |
   You are a comprehensive code reviewer. Your job is to review code changes

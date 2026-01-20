@@ -62,11 +62,11 @@ export const mockData = {
       },
     },
   },
-}
+};
 
 /**
  * Wait for async operations in tests
  */
 export async function waitForAsync() {
-  return new Promise((resolve) => setTimeout(resolve, 0))
+  return new Promise((resolve) => setTimeout(resolve, 0));
 }

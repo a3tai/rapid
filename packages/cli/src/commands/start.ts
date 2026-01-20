@@ -122,14 +122,7 @@ async function startServices(
   const composeCmd = await getDockerComposeCmd();
   const composeFile = join(dockerDir, 'docker-compose.yml');
 
-  const args = [
-    ...composeCmd.slice(1),
-    '-f',
-    composeFile,
-    'up',
-    '-d',
-    '--remove-orphans',
-  ];
+  const args = [...composeCmd.slice(1), '-f', composeFile, 'up', '-d', '--remove-orphans'];
 
   if (options.rebuild) {
     args.push('--build', '--force-recreate');
@@ -329,7 +322,12 @@ export const startCommand = new Command('start')
       // ─────────────────────────────────────────────────────────────
       // Spawn Agent Team if configured
       // ─────────────────────────────────────────────────────────────
-      if (!options.agents && config.personas?.autoSpawn && config.personas.team && config.personas.team.length > 0) {
+      if (
+        !options.agents &&
+        config.personas?.autoSpawn &&
+        config.personas.team &&
+        config.personas.team.length > 0
+      ) {
         spinner.start('Spawning agent team...');
 
         try {
@@ -382,9 +380,13 @@ export const startCommand = new Command('start')
               }).catch(() => null);
 
               if (response?.ok) {
-                const data = await response.json() as { result?: { structuredContent?: { agentId?: string } } };
+                const data = (await response.json()) as {
+                  result?: { structuredContent?: { agentId?: string } };
+                };
                 if (data.result?.structuredContent?.agentId) {
-                  logger.debug(`Spawned ${personaName} as ${data.result.structuredContent.agentId}`);
+                  logger.debug(
+                    `Spawned ${personaName} as ${data.result.structuredContent.agentId}`
+                  );
                 }
               }
             } catch (error) {

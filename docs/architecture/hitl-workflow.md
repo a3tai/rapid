@@ -7,6 +7,7 @@ The HITL approval workflow enables agents to pause execution and request human a
 ## Use Cases
 
 **When to Request Approval:**
+
 - Financial transactions or billing changes
 - Production deployments
 - Data deletion or destructive operations
@@ -70,39 +71,39 @@ sequenceDiagram
 ```typescript
 interface ApprovalRequest {
   // Message metadata
-  type: "approval_request";
-  messageId: string;          // UUID for tracking
-  timestamp: string;          // ISO 8601
+  type: 'approval_request';
+  messageId: string; // UUID for tracking
+  timestamp: string; // ISO 8601
 
   // Agent context
-  agentId: string;            // Requesting agent ID
-  agentName: string;          // Human-readable agent name
-  worktree?: string;          // Git worktree/branch
+  agentId: string; // Requesting agent ID
+  agentName: string; // Human-readable agent name
+  worktree?: string; // Git worktree/branch
 
   // Action details
   action: {
-    type: string;             // "deploy", "delete", "modify", "execute"
-    target: string;           // What's being acted upon
-    summary: string;          // Human-readable description
-    details: object;          // Full context for review
+    type: string; // "deploy", "delete", "modify", "execute"
+    target: string; // What's being acted upon
+    summary: string; // Human-readable description
+    details: object; // Full context for review
   };
 
   // Risk assessment
-  riskLevel: "low" | "medium" | "high" | "critical";
-  riskFactors: string[];      // Why this needs approval
+  riskLevel: 'low' | 'medium' | 'high' | 'critical';
+  riskFactors: string[]; // Why this needs approval
 
   // Approval configuration
-  timeout: number;            // Auto-deny after N seconds (default: 300)
-  requireReason: boolean;     // User must provide reasoning
-  escalationPath?: string[];  // Who to escalate to if timeout
+  timeout: number; // Auto-deny after N seconds (default: 300)
+  requireReason: boolean; // User must provide reasoning
+  escalationPath?: string[]; // Who to escalate to if timeout
 
   // Context for decision-making
   context: {
-    files?: string[];         // Files affected
-    commands?: string[];      // Commands to be executed
-    diff?: string;            // Code changes (if applicable)
-    impact?: string;          // Expected impact description
-    rollback?: string;        // Rollback procedure (if available)
+    files?: string[]; // Files affected
+    commands?: string[]; // Commands to be executed
+    diff?: string; // Code changes (if applicable)
+    impact?: string; // Expected impact description
+    rollback?: string; // Rollback procedure (if available)
   };
 }
 ```
@@ -111,23 +112,23 @@ interface ApprovalRequest {
 
 ```typescript
 interface ApprovalResponse {
-  type: "approval_response";
-  messageId: string;          // Original request ID
+  type: 'approval_response';
+  messageId: string; // Original request ID
   timestamp: string;
 
   // Response details
-  decision: "approved" | "denied" | "deferred";
-  userId: string;             // Who responded
-  reason?: string;            // Optional explanation
+  decision: 'approved' | 'denied' | 'deferred';
+  userId: string; // Who responded
+  reason?: string; // Optional explanation
 
   // Conditional approval
   modifications?: {
-    instructions: string;     // Modified instructions for agent
-    constraints: string[];    // Additional constraints to apply
+    instructions: string; // Modified instructions for agent
+    constraints: string[]; // Additional constraints to apply
   };
 
   // Escalation
-  escalateTo?: string;        // Escalate to another approver
+  escalateTo?: string; // Escalate to another approver
 }
 ```
 
@@ -205,6 +206,7 @@ stateDiagram-v2
 ## Risk Level Guidelines
 
 ### Low Risk (Auto-approve or fast-track)
+
 - Reading files
 - Running tests
 - Non-destructive queries
@@ -212,18 +214,21 @@ stateDiagram-v2
 - Linting and formatting
 
 ### Medium Risk (Standard approval, 5min timeout)
+
 - Creating new features
 - Updating dependencies
 - Refactoring existing code
 - Adding new API endpoints
 
 ### High Risk (Requires approval, 10min timeout)
+
 - Deployment to staging
 - Database migrations (reversible)
 - Updating production configuration
 - Modifying authentication logic
 
 ### Critical Risk (Requires approval + reasoning, 15min timeout)
+
 - Deployment to production
 - Irreversible database changes
 - Deleting resources
@@ -236,10 +241,10 @@ stateDiagram-v2
 
 ```yaml
 timeouts:
-  low: 60        # 1 minute
-  medium: 300    # 5 minutes
-  high: 600      # 10 minutes
-  critical: 900  # 15 minutes
+  low: 60 # 1 minute
+  medium: 300 # 5 minutes
+  high: 600 # 10 minutes
+  critical: 900 # 15 minutes
 ```
 
 ### Timeout Actions
@@ -261,6 +266,7 @@ timeouts:
 ### Extending Timeouts
 
 Users can extend timeouts for complex decisions:
+
 ```bash
 rapid approve abc123 --defer --timeout 1800  # Add 30 more minutes
 ```
@@ -274,15 +280,15 @@ rapid approve abc123 --defer --timeout 1800  # Add 30 more minutes
 approval:
   escalationPaths:
     production-deploy:
-      - "tech-lead@example.com"
-      - "engineering-manager@example.com"
-      - "cto@example.com"
+      - 'tech-lead@example.com'
+      - 'engineering-manager@example.com'
+      - 'cto@example.com'
     financial-transaction:
-      - "finance-team@example.com"
-      - "cfo@example.com"
+      - 'finance-team@example.com'
+      - 'cfo@example.com'
     security-change:
-      - "security-team@example.com"
-      - "ciso@example.com"
+      - 'security-team@example.com'
+      - 'ciso@example.com'
 ```
 
 ### Escalation Flow
@@ -311,10 +317,10 @@ interface ApprovalAuditLog {
   agentId: string;
   action: object;
   riskLevel: string;
-  decision: "approved" | "denied" | "timeout";
+  decision: 'approved' | 'denied' | 'timeout';
   approver?: string;
   reason?: string;
-  responseTime: number;      // Milliseconds
+  responseTime: number; // Milliseconds
   escalated: boolean;
 }
 ```
@@ -322,6 +328,7 @@ interface ApprovalAuditLog {
 ### Storage
 
 Audit logs are stored in:
+
 - Event bus message history (Redis/in-memory)
 - Local file: `.rapid/logs/approvals.jsonl`
 - Remote logging service (if configured)
@@ -355,14 +362,15 @@ approval:
   notifications:
     slack:
       enabled: true
-      webhook: "${SLACK_WEBHOOK_URL}"
-      channel: "#approvals"
+      webhook: '${SLACK_WEBHOOK_URL}'
+      channel: '#approvals'
       mentions:
-        critical: "@tech-lead"
-        high: "@channel"
+        critical: '@tech-lead'
+        high: '@channel'
 ```
 
 **Slack Message Format:**
+
 ```
 🚨 Approval Required (HIGH RISK)
 
@@ -391,12 +399,12 @@ approval:
     email:
       enabled: true
       smtp:
-        host: "${SMTP_HOST}"
+        host: '${SMTP_HOST}'
         port: 587
-        from: "rapid-approvals@example.com"
+        from: 'rapid-approvals@example.com'
       recipients:
-        - "tech-lead@example.com"
-      template: "approval-request"
+        - 'tech-lead@example.com'
+      template: 'approval-request'
 ```
 
 ### CLI Integration
@@ -429,9 +437,9 @@ async function requestApproval(action: object, riskLevel: RiskLevel) {
   const requestId = generateUUID();
 
   await bus_send({
-    type: "approval_request",
+    type: 'approval_request',
     agentId: myAgentId,
-    agentName: "claude-worker",
+    agentName: 'claude-worker',
     messageId: requestId,
     action,
     riskLevel,
@@ -446,7 +454,7 @@ async function requestApproval(action: object, riskLevel: RiskLevel) {
   // Poll for response
   const response = await pollForApproval(requestId, timeout);
 
-  if (response.decision === "approved") {
+  if (response.decision === 'approved') {
     return true;
   } else {
     throw new Error(`Approval denied: ${response.reason}`);
@@ -459,7 +467,7 @@ async function pollForApproval(requestId: string, timeout: number) {
 
   while (Date.now() - startTime < timeout * 1000) {
     const messages = await bus_messages({
-      types: ["approval_response"],
+      types: ['approval_response'],
       filter: { messageId: requestId },
     });
 
@@ -467,11 +475,11 @@ async function pollForApproval(requestId: string, timeout: number) {
       return messages[0];
     }
 
-    await sleep(2000);  // Poll every 2 seconds
+    await sleep(2000); // Poll every 2 seconds
   }
 
   // Timeout reached
-  return { decision: "timeout" };
+  return { decision: 'timeout' };
 }
 ```
 
@@ -481,7 +489,7 @@ async function pollForApproval(requestId: string, timeout: number) {
 // CLI handles approval command
 async function handleApprovalCommand(requestId: string, decision: Decision) {
   await bus_send({
-    type: "approval_response",
+    type: 'approval_response',
     messageId: requestId,
     decision,
     userId: getCurrentUser(),
@@ -504,18 +512,19 @@ approval:
   notifications:
     mobile:
       enabled: true
-      service: "pushover"  # or "onesignal", "firebase"
-      apiKey: "${MOBILE_PUSH_API_KEY}"
+      service: 'pushover' # or "onesignal", "firebase"
+      apiKey: '${MOBILE_PUSH_API_KEY}'
       urgency:
-        low: "silent"
-        medium: "normal"
-        high: "high"
-        critical: "emergency"
+        low: 'silent'
+        medium: 'normal'
+        high: 'high'
+        critical: 'emergency'
 ```
 
 ### Mobile Web Interface
 
 Access approval requests via mobile-optimized web interface:
+
 ```
 https://rapid.app/m/approvals
 ```
@@ -549,26 +558,26 @@ https://rapid.app/m/approvals
 ```typescript
 // Agent preparing to deploy
 const deployAction = {
-  type: "deploy",
-  target: "production",
-  summary: "Deploy release v2.1.0 to production",
+  type: 'deploy',
+  target: 'production',
+  summary: 'Deploy release v2.1.0 to production',
   details: {
-    version: "v2.1.0",
-    branch: "release/v2.1.0",
+    version: 'v2.1.0',
+    branch: 'release/v2.1.0',
     commits: 47,
-    tests: "✅ All passing (2,341 tests)",
-    migrations: "2 database migrations",
-    rollback: "rapid deploy rollback v2.0.9",
+    tests: '✅ All passing (2,341 tests)',
+    migrations: '2 database migrations',
+    rollback: 'rapid deploy rollback v2.0.9',
   },
 };
 
 // Request approval
-const approved = await requestApproval(deployAction, "critical");
+const approved = await requestApproval(deployAction, 'critical');
 
 if (approved) {
   await executeDeployment();
 } else {
-  console.log("Deployment aborted by user");
+  console.log('Deployment aborted by user');
 }
 ```
 
@@ -576,19 +585,19 @@ if (approved) {
 
 ```typescript
 const migrationAction = {
-  type: "modify",
-  target: "database schema",
-  summary: "Add user_preferences table",
+  type: 'modify',
+  target: 'database schema',
+  summary: 'Add user_preferences table',
   details: {
-    migration: "20260120_add_user_preferences.sql",
+    migration: '20260120_add_user_preferences.sql',
     reversible: true,
-    affectedTables: ["user_preferences"],
-    estimatedDowntime: "< 1 second",
-    rollback: "rapid migrate rollback 20260120",
+    affectedTables: ['user_preferences'],
+    estimatedDowntime: '< 1 second',
+    rollback: 'rapid migrate rollback 20260120',
   },
 };
 
-const approved = await requestApproval(migrationAction, "high");
+const approved = await requestApproval(migrationAction, 'high');
 ```
 
 ## Configuration Reference

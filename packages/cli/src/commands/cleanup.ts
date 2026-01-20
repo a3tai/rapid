@@ -22,7 +22,11 @@ import { join } from 'node:path';
 
 export const cleanupCommand = new Command('cleanup')
   .description('Clean up stale agents, old tasks, and event bus history')
-  .option('--stale-threshold <seconds>', 'Mark agents as stale after N seconds (default: 120)', '120')
+  .option(
+    '--stale-threshold <seconds>',
+    'Mark agents as stale after N seconds (default: 120)',
+    '120'
+  )
   .option('--task-age <days>', 'Remove completed tasks older than N days (default: 7)', '7')
   .option('--message-age <days>', 'Remove event bus messages older than N days (default: 30)', '30')
   .option('--prune-worktrees', 'Also clean up merged worktrees')
@@ -63,14 +67,14 @@ export const cleanupCommand = new Command('cleanup')
       const staleThresholdSeconds = parseInt(options.staleThreshold, 10);
 
       // Get all agents (active within a very long time period) to find all registered
-      const allAgents = bus instanceof EventBus
-        ? await bus.getActiveAgents(86400) // 24 hours - get all agents registered in the last day
-        : [];
+      const allAgents =
+        bus instanceof EventBus
+          ? await bus.getActiveAgents(86400) // 24 hours - get all agents registered in the last day
+          : [];
 
       // Get recently active agents
-      const activeAgents = bus instanceof EventBus
-        ? await bus.getActiveAgents(staleThresholdSeconds)
-        : [];
+      const activeAgents =
+        bus instanceof EventBus ? await bus.getActiveAgents(staleThresholdSeconds) : [];
 
       // Stale agents are those in allAgents but not in activeAgents
       const activeIds = new Set(activeAgents.map((a) => a.id));
@@ -153,7 +157,9 @@ export const cleanupCommand = new Command('cleanup')
       // Summary
       if (options.dryRun) {
         spinner.succeed('Cleanup dry-run complete');
-        logger.info(`${options.verbose ? 'Detailed' : 'Automatic'} cleanup would remove: ${cleanedCount} agent(s)`);
+        logger.info(
+          `${options.verbose ? 'Detailed' : 'Automatic'} cleanup would remove: ${cleanedCount} agent(s)`
+        );
       } else {
         spinner.succeed(`Cleanup complete: Removed ${cleanedCount} stale agent(s)`);
 

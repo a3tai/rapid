@@ -217,7 +217,10 @@ class MockTaskManager {
     return { claimed: true, task };
   }
 
-  async updateProgress(taskId: string, progress: Record<string, unknown>): Promise<Task | undefined> {
+  async updateProgress(
+    taskId: string,
+    progress: Record<string, unknown>
+  ): Promise<Task | undefined> {
     const task = this.tasks.get(taskId);
     if (task && task.status === 'in_progress') {
       task.lastProgressAt = new Date().toISOString();

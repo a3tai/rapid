@@ -46,12 +46,14 @@ Complete system architecture for multi-agent development in RAPID with event bus
 **Technology**: Redis (with in-memory fallback)
 
 **Functions**:
+
 - Message routing between agents
 - Agent registration and discovery
 - Task management and assignment
 - Real-time status updates
 
 **Message Types**:
+
 - `coordination` - Agent-to-agent communication
 - `completion` - Task completion notifications
 - `error` - Error reporting and logging
@@ -88,12 +90,14 @@ Complete system architecture for multi-agent development in RAPID with event bus
 **Role**: Central coordinator and task manager
 
 **Responsibilities**:
+
 - Monitor all agents and system health
 - Create and assign tasks based on project needs
 - Collect results and coordinate multi-agent workflows
 - Manage event bus state
 
 **Flow**:
+
 ```
 1. Read rapid.json for project configuration
 2. Create tasks (detected from codebase, user requests, or planned phases)
@@ -109,6 +113,7 @@ Complete system architecture for multi-agent development in RAPID with event bus
 **Role**: Task execution and implementation
 
 **Types**:
+
 - **Haiku Worker** (High throughput, fast operations)
   - CLI command implementation
   - Small features and fixes
@@ -127,6 +132,7 @@ Complete system architecture for multi-agent development in RAPID with event bus
   - Researcher: Investigation, exploration
 
 **Execution Model**:
+
 ```
 Worker Lifecycle:
 1. Register with event bus (get agent ID)
@@ -145,6 +151,7 @@ Worker Lifecycle:
 **Purpose**: Each agent works in isolated git worktree to prevent conflicts
 
 **Structure**:
+
 ```
 Project Root
 ├── .git/
@@ -163,6 +170,7 @@ Project Root
 ```
 
 **Benefits**:
+
 - No merge conflicts during parallel work
 - Independent dependency installation per worktree
 - Isolated testing and validation

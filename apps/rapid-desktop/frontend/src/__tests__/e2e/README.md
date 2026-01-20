@@ -14,31 +14,37 @@ This directory contains end-to-end tests for the RAPID Desktop application using
 ## Running Tests
 
 ### Install Dependencies
+
 ```bash
 npm install
 ```
 
 ### Run All E2E Tests
+
 ```bash
 npm run test:e2e
 ```
 
 ### Run Tests in UI Mode
+
 ```bash
 npm run test:e2e:ui
 ```
 
 ### Run Tests in Debug Mode
+
 ```bash
 npm run test:e2e:debug
 ```
 
 ### Run Specific Test File
+
 ```bash
 npx playwright test dashboard.spec.ts
 ```
 
 ### Run Tests with Specific Browser
+
 ```bash
 npx playwright test --project=chromium
 npx playwright test --project=firefox
@@ -47,6 +53,7 @@ npx playwright test --project=firefox
 ## Test Structure
 
 Each test file follows this pattern:
+
 1. Navigation to the page
 2. Verification of page load
 3. UI element visibility checks
@@ -56,6 +63,7 @@ Each test file follows this pattern:
 ## Test Attributes
 
 Tests use data-testid attributes to identify elements:
+
 - `data-testid="page-name"` - Main page containers
 - `data-testid="component-name"` - Specific UI components
 - `data-testid="action-button"` - Interactive elements
@@ -70,11 +78,13 @@ Tests use data-testid attributes to identify elements:
 ## Debugging
 
 View Playwright test reports:
+
 ```bash
 npx playwright show-report
 ```
 
 View traces and videos:
+
 - Reports are generated in `playwright-report/`
 - Screenshots on failure: `test-results/`
 - Videos for failed tests: `test-results/`
@@ -82,6 +92,7 @@ View traces and videos:
 ## Coverage
 
 Target coverage for the E2E tests:
+
 - ✓ Page navigation (100%)
 - ✓ Dashboard status display (100%)
 - ✓ Approval workflow UI (100%)

@@ -78,7 +78,14 @@ export const logger = {
    * Log error with proper severity level
    */
   errorWithSeverity(error: Error | RAPIDError, severity: ErrorSeverity = 'error'): void {
-    const logLevel = severity === 'critical' ? 'error' : severity === 'error' ? 'error' : severity === 'warn' ? 'warn' : 'debug';
+    const logLevel =
+      severity === 'critical'
+        ? 'error'
+        : severity === 'error'
+          ? 'error'
+          : severity === 'warn'
+            ? 'warn'
+            : 'debug';
     if (shouldLog(logLevel)) {
       const icon = {
         critical: chalk.red('❌'),

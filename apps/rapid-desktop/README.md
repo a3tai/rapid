@@ -104,12 +104,12 @@ The UI follows a dark theme inspired by modern developer tools:
 
 ## Keyboard Shortcuts (Planned)
 
-| Shortcut | Action |
-|----------|--------|
-| `Cmd/Ctrl + N` | New task |
+| Shortcut       | Action       |
+| -------------- | ------------ |
+| `Cmd/Ctrl + N` | New task     |
 | `Cmd/Ctrl + K` | Quick search |
-| `1-5` | Switch views |
-| `Esc` | Close modals |
+| `1-5`          | Switch views |
+| `Esc`          | Close modals |
 
 ## License
 

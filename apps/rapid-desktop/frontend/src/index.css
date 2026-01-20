@@ -44,7 +44,7 @@
 
   body {
     @apply bg-rapid-bg text-rapid-text;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
 
   /* Wails draggable regions */
@@ -57,7 +57,12 @@
   }
 
   /* Typography */
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-mono font-normal tracking-tight;
     letter-spacing: -0.02em;
   }
@@ -255,11 +260,7 @@
     transform: translateX(-50%);
     width: 150%;
     height: 100%;
-    background: radial-gradient(
-      ellipse 50% 80% at 50% 20%,
-      hsl(245 85% 67% / 0.15),
-      transparent
-    );
+    background: radial-gradient(ellipse 50% 80% at 50% 20%, hsl(245 85% 67% / 0.15), transparent);
     pointer-events: none;
     z-index: -1;
   }
@@ -289,8 +290,12 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slide-up {
@@ -305,8 +310,13 @@
 }
 
 @keyframes pulse-slow {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

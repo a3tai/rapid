@@ -389,16 +389,16 @@ graph LR
 
 ## System Statistics
 
-| Metric | Current | Target |
-|--------|---------|--------|
-| Active Agents | 2-3 | 10+ |
-| Task Throughput | 15 tasks | 50+ tasks/hour |
-| Event Bus Messages | 50+ | 1000+ |
-| Worktree Support | 3 active | 20+ concurrent |
-| Agent Types | 3 (Haiku, Sonnet, Designer) | 6+ specialized |
-| MCP Tools | 30+ | 50+ |
-| Response Time (task → completion) | < 5 min | < 2 min |
-| System Uptime | N/A | 99.9% |
+| Metric                            | Current                     | Target         |
+| --------------------------------- | --------------------------- | -------------- |
+| Active Agents                     | 2-3                         | 10+            |
+| Task Throughput                   | 15 tasks                    | 50+ tasks/hour |
+| Event Bus Messages                | 50+                         | 1000+          |
+| Worktree Support                  | 3 active                    | 20+ concurrent |
+| Agent Types                       | 3 (Haiku, Sonnet, Designer) | 6+ specialized |
+| MCP Tools                         | 30+                         | 50+            |
+| Response Time (task → completion) | < 5 min                     | < 2 min        |
+| System Uptime                     | N/A                         | 99.9%          |
 
 ## Key Features
 

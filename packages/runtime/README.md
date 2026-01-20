@@ -36,12 +36,12 @@ console.log(result.stdout);
 
 ## Sandbox Presets
 
-| Preset | Network | Filesystem | Use Case |
-|--------|---------|------------|----------|
-| `strict` | Blocked | Read-only (project only) | Untrusted code |
-| `balanced` | Proxy only | Project + temp dirs | Normal development |
-| `permissive` | Allowed | Most paths | Build tools, CI |
-| `none` | Allowed | Full access | Debugging |
+| Preset       | Network    | Filesystem               | Use Case           |
+| ------------ | ---------- | ------------------------ | ------------------ |
+| `strict`     | Blocked    | Read-only (project only) | Untrusted code     |
+| `balanced`   | Proxy only | Project + temp dirs      | Normal development |
+| `permissive` | Allowed    | Most paths               | Build tools, CI    |
+| `none`       | Allowed    | Full access              | Debugging          |
 
 ## Architecture
 
@@ -97,11 +97,7 @@ const available = manager.isAvailable();
 ### Seatbelt (macOS)
 
 ```typescript
-import {
-  generateSeatbeltProfile,
-  wrapWithSeatbelt,
-  isSeatbeltAvailable
-} from '@a3t/rapid-runtime';
+import { generateSeatbeltProfile, wrapWithSeatbelt, isSeatbeltAvailable } from '@a3t/rapid-runtime';
 
 // Check availability
 if (isSeatbeltAvailable()) {
@@ -124,7 +120,7 @@ import {
   generateBwrapArgs,
   wrapWithBubblewrap,
   isBubblewrapAvailable,
-  diagnoseBubblewrap
+  diagnoseBubblewrap,
 } from '@a3t/rapid-runtime';
 
 // Check availability and diagnose issues
@@ -203,20 +199,20 @@ interface FilesystemConfig {
 }
 
 interface MandatoryProtections {
-  blockKeychain: boolean;      // Block keychain access
-  blockCredentials: boolean;   // Block credential files
-  blockSshKeys: boolean;       // Block ~/.ssh
-  blockCloudCreds: boolean;    // Block cloud credentials
+  blockKeychain: boolean; // Block keychain access
+  blockCredentials: boolean; // Block credential files
+  blockSshKeys: boolean; // Block ~/.ssh
+  blockCloudCreds: boolean; // Block cloud credentials
 }
 ```
 
 ## Platform Support
 
-| Platform | Sandbox Method | Notes |
-|----------|---------------|-------|
-| macOS | Seatbelt | Built-in, no install needed |
-| Linux | Bubblewrap | Install via package manager |
-| Windows | None | Use WSL2 for Linux sandbox |
+| Platform | Sandbox Method | Notes                       |
+| -------- | -------------- | --------------------------- |
+| macOS    | Seatbelt       | Built-in, no install needed |
+| Linux    | Bubblewrap     | Install via package manager |
+| Windows  | None           | Use WSL2 for Linux sandbox  |
 
 ### Linux Setup
 

@@ -53,13 +53,17 @@ rapid mcp serve --http
 ## Core Services
 
 ### Event Bus
+
 Enables real-time communication between agents:
+
 - Agent registration and discovery
 - Message types: coordination, discovery, completion, error, learning, question
 - Automatic Redis integration when available
 
 ### MCP Server
+
 Secure execution and file access with built-in tools:
+
 - `secure_exec` - Sandboxed command execution
 - `fetch_via_proxy` - Network requests with domain whitelist
 - `get_secret` - Credential management
@@ -67,7 +71,9 @@ Secure execution and file access with built-in tools:
 - Event bus integration - Inter-agent communication
 
 ### Context Engine
+
 Agent learning and knowledge storage system:
+
 - **Persistent memory** - Store knowledge across sessions in `.rapid/context/knowledge.json`
 - **Memory types** - Episodic, semantic, procedural, and decision_trace storage
 - **Core operations** - Learn, recall, search, and forget with confidence scoring
@@ -77,29 +83,33 @@ Agent learning and knowledge storage system:
 - **Store maintenance** - Archive old, low-confidence entries automatically
 
 ### Task Management
+
 Coordinate work across agents:
+
 - Create and assign tasks
 - Track task status (pending, in_progress, completed, blocked, cancelled)
 - Priority levels (low, normal, high, urgent)
 - Subtask hierarchies
 
 ### Persona System
+
 Define specialized agents with custom behavior:
+
 - YAML-based persona definitions in `.rapid/personas/`
 - Custom system prompts and capabilities
 - Agent spawning and lifecycle management
 
 ## Packages
 
-| Package | Description |
-|---------|-------------|
-| [@a3t/rapid](./packages/cli) | CLI tool and main orchestrator |
-| [@a3t/rapid-core](./packages/core) | Core orchestration library |
-| [@a3t/rapid-mcp](./packages/rapid-mcp) | MCP server implementation |
-| [@a3t/rapid-eventbus](./packages/rapid-eventbus) | Event bus and messaging |
-| [@a3t/rapid-daemon](./packages/daemon) | Session manager and daemon |
-| [@a3t/rapid-schema](./packages/schema) | JSON schema and types |
-| [@a3t/rapid-runtime](./packages/runtime) | Agent runtime environment |
+| Package                                          | Description                    |
+| ------------------------------------------------ | ------------------------------ |
+| [@a3t/rapid](./packages/cli)                     | CLI tool and main orchestrator |
+| [@a3t/rapid-core](./packages/core)               | Core orchestration library     |
+| [@a3t/rapid-mcp](./packages/rapid-mcp)           | MCP server implementation      |
+| [@a3t/rapid-eventbus](./packages/rapid-eventbus) | Event bus and messaging        |
+| [@a3t/rapid-daemon](./packages/daemon)           | Session manager and daemon     |
+| [@a3t/rapid-schema](./packages/schema)           | JSON schema and types          |
+| [@a3t/rapid-runtime](./packages/runtime)         | Agent runtime environment      |
 
 ## Supported Agents
 

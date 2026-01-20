@@ -11,6 +11,7 @@ This guide provides comprehensive troubleshooting procedures for production Wail
 ### Symptom: "WebSocket connection failed" in browser console
 
 **Root causes:**
+
 - Event server not started
 - Port already in use
 - Firewall blocking connection
@@ -52,7 +53,7 @@ const useEventStream = () => {
           console.error('WebSocket error:', {
             message: error.message,
             type: error.type,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           });
           // Trigger retry logic
         };
@@ -97,6 +98,7 @@ func (es *EventServer) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 ### Symptom: Application memory grows over time, crashes after hours of operation
 
 **Root causes:**
+
 - Message buffer overflow
 - Goroutine leaks in event server
 - React component memory leaks
@@ -128,7 +130,9 @@ export class MemoryProfiler {
         const { usedJSHeapSize, jsHeapSizeLimit } = performance.memory;
         const percentUsed = (usedJSHeapSize / jsHeapSizeLimit) * 100;
 
-        console.log(`Memory: ${(usedJSHeapSize / 1024 / 1024).toFixed(2)}MB / ${(jsHeapSizeLimit / 1024 / 1024).toFixed(2)}MB (${percentUsed.toFixed(1)}%)`);
+        console.log(
+          `Memory: ${(usedJSHeapSize / 1024 / 1024).toFixed(2)}MB / ${(jsHeapSizeLimit / 1024 / 1024).toFixed(2)}MB (${percentUsed.toFixed(1)}%)`
+        );
 
         if (percentUsed > threshold) {
           console.warn(`[ALERT] Memory usage at ${percentUsed.toFixed(1)}%`);
@@ -211,13 +215,14 @@ useEffect(() => {
 // Implement message retention policy
 const useRapidStore = create<RapidStore>((set) => ({
   // ... existing code
-  addEvent: (event: SystemEvent) => set((state) => {
-    const events = [event, ...state.events];
-    // Keep only last 10000 events
-    return {
-      events: events.slice(0, 10000)
-    };
-  })
+  addEvent: (event: SystemEvent) =>
+    set((state) => {
+      const events = [event, ...state.events];
+      // Keep only last 10000 events
+      return {
+        events: events.slice(0, 10000),
+      };
+    }),
 }));
 ```
 
@@ -228,6 +233,7 @@ const useRapidStore = create<RapidStore>((set) => ({
 ### Symptom: UI takes >2 seconds to respond to user actions, event stream laggy
 
 **Root causes:**
+
 - Unoptimized component re-renders
 - Large message payloads
 - Blocking operations in event handler
@@ -330,6 +336,7 @@ func (es *EventServer) PublishEvent(event SystemEvent) {
 ### Symptom: "Failed to spawn agent", "RPC call timeout", agent operations hang
 
 **Root causes:**
+
 - Daemon not responding
 - RPC call timeout too short
 - Network partition
@@ -430,7 +437,7 @@ export function useAgentBinding() {
       } catch (error) {
         throw new Error(`Failed to fetch logs: ${error.message}`);
       }
-    }
+    },
   };
 }
 ```
@@ -442,6 +449,7 @@ export function useAgentBinding() {
 ### Symptom: Settings lost after restart, task data not syncing, context entries disappearing
 
 **Root causes:**
+
 - localStorage full or disabled
 - Context engine not writing to disk
 - Race conditions in save operations
@@ -456,7 +464,7 @@ export class PersistenceManager {
     SETTINGS: 'rapid-settings',
     TASKS: 'rapid-tasks',
     CONTEXT: 'rapid-context-cache',
-    UI_STATE: 'rapid-ui-state'
+    UI_STATE: 'rapid-ui-state',
   };
 
   static saveWithBackup<T>(key: string, data: T): void {
@@ -509,7 +517,7 @@ export class PersistenceManager {
       if (backupData) {
         try {
           return JSON.parse(backupData);
-        } catch { }
+        } catch {}
       }
       return fallback;
     }
@@ -529,7 +537,7 @@ export class PersistenceManager {
           localStorage.removeItem(key);
           console.log(`[Storage] Pruned old entry: ${key}`);
         }
-      } catch { }
+      } catch {}
     }
   }
 }
@@ -552,8 +560,8 @@ export const useRapidStore = create<RapidStore>(
         removeItem: (name) => {
           localStorage.removeItem(name);
           localStorage.removeItem(`${name}-backup`);
-        }
-      }
+        },
+      },
     }
   )
 );
@@ -566,6 +574,7 @@ export const useRapidStore = create<RapidStore>(
 ### Symptom: Events stop flowing, UI shows "Disconnected" status for extended period
 
 **Root causes:**
+
 - Network interruption
 - Event bus Redis connection dropped
 - WebSocket connection dropped
@@ -617,9 +626,11 @@ export function useEventStream() {
 
           // Attempt reconnect
           if (reconnectAttempts < MAX_RETRIES) {
-            console.log(`[WebSocket] Reconnecting in ${reconnectDelay}ms (attempt ${reconnectAttempts + 1}/${MAX_RETRIES})`);
+            console.log(
+              `[WebSocket] Reconnecting in ${reconnectDelay}ms (attempt ${reconnectAttempts + 1}/${MAX_RETRIES})`
+            );
             reconnectTimeout = setTimeout(() => {
-              setReconnectAttempts(prev => prev + 1);
+              setReconnectAttempts((prev) => prev + 1);
               connect();
             }, reconnectDelay);
           } else {
@@ -630,7 +641,7 @@ export function useEventStream() {
       } catch (error) {
         console.error('[WebSocket] Connection failed:', error);
         setConnected(false);
-        setReconnectAttempts(prev => prev + 1);
+        setReconnectAttempts((prev) => prev + 1);
       }
     };
 
@@ -650,7 +661,7 @@ export function useEventStream() {
 
 ### Procedure: Establish baseline and detect regressions
 
-**Create benchmark suite (frontend/src/__tests__/performance.test.ts):**
+**Create benchmark suite (frontend/src/**tests**/performance.test.ts):**
 
 ```typescript
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -671,7 +682,7 @@ describe('Performance Benchmarks', () => {
         id: `msg-${i}`,
         content: `Message ${i}`,
         role: 'assistant',
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
     }
 
@@ -696,7 +707,7 @@ describe('Performance Benchmarks', () => {
         type: 'discovery',
         title: `Event ${i}`,
         content: 'Test event',
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
     }
 
@@ -712,6 +723,7 @@ describe('Performance Benchmarks', () => {
 ```
 
 **Baseline measurements:**
+
 - Message rendering: <2ms per 100 messages
 - Event processing: <1ms per 100 events
 - Memory per message: <100 bytes
@@ -798,7 +810,7 @@ Daily monitoring tasks:
 ## 10. Support Contact
 
 For additional support:
+
 - GitHub Issues: https://github.com/rapid/rapid-desktop/issues
 - Documentation: https://rapid.dev/docs
 - Community Slack: https://rapid.slack.com
-

@@ -246,9 +246,7 @@ approveCommand
 
       spinner.succeed('Deferral sent');
       console.log();
-      console.log(
-        `  ${chalk.yellow('⊘')} Request ${requestId} has been deferred`
-      );
+      console.log(`  ${chalk.yellow('⊘')} Request ${requestId} has been deferred`);
       console.log(`    Reason: ${options.reason}`);
       console.log();
     } catch (error) {

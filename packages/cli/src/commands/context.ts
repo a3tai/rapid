@@ -7,7 +7,9 @@ import { loadConfig, assembleContext, logger, createContextEngine } from '@a3t/r
 import ora from 'ora';
 import chalk from 'chalk';
 
-export const contextCommand = new Command('context').description('Manage project context and agent knowledge');
+export const contextCommand = new Command('context').description(
+  'Manage project context and agent knowledge'
+);
 
 // Subcommand: Show (original behavior)
 contextCommand
@@ -121,7 +123,11 @@ contextCommand
 // Subcommand: Knowledge - Learn
 contextCommand
   .command('learn <key> <value>')
-  .option('-m, --memory-type <type>', 'Memory type: episodic, semantic, procedural, decision_trace', 'semantic')
+  .option(
+    '-m, --memory-type <type>',
+    'Memory type: episodic, semantic, procedural, decision_trace',
+    'semantic'
+  )
   .option('-t, --tags <tags...>', 'Tags for categorization')
   .option('--confidence <score>', 'Confidence score (0-1)', '0.8')
   .option('--expires <iso>', 'ISO timestamp when knowledge expires')
@@ -134,7 +140,11 @@ contextCommand
       });
 
       const confidence = Math.min(1, Math.max(0, parseFloat(String(options.confidence))));
-      const memoryType = (String(options.memoryType) || 'semantic') as 'episodic' | 'semantic' | 'procedural' | 'decision_trace';
+      const memoryType = (String(options.memoryType) || 'semantic') as
+        | 'episodic'
+        | 'semantic'
+        | 'procedural'
+        | 'decision_trace';
       const learnOptions: Record<string, unknown> = {
         confidence,
         tags: (Array.isArray(options.tags) ? options.tags.map(String) : []) || [],
@@ -218,7 +228,11 @@ contextCommand
         limit: parseInt(String(options.limit), 10),
       };
       if (options.memoryType) {
-        searchOptions.memoryType = String(options.memoryType) as 'episodic' | 'semantic' | 'procedural' | 'decision_trace';
+        searchOptions.memoryType = String(options.memoryType) as
+          | 'episodic'
+          | 'semantic'
+          | 'procedural'
+          | 'decision_trace';
       }
       const results = await engine.search(query, searchOptions);
 
@@ -268,7 +282,11 @@ contextCommand
         tags: Array.isArray(options.tags) ? options.tags.map(String) : [],
       };
       if (options.memoryType) {
-        listOptions.memoryType = String(options.memoryType) as 'episodic' | 'semantic' | 'procedural' | 'decision_trace';
+        listOptions.memoryType = String(options.memoryType) as
+          | 'episodic'
+          | 'semantic'
+          | 'procedural'
+          | 'decision_trace';
       }
       if (options.confidence) {
         listOptions.minConfidence = parseFloat(String(options.confidence));

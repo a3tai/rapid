@@ -170,120 +170,126 @@ export const stopCommand = new Command('stop')
   .option('--remove', 'Remove containers and volumes after stopping', false)
   .option('--services-only', 'Only stop services, not the dev container')
   .option('--prune-worktrees', 'Automatically clean up merged agent worktrees', false)
-  .action(async (options: { remove?: boolean; servicesOnly?: boolean; pruneWorktrees?: boolean }) => {
-    const spinner = ora('Stopping RAPID environment...').start();
+  .action(
+    async (options: { remove?: boolean; servicesOnly?: boolean; pruneWorktrees?: boolean }) => {
+      const spinner = ora('Stopping RAPID environment...').start();
 
-    try {
-      // Load config
-      const loaded = await loadConfig();
+      try {
+        // Load config
+        const loaded = await loadConfig();
 
-      if (!loaded) {
-        spinner.fail('No rapid.json found');
+        if (!loaded) {
+          spinner.fail('No rapid.json found');
+          process.exit(1);
+        }
+
+        const { config, rootDir } = loaded;
+        const servicesStopped: string[] = [];
+
+        // ─────────────────────────────────────────────────────────────
+        // Clean up worktrees if requested
+        // ─────────────────────────────────────────────────────────────
+        if (options.pruneWorktrees) {
+          spinner.text = 'Cleaning up agent worktrees...';
+          const pruneResult = await pruneWorktrees(rootDir);
+          if (pruneResult.cleaned > 0) {
+            servicesStopped.push(`Agent Worktrees (cleaned: ${pruneResult.cleaned})`);
+          }
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // Stop Dev Container first
+        // ─────────────────────────────────────────────────────────────
+        if (!options.servicesOnly) {
+          spinner.text = 'Checking container status...';
+          const status = await getContainerStatus(rootDir, config);
+
+          if (status.exists && status.running) {
+            spinner.text = 'Stopping dev container...';
+            const result = await stopContainer(
+              rootDir,
+              config,
+              options.remove ? { remove: true } : {}
+            );
+
+            if (result.success) {
+              servicesStopped.push('Dev Container');
+            } else {
+              logger.warn(`Failed to stop container: ${result.error}`);
+            }
+          } else if (status.exists && options.remove) {
+            await stopContainer(rootDir, config, { remove: true });
+            servicesStopped.push('Dev Container (removed)');
+          }
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // Stop RAPID Services Stack
+        // ─────────────────────────────────────────────────────────────
+        const dockerDir = findDockerDir();
+
+        if (dockerDir) {
+          // Check if any services are running
+          const runningServices = await getRunningServices();
+
+          if (runningServices.length > 0) {
+            spinner.text = 'Stopping RAPID services...';
+            spinner.stopAndPersist({ symbol: '🛑', text: 'Stopping RAPID services...' });
+
+            const result = await stopServices(dockerDir, options.remove ? { remove: true } : {});
+
+            if (result.success) {
+              if (runningServices.includes('rapid-redis')) servicesStopped.push('Event Bus');
+              if (runningServices.includes('rapid-mcp')) servicesStopped.push('MCP Server');
+              if (runningServices.includes('rapid-gateway')) servicesStopped.push('Gateway');
+              if (runningServices.includes('rapid-daemon')) servicesStopped.push('Daemon');
+            } else {
+              logger.warn(`Failed to stop services: ${result.error}`);
+            }
+          }
+        } else {
+          // Fall back to stopping standalone Redis
+          spinner.text = 'Checking event bus...';
+          const { getRedisStatus, stopRedis } = await import('@a3t/rapid-eventbus');
+          const redisStatus = await getRedisStatus();
+
+          if (redisStatus.running || redisStatus.containerId) {
+            spinner.text = 'Stopping event bus...';
+            await stopRedis(options.remove);
+            servicesStopped.push(options.remove ? 'Event Bus (removed)' : 'Event Bus');
+          }
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // Summary
+        // ─────────────────────────────────────────────────────────────
+        spinner.stop();
+
+        if (servicesStopped.length > 0) {
+          logger.blank();
+          logger.success('RAPID environment stopped');
+          logger.blank();
+
+          console.log(`  ${logger.dim('Stopped:')}`);
+          for (const service of servicesStopped) {
+            console.log(`    ${logger.dim('•')} ${service}`);
+          }
+
+          if (!options.remove) {
+            logger.blank();
+            console.log(`  ${logger.dim('Data preserved. Use --remove to delete all data.')}`);
+          }
+
+          logger.blank();
+        } else {
+          logger.blank();
+          logger.info('No services were running');
+          logger.blank();
+        }
+      } catch (error) {
+        spinner.fail('Failed to stop environment');
+        logger.error(error instanceof Error ? error.message : String(error));
         process.exit(1);
       }
-
-      const { config, rootDir } = loaded;
-      const servicesStopped: string[] = [];
-
-      // ─────────────────────────────────────────────────────────────
-      // Clean up worktrees if requested
-      // ─────────────────────────────────────────────────────────────
-      if (options.pruneWorktrees) {
-        spinner.text = 'Cleaning up agent worktrees...';
-        const pruneResult = await pruneWorktrees(rootDir);
-        if (pruneResult.cleaned > 0) {
-          servicesStopped.push(`Agent Worktrees (cleaned: ${pruneResult.cleaned})`);
-        }
-      }
-
-      // ─────────────────────────────────────────────────────────────
-      // Stop Dev Container first
-      // ─────────────────────────────────────────────────────────────
-      if (!options.servicesOnly) {
-        spinner.text = 'Checking container status...';
-        const status = await getContainerStatus(rootDir, config);
-
-        if (status.exists && status.running) {
-          spinner.text = 'Stopping dev container...';
-          const result = await stopContainer(rootDir, config, options.remove ? { remove: true } : {});
-
-          if (result.success) {
-            servicesStopped.push('Dev Container');
-          } else {
-            logger.warn(`Failed to stop container: ${result.error}`);
-          }
-        } else if (status.exists && options.remove) {
-          await stopContainer(rootDir, config, { remove: true });
-          servicesStopped.push('Dev Container (removed)');
-        }
-      }
-
-      // ─────────────────────────────────────────────────────────────
-      // Stop RAPID Services Stack
-      // ─────────────────────────────────────────────────────────────
-      const dockerDir = findDockerDir();
-
-      if (dockerDir) {
-        // Check if any services are running
-        const runningServices = await getRunningServices();
-
-        if (runningServices.length > 0) {
-          spinner.text = 'Stopping RAPID services...';
-          spinner.stopAndPersist({ symbol: '🛑', text: 'Stopping RAPID services...' });
-
-          const result = await stopServices(dockerDir, options.remove ? { remove: true } : {});
-
-          if (result.success) {
-            if (runningServices.includes('rapid-redis')) servicesStopped.push('Event Bus');
-            if (runningServices.includes('rapid-mcp')) servicesStopped.push('MCP Server');
-            if (runningServices.includes('rapid-gateway')) servicesStopped.push('Gateway');
-            if (runningServices.includes('rapid-daemon')) servicesStopped.push('Daemon');
-          } else {
-            logger.warn(`Failed to stop services: ${result.error}`);
-          }
-        }
-      } else {
-        // Fall back to stopping standalone Redis
-        spinner.text = 'Checking event bus...';
-        const { getRedisStatus, stopRedis } = await import('@a3t/rapid-eventbus');
-        const redisStatus = await getRedisStatus();
-
-        if (redisStatus.running || redisStatus.containerId) {
-          spinner.text = 'Stopping event bus...';
-          await stopRedis(options.remove);
-          servicesStopped.push(options.remove ? 'Event Bus (removed)' : 'Event Bus');
-        }
-      }
-
-      // ─────────────────────────────────────────────────────────────
-      // Summary
-      // ─────────────────────────────────────────────────────────────
-      spinner.stop();
-
-      if (servicesStopped.length > 0) {
-        logger.blank();
-        logger.success('RAPID environment stopped');
-        logger.blank();
-
-        console.log(`  ${logger.dim('Stopped:')}`);
-        for (const service of servicesStopped) {
-          console.log(`    ${logger.dim('•')} ${service}`);
-        }
-
-        if (!options.remove) {
-          logger.blank();
-          console.log(`  ${logger.dim('Data preserved. Use --remove to delete all data.')}`);
-        }
-
-        logger.blank();
-      } else {
-        logger.blank();
-        logger.info('No services were running');
-        logger.blank();
-      }
-    } catch (error) {
-      spinner.fail('Failed to stop environment');
-      logger.error(error instanceof Error ? error.message : String(error));
-      process.exit(1);
     }
-  });
+  );

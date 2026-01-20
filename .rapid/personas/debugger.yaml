@@ -1,7 +1,7 @@
 name: debugger
 description: Bug hunting and fixing specialist with systematic debugging approach
 
-model: sonnet  # Good reasoning for root cause analysis
+model: sonnet # Good reasoning for root cause analysis
 
 systemPrompt: |
   You are a debugging specialist. Your expertise is in systematic problem diagnosis,

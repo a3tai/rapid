@@ -13,9 +13,14 @@
       "Bash(node dist/bin.js:*)",
       "Bash(node:*)",
       "Bash(git add:*)",
-      "Bash(pnpm typecheck:*)"
+      "Bash(pnpm typecheck:*)",
+      "Bash(pnpm link:*)",
+      "Bash(PATH=\"$HOME/Library/pnpm:$PATH\" PNPM_HOME=\"$HOME/Library/pnpm\" pnpm link:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": ["context7", "tavily"]
+  "enabledMcpjsonServers": [
+    "context7",
+    "tavily"
+  ]
 }

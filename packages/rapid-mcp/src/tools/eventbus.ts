@@ -205,9 +205,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
 
       // Find agent in registry
       const allAgents =
-        bus instanceof EventBus
-          ? await bus.getActiveAgents(86400)
-          : await bus.getActiveAgents();
+        bus instanceof EventBus ? await bus.getActiveAgents(86400) : await bus.getActiveAgents();
 
       const agent = allAgents.find((a) => a.id === agentId);
       const isRegistered = !!agent;
@@ -433,13 +431,27 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
         'Use forAgent to filter messages addressed to a specific agent.',
       inputSchema: {
         limit: z.number().default(5).describe('Maximum messages to return (default: 5, max: 20)'),
-        since: z.string().optional().describe('ISO timestamp - only return messages after this time'),
+        since: z
+          .string()
+          .optional()
+          .describe('ISO timestamp - only return messages after this time'),
         types: z.array(MessageType).optional().describe('Filter by message types'),
         brief: z.boolean().default(true).describe('Return summaries only (saves context)'),
         maxContentLength: z.number().default(200).describe('Truncate content to this length'),
-        forAgent: z.string().optional().describe('Only return messages addressed to this agent ID (includes broadcasts unless excludeBroadcasts=true)'),
-        excludeBroadcasts: z.boolean().default(false).describe('When forAgent is set, exclude broadcast messages (messages with no toAgents)'),
-        onlyActionable: z.boolean().default(false).describe('Only return messages that require action'),
+        forAgent: z
+          .string()
+          .optional()
+          .describe(
+            'Only return messages addressed to this agent ID (includes broadcasts unless excludeBroadcasts=true)'
+          ),
+        excludeBroadcasts: z
+          .boolean()
+          .default(false)
+          .describe('When forAgent is set, exclude broadcast messages (messages with no toAgents)'),
+        onlyActionable: z
+          .boolean()
+          .default(false)
+          .describe('Only return messages that require action'),
       },
       outputSchema: {
         messages: z.array(z.any()),
@@ -449,7 +461,16 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
       },
     },
     async (args) => {
-      const { limit, since, types, brief, maxContentLength, forAgent, excludeBroadcasts, onlyActionable } = args as {
+      const {
+        limit,
+        since,
+        types,
+        brief,
+        maxContentLength,
+        forAgent,
+        excludeBroadcasts,
+        onlyActionable,
+      } = args as {
         limit?: number;
         since?: string;
         types?: z.infer<typeof MessageType>[];
@@ -512,9 +533,10 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
             type: m.type,
             from: m.fromAgent.name,
             title: m.payload.title,
-            preview: m.payload.content.length > maxLen
-              ? m.payload.content.slice(0, maxLen) + '...'
-              : m.payload.content,
+            preview:
+              m.payload.content.length > maxLen
+                ? m.payload.content.slice(0, maxLen) + '...'
+                : m.payload.content,
             actionable: m.payload.actionable,
           };
         } else {
@@ -523,9 +545,10 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
             ...m,
             payload: {
               ...m.payload,
-              content: m.payload.content.length > maxLen * 2
-                ? m.payload.content.slice(0, maxLen * 2) + '...'
-                : m.payload.content,
+              content:
+                m.payload.content.length > maxLen * 2
+                  ? m.payload.content.slice(0, maxLen * 2) + '...'
+                  : m.payload.content,
             },
           };
         }
@@ -562,8 +585,14 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
         cursor: z.string().optional().describe('Timestamp cursor from previous poll'),
         limit: z.number().default(5).describe('Max messages per poll (default: 5)'),
         forAgent: z.string().optional().describe('Only return messages addressed to this agent ID'),
-        excludeBroadcasts: z.boolean().default(false).describe('Exclude broadcast messages when forAgent is set'),
-        onlyActionable: z.boolean().default(false).describe('Only return messages requiring action'),
+        excludeBroadcasts: z
+          .boolean()
+          .default(false)
+          .describe('Exclude broadcast messages when forAgent is set'),
+        onlyActionable: z
+          .boolean()
+          .default(false)
+          .describe('Only return messages requiring action'),
       },
       outputSchema: {
         messages: z.array(z.any()),
@@ -793,10 +822,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
           .boolean()
           .default(true)
           .describe('Include list of stale agents in response'),
-        cleanupStale: z
-          .boolean()
-          .default(false)
-          .describe('Remove stale agents from the registry'),
+        cleanupStale: z.boolean().default(false).describe('Remove stale agents from the registry'),
       },
       outputSchema: {
         healthy: z.number().describe('Number of healthy (active) agents'),
@@ -926,10 +952,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
           .boolean()
           .default(false)
           .describe('If true, only report what would be recovered without making changes'),
-        notifyBus: z
-          .boolean()
-          .default(true)
-          .describe('Send recovery notification to event bus'),
+        notifyBus: z.boolean().default(true).describe('Send recovery notification to event bus'),
         orchestratorId: z.string().optional().describe('ID of orchestrator performing recovery'),
       },
       outputSchema: {
@@ -967,9 +990,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
           ? await bus.getActiveAgents(threshold)
           : await bus.getActiveAgents();
       const allAgents =
-        bus instanceof EventBus
-          ? await bus.getActiveAgents(86400)
-          : await bus.getActiveAgents();
+        bus instanceof EventBus ? await bus.getActiveAgents(86400) : await bus.getActiveAgents();
 
       const activeIds = new Set(activeAgents.map((a) => a.id));
       const staleAgentList = allAgents.filter((a) => !activeIds.has(a.id));
@@ -995,10 +1016,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
 
       // Find tasks assigned to stale agents that are in_progress
       const tasksToRecover = tasks.filter(
-        (t) =>
-          t.status === 'in_progress' &&
-          t.assignedTo &&
-          staleAgentIds.includes(t.assignedTo)
+        (t) => t.status === 'in_progress' && t.assignedTo && staleAgentIds.includes(t.assignedTo)
       );
 
       const recoveredTasks: Array<{
@@ -1055,8 +1073,11 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
 
         await bus.sendMessage('coordination', fromAgent, {
           title: 'Task Recovery: Stale agents detected',
-          content: `Recovered ${recoveredTasks.length} task(s) from stale agents:\n` +
-            recoveredTasks.map((t) => `- ${t.title} (${t.taskId}) from ${t.previousAgent}`).join('\n') +
+          content:
+            `Recovered ${recoveredTasks.length} task(s) from stale agents:\n` +
+            recoveredTasks
+              .map((t) => `- ${t.title} (${t.taskId}) from ${t.previousAgent}`)
+              .join('\n') +
             `\n\nStale agents: ${staleAgentIds.join(', ')}\n` +
             `Tasks are now available for claiming by healthy agents.`,
           actionable: true,
@@ -1217,18 +1238,9 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
         'Generate a comprehensive health report for all agents including uptime, ' +
         'message activity, and task assignments. Use for dashboard/monitoring.',
       inputSchema: {
-        includeMessageCounts: z
-          .boolean()
-          .default(true)
-          .describe('Include message count per agent'),
-        includeTaskSummary: z
-          .boolean()
-          .default(true)
-          .describe('Include task summary per agent'),
-        staleThresholdSeconds: z
-          .number()
-          .default(60)
-          .describe('Seconds for stale detection'),
+        includeMessageCounts: z.boolean().default(true).describe('Include message count per agent'),
+        includeTaskSummary: z.boolean().default(true).describe('Include task summary per agent'),
+        staleThresholdSeconds: z.number().default(60).describe('Seconds for stale detection'),
       },
       outputSchema: {
         timestamp: z.string(),
@@ -1274,9 +1286,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
           ? await bus.getActiveAgents(degradedThreshold)
           : await bus.getActiveAgents();
       const allAgents =
-        bus instanceof EventBus
-          ? await bus.getActiveAgents(86400)
-          : await bus.getActiveAgents();
+        bus instanceof EventBus ? await bus.getActiveAgents(86400) : await bus.getActiveAgents();
 
       const healthyIds = new Set(healthyAgents.map((a) => a.id));
       const degradedIds = new Set(degradedAgentsAll.map((a) => a.id));
@@ -1307,7 +1317,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
           staleCount++;
         }
 
-        const report: typeof agentReports[number] = {
+        const report: (typeof agentReports)[number] = {
           id: agent.id,
           name: agent.name,
           status,
@@ -1345,7 +1355,9 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
       // Generate recommendations
       const recommendations: string[] = [];
       if (staleCount > 0) {
-        recommendations.push(`${staleCount} stale agent(s) detected. Consider running bus_recover_tasks.`);
+        recommendations.push(
+          `${staleCount} stale agent(s) detected. Consider running bus_recover_tasks.`
+        );
       }
       if (degradedCount > 0) {
         recommendations.push(`${degradedCount} degraded agent(s). Check for connectivity issues.`);

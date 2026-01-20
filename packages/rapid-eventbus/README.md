@@ -135,6 +135,7 @@ const status = await bus.getStatus();
 ## Message Types
 
 ### coordination
+
 Inter-agent coordination and task assignment.
 
 ```typescript
@@ -147,6 +148,7 @@ Inter-agent coordination and task assignment.
 ```
 
 ### discovery
+
 Share information about capabilities and findings.
 
 ```typescript
@@ -158,6 +160,7 @@ Share information about capabilities and findings.
 ```
 
 ### completion
+
 Report task or work completion.
 
 ```typescript
@@ -170,6 +173,7 @@ Report task or work completion.
 ```
 
 ### error
+
 Report errors and issues.
 
 ```typescript
@@ -182,6 +186,7 @@ Report errors and issues.
 ```
 
 ### learning
+
 Share insights and lessons learned.
 
 ```typescript
@@ -193,6 +198,7 @@ Share insights and lessons learned.
 ```
 
 ### question
+
 Ask questions to other agents.
 
 ```typescript
@@ -237,11 +243,15 @@ This package integrates with @a3t/rapid-mcp for agent access:
 // In rapid-mcp server
 import { registerEventBusTools } from '@a3t/rapid-mcp';
 
-server.addTool(registerEventBusTools({
-  getEventBus: async (projectId) => {
-    return new EventBus({ /* config */ });
-  },
-}));
+server.addTool(
+  registerEventBusTools({
+    getEventBus: async (projectId) => {
+      return new EventBus({
+        /* config */
+      });
+    },
+  })
+);
 ```
 
 ## See Also

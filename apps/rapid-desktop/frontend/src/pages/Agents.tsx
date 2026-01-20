@@ -1,42 +1,42 @@
-import { useState } from 'react'
-import { clsx } from 'clsx'
-import { useAgents, useAppStore } from '../stores/app'
-import { useWails } from '../hooks/useWails'
-import { useToast } from '../components/Toast'
+import { useState } from 'react';
+import { clsx } from 'clsx';
+import { useAgents, useAppStore } from '../stores/app';
+import { useWails } from '../hooks/useWails';
+import { useToast } from '../components/Toast';
 
 const PERSONAS = [
   { id: 'orchestrator', name: 'Orchestrator', description: 'Coordinates tasks between agents' },
   { id: 'worker', name: 'Worker', description: 'Executes development tasks' },
   { id: 'designer', name: 'Designer', description: 'Researches and plans implementations' },
   { id: 'reviewer', name: 'Reviewer', description: 'Reviews code and provides feedback' },
-]
+];
 
 export function AgentsPage() {
-  const agents = useAgents()
-  const selectedAgent = useAppStore((s) => s.selectedAgent)
-  const setSelectedAgent = useAppStore((s) => s.setSelectedAgent)
-  const { spawnAgent, stopAgent } = useWails()
-  const [showSpawnModal, setShowSpawnModal] = useState(false)
-  const toast = useToast()
+  const agents = useAgents();
+  const selectedAgent = useAppStore((s) => s.selectedAgent);
+  const setSelectedAgent = useAppStore((s) => s.setSelectedAgent);
+  const { spawnAgent, stopAgent } = useWails();
+  const [showSpawnModal, setShowSpawnModal] = useState(false);
+  const toast = useToast();
 
   const handleStopAgent = async (agentId: string, agentName: string) => {
     try {
-      await stopAgent(agentId)
-      toast.success('Agent Stopped', `${agentName} has been terminated`)
+      await stopAgent(agentId);
+      toast.success('Agent Stopped', `${agentName} has been terminated`);
     } catch (err) {
-      toast.error('Failed to Stop Agent', err instanceof Error ? err.message : 'Unknown error')
+      toast.error('Failed to Stop Agent', err instanceof Error ? err.message : 'Unknown error');
     }
-  }
+  };
 
   const handleSpawnAgent = async (persona: string, worktree: string) => {
     try {
-      await spawnAgent(persona, worktree)
-      toast.success('Agent Spawned', `${persona} agent started on ${worktree}`)
+      await spawnAgent(persona, worktree);
+      toast.success('Agent Spawned', `${persona} agent started on ${worktree}`);
     } catch (err) {
-      toast.error('Failed to Spawn Agent', err instanceof Error ? err.message : 'Unknown error')
-      throw err
+      toast.error('Failed to Spawn Agent', err instanceof Error ? err.message : 'Unknown error');
+      throw err;
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -44,16 +44,16 @@ export function AgentsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold">Agent Management</h2>
-          <p className="text-rapid-muted text-sm mt-1">
-            Spawn, monitor, and manage AI agents
-          </p>
+          <p className="text-rapid-muted text-sm mt-1">Spawn, monitor, and manage AI agents</p>
         </div>
-        <button
-          onClick={() => setShowSpawnModal(true)}
-          className="btn btn-primary"
-        >
+        <button onClick={() => setShowSpawnModal(true)} className="btn btn-primary">
           <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+            />
           </svg>
           Spawn Agent
         </button>
@@ -64,8 +64,18 @@ export function AgentsPage() {
         {agents.length === 0 ? (
           <div className="col-span-3 card p-12 text-center">
             <div className="text-rapid-muted">
-              <svg className="w-12 h-12 mx-auto mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              <svg
+                className="w-12 h-12 mx-auto mb-4 opacity-50"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                />
               </svg>
               <p className="text-lg font-medium">No agents running</p>
               <p className="text-sm mt-1">Spawn an agent to get started</p>
@@ -86,20 +96,17 @@ export function AgentsPage() {
 
       {/* Spawn modal */}
       {showSpawnModal && (
-        <SpawnModal
-          onClose={() => setShowSpawnModal(false)}
-          onSpawn={handleSpawnAgent}
-        />
+        <SpawnModal onClose={() => setShowSpawnModal(false)} onSpawn={handleSpawnAgent} />
       )}
     </div>
-  )
+  );
 }
 
 interface AgentCardProps {
-  agent: { id: string; name: string; worktree?: string; session?: string }
-  isSelected: boolean
-  onSelect: () => void
-  onStop: () => void
+  agent: { id: string; name: string; worktree?: string; session?: string };
+  isSelected: boolean;
+  onSelect: () => void;
+  onStop: () => void;
 }
 
 function AgentCard({ agent, isSelected, onSelect, onStop }: AgentCardProps) {
@@ -108,9 +115,9 @@ function AgentCard({ agent, isSelected, onSelect, onStop }: AgentCardProps) {
     worker: 'from-blue-500 to-cyan-600',
     designer: 'from-pink-500 to-rose-600',
     reviewer: 'from-green-500 to-emerald-600',
-  }
+  };
 
-  const gradient = personaColors[agent.name] || 'from-gray-500 to-gray-600'
+  const gradient = personaColors[agent.name] || 'from-gray-500 to-gray-600';
 
   return (
     <div
@@ -128,9 +135,7 @@ function AgentCard({ agent, isSelected, onSelect, onStop }: AgentCardProps) {
               gradient
             )}
           >
-            <span className="text-white font-semibold text-sm">
-              {agent.name[0].toUpperCase()}
-            </span>
+            <span className="text-white font-semibold text-sm">{agent.name[0].toUpperCase()}</span>
           </div>
           <div>
             <div className="font-semibold capitalize">{agent.name}</div>
@@ -143,8 +148,18 @@ function AgentCard({ agent, isSelected, onSelect, onStop }: AgentCardProps) {
       <div className="mt-4 space-y-2">
         {agent.worktree && (
           <div className="flex items-center gap-2 text-sm">
-            <svg className="w-4 h-4 text-rapid-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064" />
+            <svg
+              className="w-4 h-4 text-rapid-muted"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064"
+              />
             </svg>
             <span className="text-rapid-muted">Worktree:</span>
             <span className="font-mono text-rapid-accent">{agent.worktree}</span>
@@ -152,8 +167,18 @@ function AgentCard({ agent, isSelected, onSelect, onStop }: AgentCardProps) {
         )}
         {agent.session && (
           <div className="flex items-center gap-2 text-sm">
-            <svg className="w-4 h-4 text-rapid-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+            <svg
+              className="w-4 h-4 text-rapid-muted"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+              />
             </svg>
             <span className="text-rapid-muted">Session:</span>
             <span className="font-mono truncate">{agent.session}</span>
@@ -165,7 +190,7 @@ function AgentCard({ agent, isSelected, onSelect, onStop }: AgentCardProps) {
         <button
           className="btn btn-ghost text-sm flex-1"
           onClick={(e) => {
-            e.stopPropagation()
+            e.stopPropagation();
             // View logs action
           }}
         >
@@ -174,39 +199,39 @@ function AgentCard({ agent, isSelected, onSelect, onStop }: AgentCardProps) {
         <button
           className="btn btn-ghost text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10"
           onClick={(e) => {
-            e.stopPropagation()
-            onStop()
+            e.stopPropagation();
+            onStop();
           }}
         >
           Stop
         </button>
       </div>
     </div>
-  )
+  );
 }
 
 interface SpawnModalProps {
-  onClose: () => void
-  onSpawn: (persona: string, worktree: string) => Promise<void>
+  onClose: () => void;
+  onSpawn: (persona: string, worktree: string) => Promise<void>;
 }
 
 function SpawnModal({ onClose, onSpawn }: SpawnModalProps) {
-  const [selectedPersona, setSelectedPersona] = useState('')
-  const [worktree, setWorktree] = useState('main')
-  const [isSpawning, setIsSpawning] = useState(false)
+  const [selectedPersona, setSelectedPersona] = useState('');
+  const [worktree, setWorktree] = useState('main');
+  const [isSpawning, setIsSpawning] = useState(false);
 
   const handleSpawn = async () => {
-    if (!selectedPersona) return
-    setIsSpawning(true)
+    if (!selectedPersona) return;
+    setIsSpawning(true);
     try {
-      await onSpawn(selectedPersona, worktree)
-      onClose()
+      await onSpawn(selectedPersona, worktree);
+      onClose();
     } catch (err) {
-      console.error('Failed to spawn agent:', err)
+      console.error('Failed to spawn agent:', err);
     } finally {
-      setIsSpawning(false)
+      setIsSpawning(false);
     }
-  }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -235,9 +260,7 @@ function SpawnModal({ onClose, onSpawn }: SpawnModalProps) {
                   )}
                 >
                   <div className="font-medium text-sm">{persona.name}</div>
-                  <div className="text-xs text-rapid-muted mt-0.5">
-                    {persona.description}
-                  </div>
+                  <div className="text-xs text-rapid-muted mt-0.5">{persona.description}</div>
                 </button>
               ))}
             </div>
@@ -273,5 +296,5 @@ function SpawnModal({ onClose, onSpawn }: SpawnModalProps) {
         </div>
       </div>
     </div>
-  )
+  );
 }

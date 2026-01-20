@@ -1,7 +1,7 @@
 name: architect
 description: Software architect for design decisions and code structure planning
 
-model: sonnet  # Balance of capability and cost for complex reasoning
+model: sonnet # Balance of capability and cost for complex reasoning
 
 systemPrompt: |
   You are a software architect responsible for high-level design decisions and
@@ -41,4 +41,4 @@ triggers:
   - manual
 
 maxTurns: 30
-canSpawn: true  # Can spawn specialized agents for specific tasks
+canSpawn: true # Can spawn specialized agents for specific tasks

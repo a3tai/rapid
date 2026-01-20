@@ -33,19 +33,20 @@ Design standards for consistent, user-friendly CLI status commands in RAPID.
 ```
 
 Indentation levels:
+
 - Section label: 2 spaces
 - Item indicator: 4 spaces
 - Continuation text: 4 spaces
 
 ### Status Indicators
 
-| State | Symbol | Color | Usage |
-|-------|--------|-------|-------|
-| Active/Success | ✓ | brand (cyan) | Running, installed, available |
-| Inactive/Disabled | ○ | dim (gray) | Not running, not installed |
-| Partial/Warning | ⚠ | yellow | Partial status, warnings |
-| Unknown | ? | dim (gray) | Indeterminate state |
-| Error | ✗ | red | Failed, error |
+| State             | Symbol | Color        | Usage                         |
+| ----------------- | ------ | ------------ | ----------------------------- |
+| Active/Success    | ✓      | brand (cyan) | Running, installed, available |
+| Inactive/Disabled | ○      | dim (gray)   | Not running, not installed    |
+| Partial/Warning   | ⚠      | yellow       | Partial status, warnings      |
+| Unknown           | ?      | dim (gray)   | Indeterminate state           |
+| Error             | ✗      | red          | Failed, error                 |
 
 ### Color Coding
 
@@ -61,7 +62,7 @@ For multi-column data (like worktree status):
 
 ```typescript
 // Calculate max width for first column
-const maxLen = Math.max(...items.map(i => i.label.length));
+const maxLen = Math.max(...items.map((i) => i.label.length));
 
 // Pad and align
 const padded = label.padEnd(maxLen);
@@ -80,6 +81,7 @@ At the bottom of status output:
 ```
 
 Format:
+
 - Section header with separator
 - Bullet points with command + description
 - 2-space section indent, 4-space items
@@ -91,6 +93,7 @@ Format:
 Current: ✅ Good reference implementation
 
 Structure:
+
 1. Config info (path, root)
 2. Container status (with hierarchy)
 3. Agents (with default marker)
@@ -103,6 +106,7 @@ Structure:
 Current: ✅ Good - Simple and clean
 
 Structure:
+
 1. Header
 2. List of agents with status icons
 3. (default) marker for default agent
@@ -113,6 +117,7 @@ Structure:
 Current: ⚠️ Needs improvement
 
 Recommended structure:
+
 1. Section header "Worktree Agent Assignments" with separator
 2. Aligned column output:
    ```
@@ -137,6 +142,7 @@ Recommended structure:
 ## Examples
 
 ### Before (worktree status)
+
 ```
 Worktree Agent Assignments
 
@@ -145,6 +151,7 @@ feat/auth    - worker-1 (active)
 ```
 
 ### After (improved)
+
 ```
   Worktree Agent Assignments
   ──────────────────────────────

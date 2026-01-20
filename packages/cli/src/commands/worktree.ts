@@ -309,7 +309,9 @@ const spawnCommand = new Command('spawn')
         });
         spinner.succeed(`Created worktree at ${worktreePath}`);
       } catch (error) {
-        spinner.fail(`Failed to create worktree: ${error instanceof Error ? error.message : String(error)}`);
+        spinner.fail(
+          `Failed to create worktree: ${error instanceof Error ? error.message : String(error)}`
+        );
         process.exit(1);
       }
 
@@ -320,7 +322,9 @@ const spawnCommand = new Command('spawn')
           await execAsync('npm install', { cwd: worktreePath });
           spinner.succeed('Dependencies installed');
         } catch (error) {
-          spinner.warn(`Failed to install dependencies: ${error instanceof Error ? error.message : String(error)}`);
+          spinner.warn(
+            `Failed to install dependencies: ${error instanceof Error ? error.message : String(error)}`
+          );
         }
       }
 
@@ -438,7 +442,9 @@ const statusCommand = new Command('status')
 
       // Find max branch name length for column alignment
       const maxBranchLen = Math.max(...worktreeStatus.map((s) => s.branch.length));
-      const maxAgentLen = Math.max(...worktreeStatus.map((s) => (s.assignedAgent || 'no agent').length));
+      const maxAgentLen = Math.max(
+        ...worktreeStatus.map((s) => (s.assignedAgent || 'no agent').length)
+      );
 
       for (const status of worktreeStatus) {
         // Format branch column
@@ -448,7 +454,8 @@ const statusCommand = new Command('status')
         let agentDisplay = logger.dim('(no agent)');
         if (status.assignedAgent) {
           const statusIcon = status.exists ? logger.success('✓') : logger.dim('?');
-          const statusStr = status.status === 'active' ? logger.dim('active') : logger.dim(status.status);
+          const statusStr =
+            status.status === 'active' ? logger.dim('active') : logger.dim(status.status);
           agentDisplay = `${statusIcon} ${status.assignedAgent.padEnd(maxAgentLen)} ${statusStr}`;
         }
 

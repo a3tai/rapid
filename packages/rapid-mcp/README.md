@@ -113,7 +113,8 @@ await runStdio(server);
 ### Network Policy
 
 Whitelist-based domain filtering:
-- GitHub (api.github.com, *.github.com, *.githubusercontent.com)
+
+- GitHub (api.github.com, _.github.com, _.githubusercontent.com)
 - NPM (npmjs.org, npmjs.com, registry.npmjs.org)
 - Python (pypi.org)
 - Go (golang.org)

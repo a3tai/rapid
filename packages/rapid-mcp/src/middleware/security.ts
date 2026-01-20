@@ -43,14 +43,17 @@ export interface AuditEvent {
 const auditLog: AuditEvent[] = [];
 
 // Pending approvals
-const pendingApprovals = new Map<string, {
-  toolName: string;
-  args: Record<string, unknown>;
-  context: SecurityContext;
-  requestedAt: Date;
-  timeoutMs: number;
-  resolve: (approved: boolean) => void;
-}>();
+const pendingApprovals = new Map<
+  string,
+  {
+    toolName: string;
+    args: Record<string, unknown>;
+    context: SecurityContext;
+    requestedAt: Date;
+    timeoutMs: number;
+    resolve: (approved: boolean) => void;
+  }
+>();
 
 /**
  * Check if a tool call is allowed based on security config
@@ -67,7 +70,7 @@ export function checkToolAccess(
   }
 
   // Find matching ACL rule
-  const acl = config.toolAcls?.find(a => matchToolName(a.tool, toolName));
+  const acl = config.toolAcls?.find((a) => matchToolName(a.tool, toolName));
 
   if (!acl) {
     // No specific ACL = check strict mode
@@ -103,7 +106,7 @@ export function checkToolAccess(
 
   // Check pattern-based approval requirements
   if (acl.requireApprovalFor) {
-    const requiresApproval = acl.requireApprovalFor.some(pattern => {
+    const requiresApproval = acl.requireApprovalFor.some((pattern) => {
       return matchesApprovalPattern(pattern, args);
     });
 
@@ -190,7 +193,11 @@ export async function requestApproval(
 /**
  * Respond to a pending approval
  */
-export function respondToApproval(approvalId: string, approved: boolean, respondedBy?: string): boolean {
+export function respondToApproval(
+  approvalId: string,
+  approved: boolean,
+  respondedBy?: string
+): boolean {
   const pending = pendingApprovals.get(approvalId);
   if (!pending) {
     return false;
@@ -259,17 +266,17 @@ export function getAuditLog(options?: {
   let filtered = auditLog;
 
   if (options?.toolName) {
-    filtered = filtered.filter(e => e.toolName === options.toolName);
+    filtered = filtered.filter((e) => e.toolName === options.toolName);
   }
   if (options?.agentId) {
-    filtered = filtered.filter(e => e.agentId === options.agentId);
+    filtered = filtered.filter((e) => e.agentId === options.agentId);
   }
   if (options?.eventType) {
-    filtered = filtered.filter(e => e.eventType === options.eventType);
+    filtered = filtered.filter((e) => e.eventType === options.eventType);
   }
   if (options?.since) {
     const sinceTime = new Date(options.since).getTime();
-    filtered = filtered.filter(e => new Date(e.timestamp).getTime() >= sinceTime);
+    filtered = filtered.filter((e) => new Date(e.timestamp).getTime() >= sinceTime);
   }
 
   const limit = options?.limit ?? 100;
@@ -309,7 +316,12 @@ export function withSecurity<T extends Record<string, unknown>, R>(
 
     // Handle approval if required
     if (check.requiresApproval) {
-      const approved = await requestApproval(toolName, args as Record<string, unknown>, context, config);
+      const approved = await requestApproval(
+        toolName,
+        args as Record<string, unknown>,
+        context,
+        config
+      );
       if (!approved) {
         throw new Error('Operation not approved');
       }
@@ -366,11 +378,9 @@ function matchesApprovalPattern(pattern: string, args: Record<string, unknown>):
   // Pattern like "*.env" matches file arguments ending in .env
   if (pattern.includes('*')) {
     const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
-    return Object.values(args).some(v =>
-      typeof v === 'string' && regex.test(v)
-    );
+    return Object.values(args).some((v) => typeof v === 'string' && regex.test(v));
   }
-  return Object.values(args).some(v => v === pattern);
+  return Object.values(args).some((v) => v === pattern);
 }
 
 function generateApprovalId(): string {
@@ -379,10 +389,11 @@ function generateApprovalId(): string {
 
 function countRecentCalls(toolName: string, agentId: string, windowMs: number): number {
   const cutoff = Date.now() - windowMs;
-  return auditLog.filter(e =>
-    e.toolName === toolName &&
-    e.agentId === agentId &&
-    e.eventType === 'tool_call' &&
-    new Date(e.timestamp).getTime() >= cutoff
+  return auditLog.filter(
+    (e) =>
+      e.toolName === toolName &&
+      e.agentId === agentId &&
+      e.eventType === 'tool_call' &&
+      new Date(e.timestamp).getTime() >= cutoff
   ).length;
 }

@@ -15,17 +15,17 @@ export class AppError extends Error {
     public severity: 'info' | 'warning' | 'error' | 'critical' = 'error',
     public retryable: boolean = false
   ) {
-    super(message)
-    this.name = 'AppError'
+    super(message);
+    this.name = 'AppError';
   }
 }
 
 export interface RetryOptions {
-  maxAttempts?: number
-  initialDelayMs?: number
-  maxDelayMs?: number
-  backoffMultiplier?: number
-  shouldRetry?: (error: unknown) => boolean
+  maxAttempts?: number;
+  initialDelayMs?: number;
+  maxDelayMs?: number;
+  backoffMultiplier?: number;
+  shouldRetry?: (error: unknown) => boolean;
 }
 
 /**
@@ -47,27 +47,27 @@ export async function retryWithBackoff<T>(
     maxDelayMs = 10000,
     backoffMultiplier = 2,
     shouldRetry = () => true,
-  } = options
+  } = options;
 
-  let lastError: unknown
-  let delay = initialDelayMs
+  let lastError: unknown;
+  let delay = initialDelayMs;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
-      return await fn()
+      return await fn();
     } catch (error) {
-      lastError = error
+      lastError = error;
 
       if (!shouldRetry(error) || attempt === maxAttempts - 1) {
-        throw error
+        throw error;
       }
 
-      await new Promise((resolve) => setTimeout(resolve, delay))
-      delay = Math.min(delay * backoffMultiplier, maxDelayMs)
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      delay = Math.min(delay * backoffMultiplier, maxDelayMs);
     }
   }
 
-  throw lastError
+  throw lastError;
 }
 
 /**
@@ -75,7 +75,7 @@ export async function retryWithBackoff<T>(
  */
 export function handleFetchError(error: unknown): AppError {
   if (error instanceof AppError) {
-    return error
+    return error;
   }
 
   if (error instanceof TypeError) {
@@ -85,18 +85,13 @@ export function handleFetchError(error: unknown): AppError {
         'NETWORK_ERROR',
         'warning',
         true
-      )
+      );
     }
   }
 
   if (error instanceof Error) {
     if (error.message.includes('401') || error.message.includes('Unauthorized')) {
-      return new AppError(
-        'Session expired. Please log in again.',
-        'AUTH_ERROR',
-        'warning',
-        false
-      )
+      return new AppError('Session expired. Please log in again.', 'AUTH_ERROR', 'warning', false);
     }
 
     if (error.message.includes('403') || error.message.includes('Forbidden')) {
@@ -105,7 +100,7 @@ export function handleFetchError(error: unknown): AppError {
         'PERMISSION_ERROR',
         'warning',
         false
-      )
+      );
     }
 
     if (error.message.includes('404')) {
@@ -114,16 +109,11 @@ export function handleFetchError(error: unknown): AppError {
         'NOT_FOUND_ERROR',
         'warning',
         false
-      )
+      );
     }
 
     if (error.message.includes('500')) {
-      return new AppError(
-        'Server error. Please try again later.',
-        'SERVER_ERROR',
-        'error',
-        true
-      )
+      return new AppError('Server error. Please try again later.', 'SERVER_ERROR', 'error', true);
     }
 
     return new AppError(
@@ -131,29 +121,21 @@ export function handleFetchError(error: unknown): AppError {
       'UNKNOWN_ERROR',
       'error',
       false
-    )
+    );
   }
 
-  return new AppError(
-    'An unexpected error occurred',
-    'UNKNOWN_ERROR',
-    'error',
-    false
-  )
+  return new AppError('An unexpected error occurred', 'UNKNOWN_ERROR', 'error', false);
 }
 
 /**
  * Safely parse JSON with error handling
  */
-export function safeJsonParse<T>(
-  json: string,
-  fallback: T
-): T {
+export function safeJsonParse<T>(json: string, fallback: T): T {
   try {
-    return JSON.parse(json)
+    return JSON.parse(json);
   } catch (error) {
-    console.warn('JSON parse error:', error)
-    return fallback
+    console.warn('JSON parse error:', error);
+    return fallback;
   }
 }
 
@@ -165,11 +147,11 @@ export async function safeInvoke<T>(
   onError?: (error: AppError) => void
 ): Promise<T | undefined> {
   try {
-    return await fn()
+    return await fn();
   } catch (error) {
-    const appError = handleFetchError(error)
-    onError?.(appError)
-    return undefined
+    const appError = handleFetchError(error);
+    onError?.(appError);
+    return undefined;
   }
 }
 
@@ -178,9 +160,9 @@ export async function safeInvoke<T>(
  */
 export function getErrorSummary(error: AppError | Error): string {
   if (error instanceof AppError) {
-    return error.message
+    return error.message;
   }
-  return error?.message || 'An unexpected error occurred'
+  return error?.message || 'An unexpected error occurred';
 }
 
 /**
@@ -188,11 +170,11 @@ export function getErrorSummary(error: AppError | Error): string {
  */
 export function isRetryable(error: unknown): boolean {
   if (error instanceof AppError) {
-    return error.retryable
+    return error.retryable;
   }
 
   if (error instanceof TypeError) {
-    return error.message.includes('fetch')
+    return error.message.includes('fetch');
   }
 
   if (error instanceof Error) {
@@ -200,8 +182,8 @@ export function isRetryable(error: unknown): boolean {
       error.message.includes('500') ||
       error.message.includes('timeout') ||
       error.message.includes('Network')
-    )
+    );
   }
 
-  return false
+  return false;
 }

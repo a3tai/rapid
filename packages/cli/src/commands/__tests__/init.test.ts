@@ -394,7 +394,9 @@ describe('rapid init command', () => {
           errors.push('Template is required');
         }
         if (projectName && !/^[a-zA-Z0-9_-]+$/.test(projectName)) {
-          errors.push('Project name must contain only alphanumeric characters, dashes, and underscores');
+          errors.push(
+            'Project name must contain only alphanumeric characters, dashes, and underscores'
+          );
         }
 
         return { valid: errors.length === 0, errors };

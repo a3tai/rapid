@@ -62,15 +62,15 @@ WebSocket Server
 
 ### Attack Vectors & Risk Assessment
 
-| Attack Vector | Severity | Likelihood | Impact | Mitigation |
-|---------------|----------|-----------|--------|-----------|
-| XSS via user input | HIGH | MEDIUM | App compromise | Input sanitization + CSP |
-| Command injection via Wails binding | CRITICAL | LOW | Code execution | Input validation + whitelisting |
-| Memory exhaustion | HIGH | MEDIUM | Crash | Rate limits + resource caps |
-| WebSocket flooding | MEDIUM | HIGH | DoS | Rate limiting + connection limits |
-| Dependency vulnerability | HIGH | MEDIUM | Code execution | Regular audits + updates |
-| Local storage theft | MEDIUM | LOW | Data breach | Encryption + permissions |
-| MITM on WebSocket | CRITICAL | MEDIUM | Data interception | TLS 1.3 + HSTS |
+| Attack Vector                       | Severity | Likelihood | Impact            | Mitigation                        |
+| ----------------------------------- | -------- | ---------- | ----------------- | --------------------------------- |
+| XSS via user input                  | HIGH     | MEDIUM     | App compromise    | Input sanitization + CSP          |
+| Command injection via Wails binding | CRITICAL | LOW        | Code execution    | Input validation + whitelisting   |
+| Memory exhaustion                   | HIGH     | MEDIUM     | Crash             | Rate limits + resource caps       |
+| WebSocket flooding                  | MEDIUM   | HIGH       | DoS               | Rate limiting + connection limits |
+| Dependency vulnerability            | HIGH     | MEDIUM     | Code execution    | Regular audits + updates          |
+| Local storage theft                 | MEDIUM   | LOW        | Data breach       | Encryption + permissions          |
+| MITM on WebSocket                   | CRITICAL | MEDIUM     | Data interception | TLS 1.3 + HSTS                    |
 
 ---
 
@@ -100,7 +100,7 @@ export class InputValidator {
     if (!allowedPattern.test(input)) {
       return {
         valid: false,
-        error: 'Task name contains invalid characters'
+        error: 'Task name contains invalid characters',
       };
     }
 
@@ -135,7 +135,7 @@ export class InputValidator {
     if (!ALLOWED_PERSONAS.includes(input)) {
       return {
         valid: false,
-        error: `Persona must be one of: ${ALLOWED_PERSONAS.join(', ')}`
+        error: `Persona must be one of: ${ALLOWED_PERSONAS.join(', ')}`,
       };
     }
 
@@ -335,10 +335,7 @@ export const ChatMessage: React.FC<{ message: Message }> = ({ message }) => {
 ```typescript
 // frontend/src/hooks/useWailsBinding.ts - Enhanced with validation
 export function useWailsBinding() {
-  const call = async <T extends any>(
-    methodName: string,
-    ...args: any[]
-  ): Promise<T> => {
+  const call = async <T extends any>(methodName: string, ...args: any[]): Promise<T> => {
     // Validate method name against whitelist
     const allowedMethods = [
       'SendMessage',
@@ -347,7 +344,7 @@ export function useWailsBinding() {
       'SpawnAgent',
       'GetTasks',
       'CreateTask',
-      'UpdateTask'
+      'UpdateTask',
     ];
 
     if (!allowedMethods.includes(methodName)) {
@@ -366,10 +363,7 @@ export function useWailsBinding() {
     );
 
     try {
-      const result = await Promise.race([
-        window.runtime.Call<T>(methodName, ...args),
-        timeout
-      ]);
+      const result = await Promise.race([window.runtime.Call<T>(methodName, ...args), timeout]);
 
       // Validate response type
       if (typeof result !== 'object' && result !== null) {
@@ -678,31 +672,31 @@ echo "Security audit complete. Review results above."
 version: 2
 updates:
   # npm packages
-  - package-ecosystem: "npm"
-    directory: "/apps/rapid-desktop/frontend"
+  - package-ecosystem: 'npm'
+    directory: '/apps/rapid-desktop/frontend'
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "03:00"
+      interval: 'weekly'
+      day: 'monday'
+      time: '03:00'
     reviewers:
-      - "security-team"
+      - 'security-team'
     allow:
-      - dependency-type: "all"
+      - dependency-type: 'all'
     ignore:
       # Ignore major version updates except security fixes
-      - dependency-name: "*"
+      - dependency-name: '*'
         update-types:
-          - "version-update:semver-major"
+          - 'version-update:semver-major'
 
   # Go modules
-  - package-ecosystem: "gomod"
-    directory: "/apps/rapid-desktop"
+  - package-ecosystem: 'gomod'
+    directory: '/apps/rapid-desktop'
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "03:00"
+      interval: 'weekly'
+      day: 'monday'
+      time: '03:00'
     reviewers:
-      - "security-team"
+      - 'security-team'
 ```
 
 ---
@@ -721,9 +715,12 @@ export class SecretsManager {
   static setSecret(key: string, value: string): void {
     this.secrets.set(key, value);
     // Auto-clear after timeout
-    setTimeout(() => {
-      this.secrets.delete(key);
-    }, 1000 * 60 * 60); // 1 hour
+    setTimeout(
+      () => {
+        this.secrets.delete(key);
+      },
+      1000 * 60 * 60
+    ); // 1 hour
   }
 
   static getSecret(key: string): string | undefined {
@@ -865,13 +862,7 @@ export class AuthorizationManager {
   // Define permissions per role
   private static permissions = {
     viewer: ['view_chat', 'view_tasks', 'view_events'],
-    collaborator: [
-      'view_chat',
-      'send_message',
-      'view_tasks',
-      'create_task',
-      'view_events'
-    ],
+    collaborator: ['view_chat', 'send_message', 'view_tasks', 'create_task', 'view_events'],
     admin: [
       'view_chat',
       'send_message',
@@ -881,8 +872,8 @@ export class AuthorizationManager {
       'spawn_agent',
       'stop_agent',
       'view_events',
-      'manage_settings'
-    ]
+      'manage_settings',
+    ],
   };
 
   static hasPermission(role: string, action: string): boolean {
@@ -1095,4 +1086,3 @@ Before production deployment, verify:
 - [OWASP Secure Coding Practices](https://owasp.org/www-project-secure-coding-practices-quick-reference-guide/)
 - [NIST Cybersecurity Framework](https://www.nist.gov/cyberframework)
 - [CWE Top 25](https://cwe.mitre.org/top25/)
-

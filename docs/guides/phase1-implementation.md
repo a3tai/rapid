@@ -40,16 +40,19 @@ Extended task data model with Phase 1 fields:
 ### 2. Enhanced task_create Tool
 
 **Input**:
+
 - Standard: title, description, priority, assignedTo, parentId, tags, createdBy
 - **New**: deadline, requiredCapabilities, estimatedDuration, dependencies
 
 **Behavior**:
+
 - Creates task with Phase 1 metadata
 - Stores deadline for enforcement
 - Tracks required capabilities for matching
 - Initializes attemptNumber to 1
 
 **Example**:
+
 ```json
 {
   "title": "Implement authentication module",
@@ -65,16 +68,19 @@ Extended task data model with Phase 1 fields:
 ### 3. Enhanced task_claim Tool (Capability Matching)
 
 **Input**:
+
 - id, agentId
 - **New**: agentName, agentCapabilities
 
 **Validation**:
+
 1. **Status check**: Task must be pending
 2. **Capability match**: Agent must have ALL required capabilities
    - Returns error with missing capabilities if mismatch
    - Skips check if task has no capability requirements
 
 **Behavior on Success**:
+
 - Atomically transitions task to in_progress
 - Sets claimedAt timestamp
 - Calculates claimDeadline (5 minutes from now)
@@ -82,11 +88,13 @@ Extended task data model with Phase 1 fields:
 - Returns complete task object
 
 **Timeout Fields Set**:
+
 - `claimDeadline`: now + 5 minutes
 - `lastProgressAt`: now
 - Both used for timeout detection
 
 **Example**:
+
 ```json
 {
   "id": "task-123",
@@ -97,6 +105,7 @@ Extended task data model with Phase 1 fields:
 ```
 
 **Response on Capability Mismatch**:
+
 ```json
 {
   "claimed": false,
@@ -109,19 +118,23 @@ Extended task data model with Phase 1 fields:
 **Purpose**: Track ongoing work on claimed tasks
 
 **Input**:
+
 - id, progress (0.0-1.0), message, agentId
 
 **Behavior**:
+
 - Updates lastProgressAt to now
 - Stores progress percentage in metadata
 - Stores optional progress message
 - Only works on in_progress tasks
 
 **Effect on Timeouts**:
+
 - Resets progress timeout clock
 - Claim timeout still active (5-min window from claim)
 
 **Example**:
+
 ```json
 {
   "id": "task-123",
@@ -136,15 +149,18 @@ Extended task data model with Phase 1 fields:
 **Purpose**: Mark task successfully completed
 
 **Input**:
+
 - id, summary, result, agentId
 
 **Behavior**:
+
 - Sets status to completed
 - Stores optional result data
 - Records completion summary in metadata
 - Task can now be used to unblock dependencies
 
 **Example**:
+
 ```json
 {
   "id": "task-123",
@@ -163,9 +179,11 @@ Extended task data model with Phase 1 fields:
 **Purpose**: Mark task as failed with retry capability
 
 **Input**:
+
 - id, error, errorCode, canRetry, agentId
 
 **Behavior**:
+
 - Sets status back to pending (for retry)
 - Clears assignedTo and claim fields
 - Increments attemptNumber
@@ -173,10 +191,12 @@ Extended task data model with Phase 1 fields:
 - Sets canRetry flag for orchestrator
 
 **Effect**:
+
 - Task becomes available for another agent to claim
 - Orchestrator can enforce max retries
 
 **Example**:
+
 ```json
 {
   "id": "task-123",
@@ -192,6 +212,7 @@ Extended task data model with Phase 1 fields:
 **Purpose**: Detect and release timed-out tasks
 
 **Input**:
+
 - progressTimeoutSeconds (default: 60)
 - claimTimeoutSeconds (default: 300)
 
@@ -208,6 +229,7 @@ Extended task data model with Phase 1 fields:
    - Action: Release task back to pending
 
 **Behavior**:
+
 - Scans all in_progress tasks
 - Releases timed-out tasks to pending
 - Clears agent assignment
@@ -215,6 +237,7 @@ Extended task data model with Phase 1 fields:
 - Returns list of released tasks
 
 **Example Response**:
+
 ```json
 {
   "timedOut": [
@@ -237,18 +260,18 @@ Extended task data model with Phase 1 fields:
 
 ## MCP Tools Summary
 
-| Tool | Status | Phase 1 Feature |
-|------|--------|-----------------|
-| task_create | Enhanced | Deadline, capabilities, dependencies |
-| task_claim | Enhanced | Capability matching, timeout tracking |
-| task_progress | **NEW** | Progress updates, timeout reset |
-| task_complete | Enhanced | Result storage, completion tracking |
-| task_fail | **NEW** | Error tracking, retry support |
-| task_detect_timeouts | **NEW** | Timeout detection and release |
-| task_list | Unchanged | Filter by status, priority |
-| task_update | Unchanged | Update task fields |
-| task_get | Unchanged | Retrieve task details |
-| task_delete | Unchanged | Remove task |
+| Tool                 | Status    | Phase 1 Feature                       |
+| -------------------- | --------- | ------------------------------------- |
+| task_create          | Enhanced  | Deadline, capabilities, dependencies  |
+| task_claim           | Enhanced  | Capability matching, timeout tracking |
+| task_progress        | **NEW**   | Progress updates, timeout reset       |
+| task_complete        | Enhanced  | Result storage, completion tracking   |
+| task_fail            | **NEW**   | Error tracking, retry support         |
+| task_detect_timeouts | **NEW**   | Timeout detection and release         |
+| task_list            | Unchanged | Filter by status, priority            |
+| task_update          | Unchanged | Update task fields                    |
+| task_get             | Unchanged | Retrieve task details                 |
+| task_delete          | Unchanged | Remove task                           |
 
 ---
 
@@ -278,11 +301,13 @@ T+10:  Another agent claims task
 ### Timeout Configuration
 
 **Default Values** (configurable):
+
 - Claim timeout: 5 minutes
 - Progress timeout: 60 seconds
 - Check interval: Orchestrator determines poll frequency
 
 **Rationale**:
+
 - Claim timeout: Allows agent time to start processing after claiming
 - Progress timeout: Ensures stalled agents don't block indefinitely
 - Check interval: Trade-off between responsiveness and overhead
@@ -307,10 +332,12 @@ FOR each task that's available (status = pending):
 ### Examples
 
 **Task 1**: "Implement API endpoint"
+
 - requiredCapabilities: ["read", "write", "bash"]
 - Agent has ["read", "write", "bash", "test"] ✅ **Can claim**
 
 **Task 2**: "Deploy to production"
+
 - requiredCapabilities: ["kubernetes", "terraform"]
 - Agent has ["read", "write", "bash"] ❌ **Cannot claim**
 - Error: "Agent missing required capabilities: kubernetes, terraform"
@@ -330,6 +357,7 @@ While Phase 1 core uses direct MCP tool calls, the architecture is designed for 
 ### CLI Integration (Future)
 
 Planned CLI commands for Phase 1:
+
 ```bash
 rapid task create --title "..." --deadline "..." --capabilities "[read,write]"
 rapid task claim <task-id>
@@ -341,6 +369,7 @@ rapid task list --status in_progress
 ### Configuration Integration
 
 rapid.json additions (Phase 2):
+
 ```json
 {
   "task": {
@@ -359,6 +388,7 @@ rapid.json additions (Phase 2):
 ### Test Scenarios Implemented (Ready for QA)
 
 **Happy Path**:
+
 1. Create task with capabilities
 2. Agent with matching capabilities claims task
 3. Agent sends progress updates (resets timeout)
@@ -366,12 +396,14 @@ rapid.json additions (Phase 2):
 5. New agent claims completed task's dependency
 
 **Capability Mismatch**:
+
 1. Create task requiring [bash, docker]
 2. Agent with [read, write] tries to claim
 3. Returns error with missing capabilities
 4. Task remains available for other agents
 
 **Timeout Detection**:
+
 1. Create task with 60s progress timeout
 2. Agent claims task
 3. Wait 70 seconds without progress update
@@ -380,6 +412,7 @@ rapid.json additions (Phase 2):
 6. Another agent can claim
 
 **Retry Scenario**:
+
 1. Agent claims task
 2. Agent fails with recoverable error
 3. task_fail called with canRetry=true
@@ -415,6 +448,7 @@ rapid.json additions (Phase 2):
 **Timeout Detection**: O(n) where n = number of in_progress tasks
 
 **Scalability Notes**:
+
 - Timeout detection scales linearly with number of in-progress tasks
 - For 1000s of concurrent tasks, would benefit from index on status
 - Future optimization: Move to event-driven timeout handling
@@ -424,6 +458,7 @@ rapid.json additions (Phase 2):
 ## Success Metrics for Phase 1
 
 ### Implementation Complete ✅
+
 - [x] Enhanced task schema with Phase 1 fields
 - [x] Capability matching algorithm implemented
 - [x] Timeout detection and release working
@@ -431,11 +466,13 @@ rapid.json additions (Phase 2):
 - [x] All 173 tests passing
 
 ### Integration Ready ✅
+
 - [x] Backward compatible (old tasks still work)
 - [x] No breaking changes to existing tools
 - [x] Data model extensible for Phase 2/3
 
 ### Ready for Testing
+
 - [ ] QA validates capability matching
 - [ ] QA validates timeout detection
 - [ ] QA validates task retry logic
@@ -446,16 +483,19 @@ rapid.json additions (Phase 2):
 ## Next Steps
 
 ### Phase 2: Capability Matching Enhancements
+
 - Add capability registry
 - Implement matching algorithms
 - Add capability declaration mechanism
 
 ### Phase 3: Agent Lifecycle Integration
+
 - Health monitoring for agents
 - Graceful shutdown
 - Diagnostic capabilities
 
 ### Phase 4: Advanced Features
+
 - Dependency graph resolution
 - Parallel task execution
 - Complex orchestration patterns
@@ -467,6 +507,7 @@ rapid.json additions (Phase 2):
 ### Using Phase 1 in Your Orchestrator
 
 **1. Create a task**:
+
 ```typescript
 const task = await client.call('task_create', {
   title: 'Process data',
@@ -477,36 +518,40 @@ const task = await client.call('task_create', {
 ```
 
 **2. Agent claims task**:
+
 ```typescript
 const claimed = await client.call('task_claim', {
   id: task.id,
   agentId: 'agent-1',
-  agentCapabilities: ['read', 'write', 'bash']
+  agentCapabilities: ['read', 'write', 'bash'],
 });
 ```
 
 **3. Agent sends progress**:
+
 ```typescript
 await client.call('task_progress', {
   id: task.id,
   progress: 0.5,
-  message: 'Half way done'
+  message: 'Half way done',
 });
 ```
 
 **4. Agent completes task**:
+
 ```typescript
 await client.call('task_complete', {
   id: task.id,
   summary: 'Completed successfully',
-  result: { itemsProcessed: 1000 }
+  result: { itemsProcessed: 1000 },
 });
 ```
 
 **5. Orchestrator detects timeouts**:
+
 ```typescript
 const timedOut = await client.call('task_detect_timeouts', {
-  progressTimeoutSeconds: 60
+  progressTimeoutSeconds: 60,
 });
 // Release timed-out tasks back to pending
 ```

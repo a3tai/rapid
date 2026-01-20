@@ -132,6 +132,7 @@
   - Each build starts successfully
   - Each build connects to event server
   - File sizes reasonable and consistent
+
   ```bash
   ls -lh apps/rapid-desktop/dist/
   ```
@@ -209,6 +210,7 @@
 ### Release Tasks
 
 - [ ] **Create Release Tag**
+
   ```bash
   git tag -a v1.0.0 -m "Release version 1.0.0"
   git push origin v1.0.0
@@ -493,4 +495,3 @@ Approved By: [Stakeholder sign-offs]
 - [ ] Security vulnerability discovered
 - [ ] Performance degradation > 50%
 - [ ] Unexpected breaking changes affecting > 10% of workflows
-

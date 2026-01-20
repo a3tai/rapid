@@ -1,6 +1,6 @@
 name: brain-agent
 description: Ultra-large context brain agent with 1M token window for massive architectural analysis
-model: opus  # Claude Opus 4.5 has 1M token context
+model: opus # Claude Opus 4.5 has 1M token context
 systemPrompt: |
   You are a brain agent with Claude Opus 4.5 and a 1 million token context window.
 
@@ -20,7 +20,7 @@ systemPrompt: |
   Register on the event bus as "claude-brain" and announce your 1M context capability.
 
 tools:
-  - mcp__rapid__*  # All RAPID MCP tools
+  - mcp__rapid__* # All RAPID MCP tools
   - Read
   - Glob
   - Grep

@@ -202,7 +202,10 @@ describe('Event Bus Integration Tests', () => {
       const agent: AgentInfo = { id: `filter-test-${Date.now()}`, name: 'filter-agent' };
 
       // Send different message types
-      await bus!.sendMessage('discovery', agent, { title: 'Discovery', content: 'Found something' });
+      await bus!.sendMessage('discovery', agent, {
+        title: 'Discovery',
+        content: 'Found something',
+      });
       await bus!.sendMessage('error', agent, { title: 'Error', content: 'Something failed' });
       await bus!.sendMessage('completion', agent, { title: 'Done', content: 'Task completed' });
 
@@ -231,27 +234,31 @@ describe('Event Bus Integration Tests', () => {
   });
 
   describe('Pub/Sub Delivery', () => {
-    it.skipIf(!redisAvailable)('should deliver messages via pub/sub', async () => {
-      const receivedMessages: Message[] = [];
+    it.skipIf(!redisAvailable)(
+      'should deliver messages via pub/sub',
+      async () => {
+        const receivedMessages: Message[] = [];
 
-      // Subscribe to messages
-      bus!.onMessage((message: Message) => {
-        receivedMessages.push(message);
-      });
+        // Subscribe to messages
+        bus!.onMessage((message: Message) => {
+          receivedMessages.push(message);
+        });
 
-      const agent: AgentInfo = { id: `pubsub-${Date.now()}`, name: 'pubsub-agent' };
+        const agent: AgentInfo = { id: `pubsub-${Date.now()}`, name: 'pubsub-agent' };
 
-      // Send message
-      await bus!.sendMessage('coordination', agent, {
-        title: 'Pub/Sub Test',
-        content: 'Testing real-time delivery',
-      });
+        // Send message
+        await bus!.sendMessage('coordination', agent, {
+          title: 'Pub/Sub Test',
+          content: 'Testing real-time delivery',
+        });
 
-      // Wait for delivery (should be fast)
-      await new Promise((resolve) => setTimeout(resolve, 200));
+        // Wait for delivery (should be fast)
+        await new Promise((resolve) => setTimeout(resolve, 200));
 
-      expect(receivedMessages.length).toBeGreaterThan(0);
-    }, 5000);
+        expect(receivedMessages.length).toBeGreaterThan(0);
+      },
+      5000
+    );
   });
 
   describe('Concurrent Operations', () => {

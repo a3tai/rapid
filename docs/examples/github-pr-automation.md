@@ -5,6 +5,7 @@ Complete end-to-end example of automating pull request reviews using RAPID's mul
 ## Overview
 
 This example demonstrates how to:
+
 1. Receive GitHub PR webhooks
 2. Create analysis tasks for multi-agent code review
 3. Coordinate multiple workers reviewing different aspects (style, tests, security)
@@ -112,20 +113,24 @@ webhooks.on('pull_request.opened', async ({ payload }) => {
     priority: 'high',
     payload: {
       title: `New PR: ${pull_request.title}`,
-      content: JSON.stringify({
-        action: 'review_pr',
-        pr_number: pull_request.number,
-        pr_title: pull_request.title,
-        pr_url: pull_request.html_url,
-        repo: `${repository.owner.login}/${repository.name}`,
-        author: pull_request.user.login,
-        branch: pull_request.head.ref,
-        base_branch: pull_request.base.ref,
-        diff_url: pull_request.diff_url,
-        files_changed: pull_request.changed_files,
-        additions: pull_request.additions,
-        deletions: pull_request.deletions,
-      }, null, 2),
+      content: JSON.stringify(
+        {
+          action: 'review_pr',
+          pr_number: pull_request.number,
+          pr_title: pull_request.title,
+          pr_url: pull_request.html_url,
+          repo: `${repository.owner.login}/${repository.name}`,
+          author: pull_request.user.login,
+          branch: pull_request.head.ref,
+          base_branch: pull_request.base.ref,
+          diff_url: pull_request.diff_url,
+          files_changed: pull_request.changed_files,
+          additions: pull_request.additions,
+          deletions: pull_request.deletions,
+        },
+        null,
+        2
+      ),
       actionable: true,
     },
   });
@@ -244,10 +249,7 @@ while (true) {
   await sleep(5000); // Poll every 5 seconds
 }
 
-async function createReviewTasks(
-  pr: PRReviewRequest,
-  files: any[]
-): Promise<string[]> {
+async function createReviewTasks(pr: PRReviewRequest, files: any[]): Promise<string[]> {
   const taskIds: string[] = [];
 
   // 1. Style Review Task
@@ -262,7 +264,7 @@ async function createReviewTasks(
     metadata: {
       pr_number: pr.pr_number,
       repo: pr.repo,
-      files: files.map(f => f.filename),
+      files: files.map((f) => f.filename),
     },
   });
   taskIds.push(styleTaskId.task.id);
@@ -296,7 +298,7 @@ async function createReviewTasks(
     metadata: {
       pr_number: pr.pr_number,
       repo: pr.repo,
-      files: files.map(f => f.filename),
+      files: files.map((f) => f.filename),
     },
   });
   taskIds.push(securityTaskId.task.id);
@@ -346,7 +348,7 @@ async function createReviewTasks(
 }
 
 function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 ```
 
@@ -405,9 +407,11 @@ while (true) {
 
       for (const result of eslintResults) {
         if (result.errorCount > 0 || result.warningCount > 0) {
-          issues.push(`${result.filePath}:\n${result.messages.map(m =>
-            `  - Line ${m.line}: ${m.message} (${m.ruleId})`
-          ).join('\n')}`);
+          issues.push(
+            `${result.filePath}:\n${result.messages
+              .map((m) => `  - Line ${m.line}: ${m.message} (${m.ruleId})`)
+              .join('\n')}`
+          );
         }
       }
 
@@ -424,9 +428,8 @@ while (true) {
     // Complete task with findings
     await task_complete({
       id: task.id,
-      summary: issues.length === 0
-        ? 'No style issues found ✅'
-        : `Found ${issues.length} style issue(s)`,
+      summary:
+        issues.length === 0 ? 'No style issues found ✅' : `Found ${issues.length} style issue(s)`,
     });
 
     // Send completion message
@@ -439,9 +442,10 @@ while (true) {
       priority: issues.length > 5 ? 'high' : 'normal',
       payload: {
         title: `Style review completed: ${task.title}`,
-        content: issues.length === 0
-          ? '✅ No style issues found. Code follows formatting guidelines.'
-          : `⚠️ Found ${issues.length} style issue(s):\n\n${issues.join('\n\n')}`,
+        content:
+          issues.length === 0
+            ? '✅ No style issues found. Code follows formatting guidelines.'
+            : `⚠️ Found ${issues.length} style issue(s):\n\n${issues.join('\n\n')}`,
         actionable: issues.length > 0,
         context: {
           task_id: task.id,
@@ -512,20 +516,16 @@ while (true) {
 
     // Check for untested files
     const untestedFiles = Object.entries(coverage)
-      .filter(([file, stats]: [string, any]) =>
-        stats.lines?.pct === 0 && file !== 'total'
-      )
+      .filter(([file, stats]: [string, any]) => stats.lines?.pct === 0 && file !== 'total')
       .map(([file]) => file);
 
     if (untestedFiles.length > 0) {
-      findings.push(`⚠️ Untested files:\n${untestedFiles.map(f => `  - ${f}`).join('\n')}`);
+      findings.push(`⚠️ Untested files:\n${untestedFiles.map((f) => `  - ${f}`).join('\n')}`);
     }
 
     await task_complete({
       id: task.id,
-      summary: findings.length === 0
-        ? 'Test coverage looks good ✅'
-        : `Coverage issues found`,
+      summary: findings.length === 0 ? 'Test coverage looks good ✅' : `Coverage issues found`,
     });
 
     await eventBus.send({
@@ -537,9 +537,10 @@ while (true) {
       priority: findings.length > 0 ? 'high' : 'normal',
       payload: {
         title: `Test review completed: ${task.title}`,
-        content: findings.length === 0
-          ? `✅ Test coverage meets requirements:\n- Lines: ${totalCoverage.lines.pct}%\n- Branches: ${totalCoverage.branches.pct}%`
-          : `⚠️ Coverage concerns:\n\n${findings.join('\n\n')}`,
+        content:
+          findings.length === 0
+            ? `✅ Test coverage meets requirements:\n- Lines: ${totalCoverage.lines.pct}%\n- Branches: ${totalCoverage.branches.pct}%`
+            : `⚠️ Coverage concerns:\n\n${findings.join('\n\n')}`,
         actionable: findings.length > 0,
         context: {
           task_id: task.id,
@@ -644,7 +645,7 @@ while (true) {
     }
 
     // Check for critical issues requiring HITL approval
-    const criticalIssues = vulnerabilities.filter(v => v.severity === 'critical');
+    const criticalIssues = vulnerabilities.filter((v) => v.severity === 'critical');
 
     if (criticalIssues.length > 0) {
       // Send approval request
@@ -657,9 +658,9 @@ while (true) {
         priority: 'urgent',
         payload: {
           title: `Critical security issues found in PR #${task.metadata?.pr_number}`,
-          content: `Found ${criticalIssues.length} critical security issue(s):\n\n${criticalIssues.map(v =>
-            `❌ ${v.type} in ${v.file}:${v.line}\n   ${v.description}`
-          ).join('\n\n')}`,
+          content: `Found ${criticalIssues.length} critical security issue(s):\n\n${criticalIssues
+            .map((v) => `❌ ${v.type} in ${v.file}:${v.line}\n   ${v.description}`)
+            .join('\n\n')}`,
           actionable: true,
           context: {
             request_id: `security-${task.id}`,
@@ -675,9 +676,10 @@ while (true) {
 
     await task_complete({
       id: task.id,
-      summary: vulnerabilities.length === 0
-        ? 'No security issues found ✅'
-        : `Found ${vulnerabilities.length} security issue(s)`,
+      summary:
+        vulnerabilities.length === 0
+          ? 'No security issues found ✅'
+          : `Found ${vulnerabilities.length} security issue(s)`,
     });
 
     await eventBus.send({
@@ -689,13 +691,17 @@ while (true) {
       priority: criticalIssues.length > 0 ? 'urgent' : 'normal',
       payload: {
         title: `Security review completed: ${task.title}`,
-        content: vulnerabilities.length === 0
-          ? '✅ No security vulnerabilities detected'
-          : `⚠️ Found ${vulnerabilities.length} security issue(s):\n\n${vulnerabilities.map(v =>
-            `${v.severity === 'critical' ? '❌' : '⚠️'} [${v.severity.toUpperCase()}] ${v.type}\n` +
-            `   File: ${v.file}:${v.line}\n` +
-            `   ${v.description}`
-          ).join('\n\n')}`,
+        content:
+          vulnerabilities.length === 0
+            ? '✅ No security vulnerabilities detected'
+            : `⚠️ Found ${vulnerabilities.length} security issue(s):\n\n${vulnerabilities
+                .map(
+                  (v) =>
+                    `${v.severity === 'critical' ? '❌' : '⚠️'} [${v.severity.toUpperCase()}] ${v.type}\n` +
+                    `   File: ${v.file}:${v.line}\n` +
+                    `   ${v.description}`
+                )
+                .join('\n\n')}`,
         actionable: vulnerabilities.length > 0,
         context: {
           task_id: task.id,
@@ -762,23 +768,13 @@ while (true) {
       limit: 100,
     });
 
-    const reviewResults = messages.filter(m =>
-      m.payload.context?.pr_number === prNumber
-    );
+    const reviewResults = messages.filter((m) => m.payload.context?.pr_number === prNumber);
 
     // Aggregate findings
-    const styleFindings = reviewResults.find(m =>
-      m.fromAgent.name === 'Style Reviewer'
-    );
-    const testFindings = reviewResults.find(m =>
-      m.fromAgent.name === 'Test Coverage Reviewer'
-    );
-    const securityFindings = reviewResults.find(m =>
-      m.fromAgent.name === 'Security Reviewer'
-    );
-    const perfFindings = reviewResults.find(m =>
-      m.fromAgent.name === 'Performance Reviewer'
-    );
+    const styleFindings = reviewResults.find((m) => m.fromAgent.name === 'Style Reviewer');
+    const testFindings = reviewResults.find((m) => m.fromAgent.name === 'Test Coverage Reviewer');
+    const securityFindings = reviewResults.find((m) => m.fromAgent.name === 'Security Reviewer');
+    const perfFindings = reviewResults.find((m) => m.fromAgent.name === 'Performance Reviewer');
 
     // Format PR comment
     const comment = `## 🤖 RAPID Multi-Agent Code Review
@@ -818,9 +814,10 @@ ${perfFindings?.payload.content || 'No findings'}
 
 ---
 
-${securityFindings?.payload.context?.requires_approval
-  ? `⚠️ **Action Required**: This PR contains critical security issues and requires human approval before merging.`
-  : `✅ **Automated checks passed**. No critical issues found.`
+${
+  securityFindings?.payload.context?.requires_approval
+    ? `⚠️ **Action Required**: This PR contains critical security issues and requires human approval before merging.`
+    : `✅ **Automated checks passed**. No critical issues found.`
 }
 
 <sub>Generated by [RAPID Multi-Agent System](https://github.com/your-org/rapid)</sub>
@@ -917,7 +914,7 @@ ${securityFindings?.payload.context?.requires_approval
 name: style-reviewer
 description: Code style and formatting reviewer
 
-model: haiku  # Fast and cost-effective
+model: haiku # Fast and cost-effective
 
 systemPrompt: |
   You are a style and formatting reviewer. Check code for:
@@ -950,7 +947,7 @@ canSpawn: false
 name: security-reviewer
 description: Security vulnerability scanner
 
-model: sonnet  # Better for security analysis
+model: sonnet # Better for security analysis
 
 systemPrompt: |
   You are a security reviewer. Scan for:
@@ -994,7 +991,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - '6379:6379'
     volumes:
       - redis-data:/data
 
@@ -1002,7 +999,7 @@ services:
     build: .
     command: npm run webhook
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       - GITHUB_TOKEN=${GITHUB_TOKEN}
       - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET}
