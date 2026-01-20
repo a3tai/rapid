@@ -832,14 +832,27 @@ async function runInteractiveInit(
     };
   }
 
-  return {
+  const result: Record<string, unknown> = {
     projectName,
     mcpServers: selectedMcp as string[],
     secretsProvider: secretsProvider as 'env' | '1password' | 'vault',
     vault,
     createDevcontainer,
     usePrebuilt,
-    teamConfig,
+  };
+
+  if (teamConfig) {
+    result.teamConfig = teamConfig;
+  }
+
+  return result as {
+    projectName: string;
+    mcpServers: string[];
+    secretsProvider: 'env' | '1password' | 'vault';
+    vault: string | undefined;
+    createDevcontainer: boolean;
+    usePrebuilt: boolean;
+    teamConfig?: { autoSpawn: boolean; personas: string[]; orchestrator: string };
   };
 }
 

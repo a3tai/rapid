@@ -28,10 +28,6 @@ contextCommand
       spinner.stop();
 
       if (!config.context?.files?.length && !config.context?.dirs?.length) {
-        if (action === 'inject') {
-          // For inject mode, output nothing and exit silently
-          return;
-        }
         logger.info('No context files or directories configured.');
         logger.blank();
         logger.dim('Add files or directories to rapid.json:');
@@ -43,14 +39,6 @@ contextCommand
       }
 
       const assembled = await assembleContext(rootDir, config.context);
-
-      if (action === 'inject') {
-        // Output raw content for hooks to consume
-        if (assembled.content) {
-          console.log(assembled.content);
-        }
-        return;
-      }
 
       // Show mode
       if (options.json) {
@@ -147,11 +135,14 @@ contextCommand
 
       const confidence = Math.min(1, Math.max(0, parseFloat(String(options.confidence))));
       const memoryType = (String(options.memoryType) || 'semantic') as 'episodic' | 'semantic' | 'procedural' | 'decision_trace';
-      const entry = await engine.learn(key, value, memoryType, {
+      const learnOptions: Record<string, unknown> = {
         confidence,
         tags: (Array.isArray(options.tags) ? options.tags.map(String) : []) || [],
-        expiresAt: options.expires ? String(options.expires) : undefined,
-      });
+      };
+      if (options.expires) {
+        learnOptions.expiresAt = String(options.expires);
+      }
+      const entry = await engine.learn(key, value, memoryType, learnOptions);
 
       spinner.succeed('Knowledge stored');
       console.log();
@@ -223,11 +214,13 @@ contextCommand
         projectDir: process.cwd(),
       });
 
-      const memoryType = options.memoryType ? (String(options.memoryType) as 'episodic' | 'semantic' | 'procedural' | 'decision_trace') : undefined;
-      const results = await engine.search(query, {
-        memoryType,
+      const searchOptions: Record<string, unknown> = {
         limit: parseInt(String(options.limit), 10),
-      });
+      };
+      if (options.memoryType) {
+        searchOptions.memoryType = String(options.memoryType) as 'episodic' | 'semantic' | 'procedural' | 'decision_trace';
+      }
+      const results = await engine.search(query, searchOptions);
 
       spinner.succeed('Search completed');
       console.log();
@@ -271,12 +264,16 @@ contextCommand
         projectDir: process.cwd(),
       });
 
-      const memoryType = options.memoryType ? (String(options.memoryType) as 'episodic' | 'semantic' | 'procedural' | 'decision_trace') : undefined;
-      const entries = await engine.list({
-        memoryType,
+      const listOptions: Record<string, unknown> = {
         tags: Array.isArray(options.tags) ? options.tags.map(String) : [],
-        minConfidence: options.confidence ? parseFloat(String(options.confidence)) : undefined,
-      });
+      };
+      if (options.memoryType) {
+        listOptions.memoryType = String(options.memoryType) as 'episodic' | 'semantic' | 'procedural' | 'decision_trace';
+      }
+      if (options.confidence) {
+        listOptions.minConfidence = parseFloat(String(options.confidence));
+      }
+      const entries = await engine.list(listOptions);
 
       const limited = entries.slice(0, parseInt(String(options.limit), 10));
 
