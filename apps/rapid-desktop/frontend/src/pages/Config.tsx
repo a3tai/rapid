@@ -1,106 +1,90 @@
 import { useState, useEffect } from 'react'
 import { clsx } from 'clsx'
 import { Skeleton } from '../components/Skeleton'
+import { useConfig, useConfigValidation, type RapidConfig } from '../hooks/useConfig'
 
+/**
+ * Configuration management page
+ *
+ * Features:
+ * - Loads config from Go backend (GetConfig)
+ * - Real-time form validation
+ * - Saves config to backend (SaveConfig)
+ * - Multiple config tabs (general, personas, mcp, raw)
+ * - Error handling and user feedback
+ */
 export function ConfigPage() {
-  const [config, setConfig] = useState<Record<string, unknown> | null>(null)
+  const { config, loading, error, saving, saveError, isDirty, saveConfig } = useConfig()
+  const { validate } = useConfigValidation()
   const [activeTab, setActiveTab] = useState<'general' | 'personas' | 'mcp' | 'raw'>('general')
-  const [loading, setLoading] = useState(true)
+  const [formData, setFormData] = useState<RapidConfig | null>(null)
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
+  // Initialize form when config loads
   useEffect(() => {
-    // Load config from backend or use mock
-    setLoading(true)
-    setTimeout(() => {
-      setConfig({
-        $schema: './packages/schema/rapid.schema.json',
-        project: {
-          name: 'rapid',
-          root: '.',
-        },
-        sandbox: {
-          enabled: true,
-          preset: 'balanced',
-          allowNetwork: true,
-        },
-        secrets: {
-          provider: 'env',
-        },
-        personas: {
-          orchestrator: {
-            systemPrompt: 'You are the orchestrator agent...',
-            capabilities: ['coordination', 'planning', 'task-assignment'],
-          },
-          worker: {
-            systemPrompt: 'You are a worker agent...',
-            capabilities: ['coding', 'testing', 'debugging'],
-          },
-          designer: {
-            systemPrompt: 'You are a designer agent...',
-            capabilities: ['research', 'architecture', 'documentation'],
-          },
-        },
-        mcp: {
-          servers: {
-            rapid: {
-              command: 'pnpm',
-              args: ['rapid-mcp'],
-            },
-            context7: {
-              command: 'npx',
-              args: ['-y', '@context7/mcp'],
-            },
-          },
-        },
-      })
-      setLoading(false)
-    }, 500)
-  }, [])
+    if (config && !formData) {
+      setFormData(config)
+    }
+  }, [config, formData])
+
+  const handleSave = async () => {
+    if (!formData) return
+
+    // Validate
+    const validationErrors = validate(formData)
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors)
+      return
+    }
+
+    // Save
+    const success = await saveConfig(formData)
+    if (!success && saveError) {
+      setErrors({ _form: saveError.message })
+    }
+  }
+
+  const handleFieldChange = (path: string, value: unknown) => {
+    if (!formData) return
+
+    setErrors((prev) => {
+      const newErrors = { ...prev }
+      delete newErrors[path]
+      return newErrors
+    })
+
+    // Deep set value in formData
+    const keys = path.split('.')
+    const updated = JSON.parse(JSON.stringify(formData))
+    let obj = updated
+    for (let i = 0; i < keys.length - 1; i++) {
+      obj = obj[keys[i]] = obj[keys[i]] || {}
+    }
+    obj[keys[keys.length - 1]] = value
+    setFormData(updated)
+  }
 
   if (loading) {
+    return <ConfigSkeleton />
+  }
+
+  if (error && !config) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <Skeleton height={24} width={180} className="mb-2" />
-            <Skeleton height={14} width={220} />
-          </div>
-          <Skeleton height={40} width={140} />
-        </div>
-        <div className="flex gap-1 border-b border-rapid-border pb-2">
-          <Skeleton height={32} width={80} />
-          <Skeleton height={32} width={80} />
-          <Skeleton height={32} width={60} />
-          <Skeleton height={32} width={60} />
-        </div>
-        <div className="card p-6 space-y-6">
-          <div>
-            <Skeleton height={20} width={80} className="mb-4" />
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Skeleton height={14} width={60} className="mb-2" />
-                <Skeleton height={40} width="100%" />
-              </div>
-              <div>
-                <Skeleton height={14} width={100} className="mb-2" />
-                <Skeleton height={40} width="100%" />
-              </div>
-            </div>
-          </div>
-          <div className="border-t border-rapid-border pt-6">
-            <Skeleton height={20} width={80} className="mb-4" />
-            <div className="space-y-4">
-              <Skeleton height={20} width={180} />
-              <Skeleton height={40} width={200} />
-              <Skeleton height={20} width={180} />
-            </div>
-          </div>
+        <div className="p-4 bg-red-500/10 border border-red-700 rounded-lg">
+          <p className="text-red-300">Failed to load configuration</p>
+          <p className="text-sm text-red-400 mt-1">{error.message}</p>
         </div>
       </div>
     )
   }
 
-  const personas = (config?.personas || {}) as Record<string, { systemPrompt?: string; capabilities?: string[] }>
-  const mcpServers = (config?.mcp as { servers?: Record<string, unknown> })?.servers || {}
+  if (!formData) {
+    return null
+  }
+
+  const personas = formData?.personas || {}
+  const mcpServers = formData?.mcp?.servers || {}
 
   return (
     <div className="space-y-6">
@@ -112,13 +96,39 @@ export function ConfigPage() {
             Manage your rapid.json settings
           </p>
         </div>
-        <button className="btn btn-primary">
-          <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-          </svg>
-          Save Changes
+        <button
+          onClick={handleSave}
+          disabled={!isDirty || saving}
+          className={clsx(
+            'btn btn-primary flex items-center gap-2 disabled:opacity-50',
+            saving && 'animate-pulse'
+          )}
+        >
+          {saving ? (
+            <>
+              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              Saving...
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+              </svg>
+              Save Changes
+            </>
+          )}
         </button>
       </div>
+
+      {/* Error message */}
+      {errors._form && (
+        <div className="p-4 bg-red-500/10 border border-red-700 rounded-lg">
+          <p className="text-red-300">{errors._form}</p>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-rapid-border">
@@ -141,26 +151,62 @@ export function ConfigPage() {
       {/* Tab content */}
       <div className="card p-6">
         {activeTab === 'general' && (
-          <GeneralSettings config={config} />
+          <GeneralSettings
+            config={formData}
+            errors={errors}
+            onChange={handleFieldChange}
+          />
         )}
         {activeTab === 'personas' && (
-          <PersonaSettings personas={personas} />
+          <PersonaSettings
+            personas={personas}
+            errors={errors}
+            onChange={handleFieldChange}
+          />
         )}
         {activeTab === 'mcp' && (
-          <McpSettings servers={mcpServers} />
+          <McpSettings
+            servers={mcpServers}
+          />
         )}
         {activeTab === 'raw' && (
-          <RawConfig config={config} />
+          <RawConfig config={formData} />
         )}
       </div>
     </div>
   )
 }
 
-function GeneralSettings({ config }: { config: Record<string, unknown> | null }) {
-  const project = (config?.project || {}) as { name?: string; root?: string }
-  const sandbox = (config?.sandbox || {}) as { enabled?: boolean; preset?: string; allowNetwork?: boolean }
+function ConfigSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <Skeleton height={24} width={180} className="mb-2" />
+          <Skeleton height={14} width={220} />
+        </div>
+        <Skeleton height={40} width={140} />
+      </div>
+      <div className="flex gap-1 border-b border-rapid-border pb-2">
+        <Skeleton height={32} width={80} />
+        <Skeleton height={32} width={80} />
+        <Skeleton height={32} width={60} />
+        <Skeleton height={32} width={60} />
+      </div>
+      <div className="card p-6 space-y-6">
+        <Skeleton height={200} width="100%" />
+      </div>
+    </div>
+  )
+}
 
+interface GeneralSettingsProps {
+  config: RapidConfig
+  errors: Record<string, string>
+  onChange: (path: string, value: unknown) => void
+}
+
+function GeneralSettings({ config, errors, onChange }: GeneralSettingsProps) {
   return (
     <div className="space-y-6">
       <div>
@@ -170,17 +216,31 @@ function GeneralSettings({ config }: { config: Record<string, unknown> | null })
             <label className="block text-sm font-medium mb-2">Name</label>
             <input
               type="text"
-              defaultValue={project.name}
-              className="input w-full"
+              value={config.project?.name || ''}
+              onChange={(e) => onChange('project.name', e.target.value)}
+              className={clsx(
+                'input w-full',
+                errors['project.name'] && 'border-red-500'
+              )}
             />
+            {errors['project.name'] && (
+              <p className="text-xs text-red-400 mt-1">{errors['project.name']}</p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium mb-2">Root Directory</label>
             <input
               type="text"
-              defaultValue={project.root}
-              className="input w-full"
+              value={config.project?.root || ''}
+              onChange={(e) => onChange('project.root', e.target.value)}
+              className={clsx(
+                'input w-full',
+                errors['project.root'] && 'border-red-500'
+              )}
             />
+            {errors['project.root'] && (
+              <p className="text-xs text-red-400 mt-1">{errors['project.root']}</p>
+            )}
           </div>
         </div>
       </div>
@@ -191,7 +251,8 @@ function GeneralSettings({ config }: { config: Record<string, unknown> | null })
           <label className="flex items-center gap-3">
             <input
               type="checkbox"
-              defaultChecked={sandbox.enabled}
+              checked={config.sandbox?.enabled || false}
+              onChange={(e) => onChange('sandbox.enabled', e.target.checked)}
               className="rounded border-rapid-border bg-rapid-elevated"
             />
             <span className="text-sm">Enable sandboxing</span>
@@ -199,7 +260,11 @@ function GeneralSettings({ config }: { config: Record<string, unknown> | null })
 
           <div>
             <label className="block text-sm font-medium mb-2">Preset</label>
-            <select defaultValue={sandbox.preset} className="input w-full max-w-xs">
+            <select
+              value={config.sandbox?.preset || 'balanced'}
+              onChange={(e) => onChange('sandbox.preset', e.target.value)}
+              className="input w-full max-w-xs"
+            >
               <option value="strict">Strict</option>
               <option value="balanced">Balanced</option>
               <option value="permissive">Permissive</option>
@@ -210,7 +275,8 @@ function GeneralSettings({ config }: { config: Record<string, unknown> | null })
           <label className="flex items-center gap-3">
             <input
               type="checkbox"
-              defaultChecked={sandbox.allowNetwork}
+              checked={config.sandbox?.allowNetwork || false}
+              onChange={(e) => onChange('sandbox.allowNetwork', e.target.checked)}
               className="rounded border-rapid-border bg-rapid-elevated"
             />
             <span className="text-sm">Allow network access</span>
@@ -221,7 +287,13 @@ function GeneralSettings({ config }: { config: Record<string, unknown> | null })
   )
 }
 
-function PersonaSettings({ personas }: { personas: Record<string, { systemPrompt?: string; capabilities?: string[] }> }) {
+interface PersonaSettingsProps {
+  personas: Record<string, { systemPrompt?: string; capabilities?: string[] }>
+  errors: Record<string, string>
+  onChange: (path: string, value: unknown) => void
+}
+
+function PersonaSettings({ personas, errors, onChange }: PersonaSettingsProps) {
   const [selectedPersona, setSelectedPersona] = useState<string | null>(
     Object.keys(personas)[0] || null
   )
@@ -229,111 +301,136 @@ function PersonaSettings({ personas }: { personas: Record<string, { systemPrompt
   const persona = selectedPersona ? personas[selectedPersona] : null
 
   return (
-    <div className="flex gap-6">
-      {/* Persona list */}
-      <div className="w-48 space-y-2">
-        {Object.keys(personas).map((name) => (
-          <button
-            key={name}
-            onClick={() => setSelectedPersona(name)}
-            className={clsx(
-              'w-full text-left px-3 py-2 rounded-lg transition-colors capitalize',
-              selectedPersona === name
-                ? 'bg-rapid-accent text-white'
-                : 'hover:bg-rapid-elevated'
-            )}
-          >
-            {name}
-          </button>
-        ))}
-        <button className="w-full text-left px-3 py-2 rounded-lg text-rapid-muted hover:bg-rapid-elevated">
-          + Add Persona
-        </button>
-      </div>
-
-      {/* Persona editor */}
-      {persona && (
-        <div className="flex-1 space-y-4">
+    <div>
+      <p className="text-sm text-rapid-muted mb-4">
+        Configure AI persona definitions and capabilities
+      </p>
+      {!Object.keys(personas).length ? (
+        <div className="text-center py-8 text-rapid-muted">
+          <p>No personas configured</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-2">System Prompt</label>
-            <textarea
-              defaultValue={persona.systemPrompt}
-              rows={6}
-              className="input w-full resize-none font-mono text-sm"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">Capabilities</label>
-            <div className="flex flex-wrap gap-2">
-              {persona.capabilities?.map((cap) => (
-                <span key={cap} className="badge badge-info">
-                  {cap}
-                  <button className="ml-1.5 hover:text-white">×</button>
-                </span>
+            <label className="block text-sm font-medium mb-2">Select Persona</label>
+            <select
+              value={selectedPersona || ''}
+              onChange={(e) => setSelectedPersona(e.target.value)}
+              className="input w-full max-w-xs"
+            >
+              {Object.keys(personas).map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
               ))}
-              <button className="badge badge-neutral cursor-pointer hover:bg-rapid-border">
-                + Add
-              </button>
-            </div>
+            </select>
           </div>
+
+          {persona && (
+            <div className="space-y-4 mt-6 p-4 bg-rapid-elevated rounded-lg">
+              <div>
+                <label className="block text-sm font-medium mb-2">System Prompt</label>
+                <textarea
+                  value={persona.systemPrompt || ''}
+                  onChange={(e) =>
+                    onChange(`personas.${selectedPersona}.systemPrompt`, e.target.value)
+                  }
+                  className={clsx(
+                    'input w-full h-24',
+                    errors[`personas.${selectedPersona}.systemPrompt`] && 'border-red-500'
+                  )}
+                />
+                {errors[`personas.${selectedPersona}.systemPrompt`] && (
+                  <p className="text-xs text-red-400 mt-1">
+                    {errors[`personas.${selectedPersona}.systemPrompt`]}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Capabilities</label>
+                <input
+                  type="text"
+                  value={(persona.capabilities || []).join(', ')}
+                  onChange={(e) =>
+                    onChange(
+                      `personas.${selectedPersona}.capabilities`,
+                      e.target.value.split(',').map((s) => s.trim())
+                    )
+                  }
+                  placeholder="e.g., coding, testing, debugging"
+                  className={clsx(
+                    'input w-full',
+                    errors[`personas.${selectedPersona}.capabilities`] && 'border-red-500'
+                  )}
+                />
+                <p className="text-xs text-rapid-muted mt-1">Comma-separated list</p>
+                {errors[`personas.${selectedPersona}.capabilities`] && (
+                  <p className="text-xs text-red-400 mt-1">
+                    {errors[`personas.${selectedPersona}.capabilities`]}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
   )
 }
 
-function McpSettings({ servers }: { servers: Record<string, unknown> }) {
+interface McpSettingsProps {
+  servers: Record<string, { command?: string; args?: string[] }>
+}
+
+function McpSettings({ servers }: McpSettingsProps) {
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-rapid-muted">
-        Configure MCP (Model Context Protocol) servers for extended capabilities.
+    <div>
+      <p className="text-sm text-rapid-muted mb-6">
+        MCP server configuration and health status
       </p>
 
-      <div className="space-y-3">
-        {Object.entries(servers).map(([name, config]) => {
-          const serverConfig = config as { command?: string; args?: string[] }
-          return (
-            <div key={name} className="p-4 bg-rapid-elevated rounded-lg">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded bg-rapid-accent/20 flex items-center justify-center">
-                    <span className="text-rapid-accent font-medium text-sm">
-                      {name[0].toUpperCase()}
-                    </span>
-                  </div>
-                  <div>
-                    <div className="font-medium">{name}</div>
-                    <div className="text-xs text-rapid-muted font-mono">
-                      {serverConfig.command} {serverConfig.args?.join(' ')}
-                    </div>
-                  </div>
+      {!Object.keys(servers).length ? (
+        <div className="text-center py-8 text-rapid-muted">
+          <p>No MCP servers configured</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {Object.entries(servers).map(([name, config]) => (
+            <div
+              key={name}
+              className="flex items-center justify-between p-4 bg-rapid-elevated rounded-lg"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded bg-rapid-accent/20 flex items-center justify-center">
+                  <span className="text-rapid-accent font-medium text-sm">
+                    {name[0].toUpperCase()}
+                  </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="status-dot status-dot-active" />
-                  <span className="text-sm text-green-400">Connected</span>
+                <div>
+                  <div className="font-medium">{name}</div>
+                  <div className="text-xs text-rapid-muted font-mono">
+                    {config.command} {config.args?.join(' ')}
+                  </div>
                 </div>
               </div>
+              <div className="flex items-center gap-2">
+                <div className="status-dot status-dot-active" />
+                <span className="text-sm text-green-400">Connected</span>
+              </div>
             </div>
-          )
-        })}
-      </div>
-
-      <button className="btn btn-secondary">
-        <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-        </svg>
-        Add MCP Server
-      </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
-function RawConfig({ config }: { config: Record<string, unknown> | null }) {
+function RawConfig({ config }: { config: RapidConfig }) {
   return (
     <div>
       <p className="text-sm text-rapid-muted mb-4">
-        Raw rapid.json configuration (read-only view)
+        Raw rapid.json configuration
       </p>
       <pre className="p-4 bg-rapid-bg rounded-lg overflow-auto text-sm font-mono text-rapid-text max-h-[500px]">
         {JSON.stringify(config, null, 2)}
