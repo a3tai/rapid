@@ -20,14 +20,14 @@ export interface WebSocketState {
  * WebSocket hook with automatic reconnection and heartbeat
  * Provides real-time updates with graceful fallback to polling
  */
-export function useWebSocket(options: WebSocketOptions) {
+export function useWebSocket(options: WebSocketOptions | null) {
   const {
-    url,
+    url = '',
     reconnectAttempts = 10,
     reconnectDelay = 1000,
     heartbeatInterval = 30000,
     debug = false,
-  } = options
+  } = options || {}
 
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -145,6 +145,11 @@ export function useWebSocket(options: WebSocketOptions) {
   }, [debug, heartbeatInterval])
 
   const connectWebSocket = useCallback(() => {
+    // Don't connect if no URL provided
+    if (!url) {
+      return
+    }
+
     // Prevent duplicate connections
     if (wsRef.current?.readyState === WebSocket.CONNECTING || wsRef.current?.readyState === WebSocket.OPEN) {
       return

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"embed"
 
 	"github.com/wailsapp/wails/v2"
