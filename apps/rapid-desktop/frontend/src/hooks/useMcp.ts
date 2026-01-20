@@ -9,8 +9,7 @@ import { useCallback, useRef } from 'react'
 import { useAppStore, type Task, type Message, type Agent } from '../stores/app'
 
 // MCP server endpoint - can be configured via env var
-// @ts-expect-error - Vite provides import.meta.env
-const MCP_ENDPOINT = (import.meta.env?.VITE_MCP_URL as string) || 'http://localhost:3100/mcp'
+const MCP_ENDPOINT = import.meta.env.VITE_MCP_URL || 'http://localhost:3100/mcp'
 
 interface McpToolResult {
   content?: Array<{ type: string; text: string }>

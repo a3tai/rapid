@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react';
 
+interface PerformanceMemory {
+  usedJSHeapSize: number;
+  jsHeapSizeLimit: number;
+  totalJSHeapSize: number;
+}
+
 interface PerformanceMetrics {
   memoryUsage: number;
   memoryLimit: number;
@@ -40,7 +46,7 @@ export const PerformanceMonitor: React.FC = () => {
   useEffect(() => {
     const collectMetrics = () => {
       // Check if performance.memory is available (only in some environments)
-      const perfMemory = (performance as any).memory;
+      const perfMemory = (performance as unknown as { memory?: PerformanceMemory }).memory;
 
       if (!perfMemory) {
         // Gracefully handle when performance.memory is not available

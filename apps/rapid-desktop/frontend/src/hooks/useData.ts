@@ -15,8 +15,7 @@ import { useMcp } from './useMcp'
 const isWailsEnv = () => typeof window !== 'undefined' && window.go?.main?.App
 
 // Get MCP endpoint from env or default
-// @ts-expect-error - Vite provides import.meta.env
-const MCP_ENDPOINT = (import.meta.env?.VITE_MCP_URL as string) || 'http://localhost:3100/mcp'
+const MCP_ENDPOINT = import.meta.env.VITE_MCP_URL || 'http://localhost:3100/mcp'
 
 /**
  * Unified hook that provides data access regardless of environment
