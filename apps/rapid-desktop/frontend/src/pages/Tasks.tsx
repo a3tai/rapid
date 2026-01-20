@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from 'react'
 import { clsx } from 'clsx'
 import { formatDistanceToNow } from 'date-fns'
@@ -53,11 +54,12 @@ export function TasksPage() {
         aVal = new Date(a.updatedAt).getTime()
         bVal = new Date(b.updatedAt).getTime()
         break
-      case 'priority':
+      case 'priority': {
         const priorityOrder = { urgent: 0, high: 1, normal: 2, low: 3 }
         aVal = priorityOrder[a.priority as keyof typeof priorityOrder]
         bVal = priorityOrder[b.priority as keyof typeof priorityOrder]
         break
+      }
       case 'status':
         aVal = a.status
         bVal = b.status

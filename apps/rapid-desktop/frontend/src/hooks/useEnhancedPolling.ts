@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { useData } from './useData'
 import { useWebSocket } from './useWebSocket'

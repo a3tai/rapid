@@ -4,6 +4,7 @@
  * Allows agents to learn, store, and retrieve knowledge across sessions.
  * Supports persistent storage, semantic search, and shared knowledge across agents.
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
@@ -133,10 +134,8 @@ class InMemoryKnowledgeStore {
 class RedisKnowledgeStore {
   // Redis client type - using any because ioredis doesn't provide proper types for all operations
   // This is a known issue with ioredis TypeScript support and is safe for our use case
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private redis: any;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   constructor(redis: any) {
     this.redis = redis;
   }

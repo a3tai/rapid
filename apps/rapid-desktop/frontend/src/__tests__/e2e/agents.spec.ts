@@ -174,7 +174,6 @@ test.describe('Agent Management', () => {
       // Check for agent card with worktree
       const agentCard = page.locator('.card').filter({ hasText: /orchestrator|worker|designer/ }).first()
       if (await agentCard.isVisible()) {
-        const hasWorktreeInfo = await agentCard.locator('text="Worktree:"').isVisible()
         // Mock data includes worktree info
         expect(true).toBeTruthy() // Test passes if card exists
       }
@@ -230,7 +229,7 @@ test.describe('Agent Management', () => {
         await page.waitForTimeout(300)
 
         // Check for selection indicator (ring class)
-        const hasRing = await agentCard.evaluate((el) => el.classList.contains('ring-2'))
+        await agentCard.evaluate((el) => el.classList.contains('ring-2'))
         expect(true).toBeTruthy() // Test passes if click works
       }
     }

@@ -26,6 +26,7 @@ export function SecurityPanel() {
   const [status, setStatus] = useState<SecurityStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { callTool: _callTool } = useMcp() // Will be used when connected to real MCP
 
   useEffect(() => {

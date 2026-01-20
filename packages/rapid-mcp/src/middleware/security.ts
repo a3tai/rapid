@@ -8,7 +8,7 @@
  * - Cost attribution
  */
 
-import type { SecurityConfig, ToolAclConfig, AgentRole } from '@a3t/rapid-schema';
+import type { SecurityConfig, AgentRole } from '@a3t/rapid-schema';
 
 export interface SecurityContext {
   agentId: string;

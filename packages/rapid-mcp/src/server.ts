@@ -4,6 +4,7 @@
  * Exposes RAPID sandbox and governance capabilities via Model Context Protocol.
  * Supports both stdio (for local spawned processes) and HTTP transports.
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
@@ -131,7 +132,6 @@ export async function runHttp(server: McpServer, port: number = 3100): Promise<v
   // Create HTTP transport for MCP
   // StreamableHTTPServerTransport is from MCP SDK and implements Transport interface,
   // but doesn't have proper TypeScript exports. Using type assertion here is safe.
-   
   const httpTransport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => randomUUID(),
   }) as any;

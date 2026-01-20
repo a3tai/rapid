@@ -152,7 +152,7 @@ test.describe('Events Page', () => {
 
         // Check for expanded details (JSON payload display)
         const expandedContent = page.locator('pre')
-        const hasExpanded = await expandedContent.isVisible()
+        await expandedContent.isVisible()
         // This test passes if we can click - expansion behavior may vary
         expect(true).toBeTruthy()
       }
