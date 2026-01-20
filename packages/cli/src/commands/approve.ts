@@ -143,12 +143,11 @@ approveCommand
         },
         {
           title: 'Approval Decision',
-          content: `Approved request ${requestId}`,
-          actionable: false,
-          context: {
+          content: JSON.stringify({
             request_id: requestId,
             decision: 'approved',
-          },
+          }),
+          actionable: false,
         },
         'high'
       );
@@ -188,13 +187,12 @@ approveCommand
         },
         {
           title: 'Approval Decision',
-          content: `Rejected request ${requestId}${options.reason ? ': ' + options.reason : ''}`,
-          actionable: false,
-          context: {
+          content: JSON.stringify({
             request_id: requestId,
             decision: 'rejected',
             reason: options.reason,
-          },
+          }),
+          actionable: false,
         },
         'high'
       );
@@ -228,24 +226,23 @@ approveCommand
       const bus = await getOrCreateBus();
 
       // Send deferral response via event bus
-      await bus.send({
-        type: 'approval_response',
-        fromAgent: {
+      await bus.sendMessage(
+        'approval_response',
+        {
           id: `human-${Date.now()}`,
           name: 'human-reviewer',
         },
-        priority: 'normal',
-        payload: {
+        {
           title: 'Approval Decision',
-          content: `Deferred request ${requestId}: ${options.reason}`,
-          actionable: false,
-          context: {
+          content: JSON.stringify({
             request_id: requestId,
             decision: 'deferred',
             reason: options.reason,
-          },
+          }),
+          actionable: false,
         },
-      });
+        'normal'
+      );
 
       spinner.succeed('Deferral sent');
       console.log();
