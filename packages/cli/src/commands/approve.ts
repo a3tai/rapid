@@ -149,7 +149,7 @@ approveCommand
           }),
           actionable: false,
         },
-        'high'
+        { priority: 'high' }
       );
 
       spinner.succeed('Approval sent');
@@ -194,7 +194,7 @@ approveCommand
           }),
           actionable: false,
         },
-        'high'
+        { priority: 'high' }
       );
 
       spinner.succeed('Rejection sent');
@@ -241,7 +241,7 @@ approveCommand
           }),
           actionable: false,
         },
-        'normal'
+        { priority: 'normal' }
       );
 
       spinner.succeed('Deferral sent');
