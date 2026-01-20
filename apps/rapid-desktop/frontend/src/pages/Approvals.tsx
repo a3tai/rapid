@@ -37,57 +37,13 @@ export function ApprovalsPage() {
   const fetchRequests = useCallback(async () => {
     setLoading(true)
     try {
-      // Fetch real approvals from backend via MCP
+      // Fetch real approvals from backend via MCP (no mock fallback - real data only)
       const approvals = await fetchApprovals()
-
-      // If no approvals from backend, show mock data for demo
-      if (approvals.length === 0) {
-        const mockRequests: ApprovalRequest[] = [
-          {
-            id: 'apr-001',
-            toolName: 'write_file',
-            agentId: 'worker-123',
-            agentName: 'worker',
-            action: 'Write to .env file',
-            args: { path: '.env.production', content: 'API_KEY=...' },
-            reason: 'Updating production API key configuration',
-            riskLevel: 'high',
-            createdAt: new Date(Date.now() - 120000).toISOString(),
-            expiresAt: new Date(Date.now() + 180000).toISOString(),
-            status: 'pending',
-          },
-          {
-            id: 'apr-002',
-            toolName: 'delete_file',
-            agentId: 'worker-456',
-            agentName: 'worker',
-            action: 'Delete database migration',
-            args: { path: 'migrations/20240115_drop_users.sql' },
-            reason: 'Cleaning up unused migration file',
-            riskLevel: 'critical',
-            createdAt: new Date(Date.now() - 300000).toISOString(),
-            status: 'pending',
-          },
-          {
-            id: 'apr-003',
-            toolName: 'secure_exec',
-            agentId: 'orchestrator-789',
-            agentName: 'orchestrator',
-            action: 'Run deployment script',
-            args: { command: './deploy.sh', sandbox: 'permissive' },
-            reason: 'Deploying latest changes to staging',
-            riskLevel: 'medium',
-            createdAt: new Date(Date.now() - 600000).toISOString(),
-            status: 'approved',
-          },
-        ]
-        setRequests(mockRequests)
-      } else {
-        setRequests(approvals)
-      }
+      setRequests(approvals)
     } catch (err) {
       console.error('Failed to fetch approval requests:', err)
-      toast.error('Failed to Load Approvals', 'Could not fetch approval requests')
+      setRequests([])
+      toast.error('Failed to Load Approvals', 'Backend not responding - ensure daemon is running')
     } finally {
       setLoading(false)
     }

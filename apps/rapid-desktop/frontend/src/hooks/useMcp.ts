@@ -81,16 +81,15 @@ export function useMcp() {
           worktree: a.worktree,
           session: a.session,
         })))
+      } else {
+        setAgents([])
       }
     } catch (err) {
-      console.warn('Failed to fetch agents:', err)
-      // Fall back to mock data on error
-      setAgents([
-        { id: 'orchestrator-1', name: 'orchestrator', worktree: 'main' },
-        { id: 'worker-1', name: 'worker', worktree: 'feat/auth' },
-      ])
+      console.error('Failed to fetch agents:', err)
+      setAgents([])
+      setError(`Failed to fetch agents: ${err}`)
     }
-  }, [callTool, setAgents])
+  }, [callTool, setAgents, setError])
 
   /**
    * Fetch tasks
@@ -99,35 +98,13 @@ export function useMcp() {
     try {
       const result = await callTool('task_list', {})
       const data = result.structuredContent as { tasks?: Task[] }
-      if (data?.tasks) {
-        setTasks(data.tasks)
-      }
+      setTasks(data?.tasks || [])
     } catch (err) {
-      console.warn('Failed to fetch tasks:', err)
-      // Fall back to mock data
-      setTasks([
-        {
-          id: 'task-1',
-          title: 'Implement authentication',
-          status: 'in_progress',
-          priority: 'high',
-          assignedTo: 'worker-1',
-          createdAt: new Date(Date.now() - 7200000).toISOString(),
-          updatedAt: new Date(Date.now() - 1800000).toISOString(),
-          tags: ['feature', 'auth'],
-        },
-        {
-          id: 'task-2',
-          title: 'Review PR #42',
-          status: 'pending',
-          priority: 'normal',
-          createdAt: new Date(Date.now() - 3600000).toISOString(),
-          updatedAt: new Date(Date.now() - 3600000).toISOString(),
-          tags: ['review'],
-        },
-      ])
+      console.error('Failed to fetch tasks:', err)
+      setTasks([])
+      setError(`Failed to fetch tasks: ${err}`)
     }
-  }, [callTool, setTasks])
+  }, [callTool, setTasks, setError])
 
   /**
    * Fetch messages from event bus
@@ -147,24 +124,15 @@ export function useMcp() {
           timestamp: m.timestamp,
           payload: m.payload,
         })))
+      } else {
+        setMessages([])
       }
     } catch (err) {
-      console.warn('Failed to fetch messages:', err)
-      // Fall back to mock data
-      setMessages([
-        {
-          id: 'msg-1',
-          type: 'completion',
-          fromAgent: { id: 'worker-1', name: 'worker' },
-          timestamp: new Date(Date.now() - 300000).toISOString(),
-          payload: {
-            title: 'Task completed',
-            content: 'Implemented user authentication module',
-          },
-        },
-      ])
+      console.error('Failed to fetch messages:', err)
+      setMessages([])
+      setError(`Failed to fetch messages: ${err}`)
     }
-  }, [callTool, setMessages])
+  }, [callTool, setMessages, setError])
 
   /**
    * Fetch event bus status as daemon status
@@ -179,20 +147,20 @@ export function useMcp() {
       }
 
       setDaemonStatus({
-        running: data?.running !== false,
+        running: true,
         socketPath: MCP_ENDPOINT,
-        version: '0.1.0',
-        uptime: 3600, // Mock uptime
+        version: '1.0.0',
         sessions: data?.agentCount || 0,
       })
     } catch (err) {
-      console.warn('Failed to fetch daemon status:', err)
+      console.error('Failed to fetch daemon status:', err)
       setDaemonStatus({
         running: false,
         socketPath: MCP_ENDPOINT,
       })
+      setError(`Daemon not responding: ${err}`)
     }
-  }, [callTool, setDaemonStatus])
+  }, [callTool, setDaemonStatus, setError])
 
   /**
    * Create a new task
