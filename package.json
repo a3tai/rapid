@@ -30,6 +30,8 @@
     "docs:deploy": "pnpm --filter @a3t/rapid-docs pages:deploy",
     "desktop:dev": "pnpm --filter rapid-desktop-frontend dev",
     "desktop:build": "pnpm --filter rapid-desktop-frontend build",
+    "desktop:wails": "cd apps/rapid-desktop && wails dev",
+    "desktop:wails:build": "cd apps/rapid-desktop && wails build",
     "cli:build": "turbo build --filter=@a3t/rapid-core --filter=@a3t/rapid",
     "cli:dev": "turbo dev --filter=@a3t/rapid-core --filter=@a3t/rapid",
     "cli:run": "node packages/cli/dist/bin.js",
