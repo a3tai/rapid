@@ -19,8 +19,12 @@ import { registerSecurityTools } from './tools/security.js';
 import { registerEventBusTools } from './tools/eventbus.js';
 import { registerPersonaTools } from './tools/personas.js';
 import { registerTaskTools } from './tools/tasks.js';
+import { registerTaskWatchTools } from './tools/task-watch.js';
 import { registerDependencyTools } from './tools/dependencies.js';
 import { registerMetricsTools } from './tools/metrics.js';
+import { registerKnowledgeTools } from './tools/knowledge.js';
+import { registerSuggestionTools } from './tools/suggestions.js';
+import { registerContextEngineTools } from './tools/context-engine.js';
 
 // Import resource implementations
 import { registerConfigResource } from './resources/config.js';
@@ -63,8 +67,12 @@ export function createRapidMcpServer(config: RapidMcpServerConfig): McpServer {
   registerEventBusTools(server, context);
   registerPersonaTools(server, context);
   registerTaskTools(server, context);
+  registerTaskWatchTools(server, context);
   registerDependencyTools(server, context);
   registerMetricsTools(server, context);
+  registerKnowledgeTools(server, context);
+  registerSuggestionTools(server, context);
+  registerContextEngineTools(server, context);
 
   // Register resources
   registerConfigResource(server, context);
