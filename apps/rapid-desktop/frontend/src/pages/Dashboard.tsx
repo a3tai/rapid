@@ -3,6 +3,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { useAgents, useTasks, useMessages, useSuggestions, useDaemonStatus } from '../stores/app'
 import type { Task, Message, Suggestion } from '../stores/app'
 import { SecurityPanel } from '../components/SecurityPanel'
+import { ActivityFeed } from '../components/ActivityFeed'
 
 export function Dashboard() {
   const agents = useAgents()
@@ -127,25 +128,11 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* Right column - Event Feed and Suggestions */}
+        {/* Right column - Activity Feed and Suggestions */}
         <div className="col-span-2 space-y-6">
-          {/* Event feed panel */}
-          <div className="card p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold">Event Feed</h2>
-              <span className="badge badge-neutral">{messages.length}</span>
-            </div>
-            <div className="space-y-2">
-              {messages.length === 0 ? (
-                <div className="text-center py-8 text-rapid-muted">
-                  No events yet
-                </div>
-              ) : (
-                messages.slice(0, 5).map((message) => (
-                  <MessageRow key={message.id} message={message} />
-                ))
-              )}
-            </div>
+          {/* Activity feed - real-time timeline */}
+          <div className="h-80">
+            <ActivityFeed />
           </div>
 
           {/* Suggestions panel */}
