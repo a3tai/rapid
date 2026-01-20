@@ -401,7 +401,7 @@ function TaskCard({ task }: { task: Task }) {
     }, 300)
   }
 
-  const status = statusIndicators[task.status]
+  const status = statusIndicators[task.status as TaskStatus]
 
   return (
     <div
