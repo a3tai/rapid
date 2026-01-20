@@ -26,7 +26,7 @@ export function SecurityPanel() {
   const [status, setStatus] = useState<SecurityStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const { callTool } = useMcp()
+  const { callTool: _callTool } = useMcp() // Will be used when connected to real MCP
 
   useEffect(() => {
     loadSecurityStatus()

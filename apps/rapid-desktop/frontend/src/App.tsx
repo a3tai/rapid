@@ -8,6 +8,7 @@ import { AgentsPage } from './pages/Agents'
 import { TasksPage } from './pages/Tasks'
 import { EventsPage } from './pages/Events'
 import { KnowledgePage } from './pages/Knowledge'
+import { ApprovalsPage } from './pages/Approvals'
 import { ConfigPage } from './pages/Config'
 
 function App() {
@@ -41,6 +42,8 @@ function App() {
         return <EventsPage />
       case 'knowledge':
         return <KnowledgePage />
+      case 'approvals':
+        return <ApprovalsPage />
       case 'config':
         return <ConfigPage />
       default:
