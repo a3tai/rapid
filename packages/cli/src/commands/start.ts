@@ -382,7 +382,7 @@ export const startCommand = new Command('start')
               }).catch(() => null);
 
               if (response?.ok) {
-                const data = await response.json();
+                const data = await response.json() as { result?: { structuredContent?: { agentId?: string } } };
                 if (data.result?.structuredContent?.agentId) {
                   logger.debug(`Spawned ${personaName} as ${data.result.structuredContent.agentId}`);
                 }

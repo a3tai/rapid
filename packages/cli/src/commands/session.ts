@@ -190,7 +190,7 @@ export const sessionCommand = new Command('session')
             }
 
             // If we have a tool, try to attach
-            if (attachCmd) {
+            if (attachCmd && attachCmd[0]) {
               try {
                 logger.info(`Attaching to session ${session.name}...`);
                 await execa(attachCmd[0], attachCmd.slice(1), {
