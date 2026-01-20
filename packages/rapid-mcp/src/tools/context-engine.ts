@@ -339,4 +339,94 @@ export async function registerContextEngineTools(
       };
     }
   );
+
+  /**
+   * Inject: Get relevant context for a task
+   */
+  server.registerTool(
+    'context_inject',
+    {
+      title: 'Inject Relevant Context for Task',
+      description: 'Get context entries relevant to a task based on keywords',
+      inputSchema: z.object({
+        keywords: z.array(z.string()).describe('Keywords to search for'),
+        maxResults: z.number().default(10).describe('Maximum results to return'),
+      }),
+      outputSchema: z.object({
+        entries: z.array(
+          z.object({
+            key: z.string(),
+            value: z.unknown(),
+            memoryType: z.string(),
+            confidence: z.number(),
+          })
+        ),
+        count: z.number(),
+      }),
+    },
+    async (args) => {
+      const entries = await contextEngine!.inject(args.keywords, args.maxResults);
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              entries: entries.map((e) => ({
+                key: e.key,
+                value: e.value,
+                memoryType: e.memoryType,
+                confidence: e.metadata.confidence,
+              })),
+              count: entries.length,
+            }),
+          },
+        ],
+        structuredContent: {
+          entries: entries.map((e) => ({
+            key: e.key,
+            value: e.value,
+            memoryType: e.memoryType,
+            confidence: e.metadata.confidence,
+          })),
+          count: entries.length,
+        },
+      };
+    }
+  );
+
+  /**
+   * Consolidate: Archive old, low-confidence entries
+   */
+  server.registerTool(
+    'context_consolidate',
+    {
+      title: 'Consolidate Knowledge Store',
+      description: 'Archive old, low-confidence entries to clean up the knowledge store',
+      inputSchema: z.object({
+        maxAgeInDays: z.number().default(30).describe('Maximum age in days'),
+        minConfidence: z.number().default(0.5).describe('Minimum confidence score (0-1)'),
+      }),
+      outputSchema: z.object({
+        archived: z.number(),
+        kept: z.number(),
+      }),
+    },
+    async (args) => {
+      const result = await contextEngine!.consolidate({
+        maxAge: args.maxAgeInDays,
+        minConfidence: args.minConfidence,
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(result),
+          },
+        ],
+        structuredContent: result,
+      };
+    }
+  );
 }
