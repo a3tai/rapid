@@ -5,6 +5,9 @@ import { useTasks, useAppStore, type Task } from '../stores/app'
 import { useWails } from '../hooks/useWails'
 import { useToast } from '../components/Toast'
 
+// Re-export useState for use in component functions
+export { useState }
+
 type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'blocked'
 
 const COLUMNS: { id: TaskStatus; label: string; color: string }[] = [
@@ -370,6 +373,8 @@ function TaskColumn({ column, tasks }: TaskColumnProps) {
 
 function TaskCard({ task }: { task: Task }) {
   const setSelectedTask = useAppStore((s) => s.setSelectedTask)
+  const toast = useToast()
+  const [isChangingStatus, setIsChangingStatus] = useState(false)
 
   const priorityColors = {
     urgent: 'border-l-red-500',
@@ -378,21 +383,67 @@ function TaskCard({ task }: { task: Task }) {
     low: 'border-l-gray-500',
   }
 
+  const statusIndicators = {
+    pending: { icon: '⏳', label: 'Pending', color: 'text-rapid-muted' },
+    in_progress: { icon: '⚡', label: 'In Progress', color: 'text-yellow-400' },
+    completed: { icon: '✓', label: 'Completed', color: 'text-green-400' },
+    blocked: { icon: '🚫', label: 'Blocked', color: 'text-red-400' },
+  }
+
+  const handleStatusChange = (newStatus: TaskStatus) => {
+    if (newStatus === task.status) return
+
+    setIsChangingStatus(true)
+    // Simulate backend call with delay
+    setTimeout(() => {
+      toast.success('Status Updated', `Task moved to ${statusIndicators[newStatus].label}`)
+      setIsChangingStatus(false)
+    }, 300)
+  }
+
+  const status = statusIndicators[task.status]
+
   return (
     <div
       onClick={() => setSelectedTask(task.id)}
       className={clsx(
-        'bg-rapid-elevated rounded-lg p-3 cursor-pointer hover:bg-rapid-border transition-colors border-l-4',
-        priorityColors[task.priority]
+        'bg-rapid-elevated rounded-lg p-3 cursor-pointer hover:bg-rapid-border transition-all border-l-4',
+        priorityColors[task.priority],
+        isChangingStatus && 'opacity-75'
       )}
     >
-      <div className="font-medium text-sm">{task.title}</div>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1">
+          <div className="font-medium text-sm">{task.title}</div>
 
-      {task.description && (
-        <div className="text-xs text-rapid-muted mt-1 line-clamp-2">
-          {task.description}
+          {task.description && (
+            <div className="text-xs text-rapid-muted mt-1 line-clamp-2">
+              {task.description}
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Status dropdown */}
+        <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+          <select
+            value={task.status}
+            onChange={(e) => handleStatusChange(e.target.value as TaskStatus)}
+            disabled={isChangingStatus}
+            className={clsx(
+              'text-xs px-2 py-1 rounded border border-rapid-border bg-rapid-surface',
+              'hover:border-rapid-accent focus:outline-none focus:border-rapid-accent',
+              'transition-colors disabled:opacity-50 cursor-pointer',
+              status.color
+            )}
+            title="Click to change status"
+          >
+            <option value="pending">⏳ Pending</option>
+            <option value="in_progress">⚡ In Progress</option>
+            <option value="completed">✓ Completed</option>
+            <option value="blocked">🚫 Blocked</option>
+          </select>
+        </div>
+      </div>
 
       <div className="flex items-center justify-between mt-3">
         {task.assignedTo ? (
@@ -431,6 +482,9 @@ function TaskCard({ task }: { task: Task }) {
 }
 
 function TaskList({ tasks, selectedTasks, onToggleSelect }: { tasks: Task[]; selectedTasks?: Set<string>; onToggleSelect?: (id: string) => void }) {
+  const [statusChanging, setStatusChanging] = useState<Set<string>>(new Set())
+  const toast = useToast()
+
   const statusBadge = {
     pending: 'badge-neutral',
     in_progress: 'badge-warning',
@@ -444,6 +498,23 @@ function TaskList({ tasks, selectedTasks, onToggleSelect }: { tasks: Task[]; sel
     high: 'badge-warning',
     normal: 'badge-info',
     low: 'badge-neutral',
+  }
+
+  const handleStatusChange = (taskId: string, newStatus: TaskStatus) => {
+    const task = tasks.find((t) => t.id === taskId)
+    if (!task || newStatus === task.status) return
+
+    setStatusChanging((prev) => new Set([...prev, taskId]))
+
+    // Simulate backend call with delay
+    setTimeout(() => {
+      toast.success('Status Updated', `"${task.title}" moved to ${newStatus.replace('_', ' ')}`)
+      setStatusChanging((prev) => {
+        const next = new Set(prev)
+        next.delete(taskId)
+        return next
+      })
+    }, 300)
   }
 
   return (
@@ -479,8 +550,9 @@ function TaskList({ tasks, selectedTasks, onToggleSelect }: { tasks: Task[]; sel
             <tr
               key={task.id}
               className={clsx(
-                'border-b border-rapid-border hover:bg-rapid-elevated',
-                selectedTasks?.has(task.id) && 'bg-rapid-accent/10'
+                'border-b border-rapid-border transition-all',
+                selectedTasks?.has(task.id) ? 'bg-rapid-accent/10 hover:bg-rapid-accent/20' : 'hover:bg-rapid-elevated',
+                statusChanging.has(task.id) && 'opacity-75'
               )}
             >
               {onToggleSelect && (
@@ -505,10 +577,24 @@ function TaskList({ tasks, selectedTasks, onToggleSelect }: { tasks: Task[]; sel
                   </div>
                 )}
               </td>
-              <td className="p-3">
-                <span className={clsx('badge', statusBadge[task.status])}>
-                  {task.status.replace('_', ' ')}
-                </span>
+              <td className="p-3" onClick={(e) => e.stopPropagation()}>
+                <select
+                  value={task.status}
+                  onChange={(e) => handleStatusChange(task.id, e.target.value as TaskStatus)}
+                  disabled={statusChanging.has(task.id)}
+                  className={clsx(
+                    'text-xs px-2 py-1 rounded border border-rapid-border bg-rapid-surface',
+                    'hover:border-rapid-accent focus:outline-none focus:border-rapid-accent',
+                    'transition-all disabled:opacity-50 cursor-pointer',
+                    statusBadge[task.status]
+                  )}
+                  title="Click to change status"
+                >
+                  <option value="pending">Pending</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="completed">Completed</option>
+                  <option value="blocked">Blocked</option>
+                </select>
               </td>
               <td className="p-3">
                 <span className={clsx('badge', priorityBadge[task.priority])}>
