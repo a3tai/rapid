@@ -1,0 +1,25 @@
+version: '3'
+
+vars:
+  APP_NAME: "rapid-desktop"
+  BIN_DIR: "bin"
+
+tasks:
+  build:
+    summary: Build the application for Linux
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - cd frontend && npm install && npm run build
+      - go build -tags desktop -ldflags="-s -w" -o {{.BIN_DIR}}/{{.APP_NAME}} .
+
+  run:
+    summary: Run the Linux application
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - ./{{.BIN_DIR}}/{{.APP_NAME}}
+
+  package:
+    summary: Package the Linux application
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - echo "Linux packaging not yet implemented"

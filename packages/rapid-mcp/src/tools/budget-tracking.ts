@@ -80,7 +80,7 @@ export function registerBudgetTrackingTools(server: McpServer, _context: ServerC
       const params: Record<string, number> = { limit: 100 };
       if (hours !== undefined) params.hours = hours;
       if (days !== undefined) params.days = days;
-      const summary = gatewayManager.getCostSummary(params as any);
+      const summary = gatewayManager.getCostSummary(params as Record<string, number>);
 
       return {
         content: [
@@ -89,7 +89,7 @@ export function registerBudgetTrackingTools(server: McpServer, _context: ServerC
             text: JSON.stringify(summary, null, 2),
           },
         ],
-        structuredContent: summary as any,
+        structuredContent: summary,
       };
     }
   );
@@ -278,7 +278,7 @@ export function registerBudgetTrackingTools(server: McpServer, _context: ServerC
       if (agentId !== undefined) queryParams.agent = agentId;
       if (sessionId !== undefined) queryParams.session = sessionId;
       if (model !== undefined) queryParams.model = model;
-      const records = gatewayManager.getCostRecords(queryParams as any);
+      const records = gatewayManager.getCostRecords(queryParams as Record<string, unknown>);
 
       const totalCost = records.reduce((sum, r) => sum + r.cost, 0);
 

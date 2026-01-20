@@ -10,6 +10,10 @@ export default defineConfig({
       '@wails': resolve(__dirname, 'wailsjs'),
     },
   },
+  server: {
+    port: 9245,
+    strictPort: true,
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,

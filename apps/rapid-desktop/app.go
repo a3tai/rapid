@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -12,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // WebSocketSubscription represents a subscription to real-time updates
@@ -22,31 +21,20 @@ type WebSocketSubscription struct {
 	Channel   chan interface{}
 }
 
-// App struct for Wails binding
-type App struct {
-	ctx           context.Context
+// AppService is the main service for the RAPID desktop app (Wails v3)
+type AppService struct {
 	socketPath    string
 	subscriptions map[string]*WebSocketSubscription
 	subMutex      sync.RWMutex
 }
 
-// NewApp creates a new App application struct
-func NewApp() *App {
+// NewAppService creates a new AppService instance
+func NewAppService() *AppService {
 	homeDir, _ := os.UserHomeDir()
-	return &App{
+	return &AppService{
 		socketPath:    filepath.Join(homeDir, ".rapid", "rapid.sock"),
 		subscriptions: make(map[string]*WebSocketSubscription),
 	}
-}
-
-// startup is called when the app starts
-func (a *App) startup(ctx context.Context) {
-	a.ctx = ctx
-}
-
-// shutdown is called when the app is closing
-func (a *App) shutdown(ctx context.Context) {
-	// Cleanup if needed
 }
 
 // Agent represents an agent on the event bus
@@ -90,7 +78,7 @@ type DaemonStatus struct {
 }
 
 // rpcCall makes a JSON-RPC call to the daemon
-func (a *App) rpcCall(method string, params interface{}) (interface{}, error) {
+func (a *AppService) rpcCall(method string, params interface{}) (interface{}, error) {
 	conn, err := net.DialTimeout("unix", a.socketPath, 5*time.Second)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to daemon: %w", err)
@@ -131,7 +119,7 @@ func (a *App) rpcCall(method string, params interface{}) (interface{}, error) {
 }
 
 // GetDaemonStatus returns the daemon's current status
-func (a *App) GetDaemonStatus() (*DaemonStatus, error) {
+func (a *AppService) GetDaemonStatus() (*DaemonStatus, error) {
 	result, err := a.rpcCall("daemon.status", nil)
 	if err != nil {
 		return &DaemonStatus{
@@ -147,7 +135,7 @@ func (a *App) GetDaemonStatus() (*DaemonStatus, error) {
 }
 
 // GetAgents returns list of active agents
-func (a *App) GetAgents() ([]Agent, error) {
+func (a *AppService) GetAgents() ([]Agent, error) {
 	// Try to get agents from daemon
 	result, err := a.rpcCall("agents.list", nil)
 	if err != nil {
@@ -177,7 +165,7 @@ func (a *App) GetAgents() ([]Agent, error) {
 }
 
 // GetTasks returns list of tasks
-func (a *App) GetTasks(status string) ([]Task, error) {
+func (a *AppService) GetTasks(status string) ([]Task, error) {
 	// Try to get tasks from daemon
 	params := map[string]interface{}{}
 	if status != "" {
@@ -250,7 +238,7 @@ func (a *App) GetTasks(status string) ([]Task, error) {
 }
 
 // GetMessages returns recent event bus messages
-func (a *App) GetMessages(limit int) ([]Message, error) {
+func (a *AppService) GetMessages(limit int) ([]Message, error) {
 	if limit <= 0 {
 		limit = 20
 	}
@@ -315,7 +303,7 @@ func (a *App) GetMessages(limit int) ([]Message, error) {
 }
 
 // CreateTask creates a new task
-func (a *App) CreateTask(title, description, priority string, tags []string) (*Task, error) {
+func (a *AppService) CreateTask(title, description, priority string, tags []string) (*Task, error) {
 	task := &Task{
 		ID:          fmt.Sprintf("task-%d", time.Now().UnixNano()),
 		Title:       title,
@@ -330,7 +318,7 @@ func (a *App) CreateTask(title, description, priority string, tags []string) (*T
 }
 
 // SpawnAgent spawns a new agent with a persona
-func (a *App) SpawnAgent(persona, worktree string) error {
+func (a *AppService) SpawnAgent(persona, worktree string) error {
 	// Call MCP server HTTP endpoint to spawn agent
 	mcpURL := os.Getenv("RAPID_MCP_URL")
 	if mcpURL == "" {
@@ -371,18 +359,21 @@ func (a *App) SpawnAgent(persona, worktree string) error {
 		return fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	// Log spawn success
-	runtime.EventsEmit(a.ctx, "rapid:agent:spawned", map[string]interface{}{
-		"persona":  persona,
-		"worktree": worktree,
-		"result":   result,
-	})
+	// Emit event via Wails v3 application
+	app := application.Get()
+	if app != nil {
+		app.Event.Emit("rapid:agent:spawned", map[string]interface{}{
+			"persona":  persona,
+			"worktree": worktree,
+			"result":   result,
+		})
+	}
 
 	return nil
 }
 
 // StopAgent stops a running agent
-func (a *App) StopAgent(agentID string) error {
+func (a *AppService) StopAgent(agentID string) error {
 	// Call the daemon to stop the agent
 	params := map[string]interface{}{
 		"agentId": agentID,
@@ -393,17 +384,20 @@ func (a *App) StopAgent(agentID string) error {
 		return fmt.Errorf("failed to stop agent: %w", err)
 	}
 
-	// Log stop success
-	runtime.EventsEmit(a.ctx, "rapid:agent:stopped", map[string]interface{}{
-		"agentId": agentID,
-		"result":  result,
-	})
+	// Emit event via Wails v3 application
+	app := application.Get()
+	if app != nil {
+		app.Event.Emit("rapid:agent:stopped", map[string]interface{}{
+			"agentId": agentID,
+			"result":  result,
+		})
+	}
 
 	return nil
 }
 
 // GetConfig returns the current rapid.json configuration
-func (a *App) GetConfig() (map[string]interface{}, error) {
+func (a *AppService) GetConfig() (map[string]interface{}, error) {
 	configPath := filepath.Join(".", "rapid.json")
 	data, err := os.ReadFile(configPath)
 	if err != nil {
@@ -419,7 +413,7 @@ func (a *App) GetConfig() (map[string]interface{}, error) {
 }
 
 // SaveConfig saves the rapid.json configuration
-func (a *App) SaveConfig(config map[string]interface{}) error {
+func (a *AppService) SaveConfig(config map[string]interface{}) error {
 	configPath := filepath.Join(".", "rapid.json")
 
 	// Marshal config to JSON with indentation
@@ -438,7 +432,7 @@ func (a *App) SaveConfig(config map[string]interface{}) error {
 
 // Subscribe creates a WebSocket subscription for real-time updates
 // Returns a subscription ID that can be used to unsubscribe
-func (a *App) Subscribe(eventType string) (string, error) {
+func (a *AppService) Subscribe(eventType string) (string, error) {
 	if eventType != "agents" && eventType != "tasks" && eventType != "messages" && eventType != "status" {
 		return "", fmt.Errorf("invalid event type: %s", eventType)
 	}
@@ -461,7 +455,7 @@ func (a *App) Subscribe(eventType string) (string, error) {
 }
 
 // Unsubscribe removes a WebSocket subscription
-func (a *App) Unsubscribe(subID string) error {
+func (a *AppService) Unsubscribe(subID string) error {
 	a.subMutex.Lock()
 	sub, exists := a.subscriptions[subID]
 	if !exists {
@@ -476,7 +470,7 @@ func (a *App) Unsubscribe(subID string) error {
 }
 
 // pollAndBroadcast polls daemon for updates and broadcasts via Wails events
-func (a *App) pollAndBroadcast(sub *WebSocketSubscription) {
+func (a *AppService) pollAndBroadcast(sub *WebSocketSubscription) {
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
@@ -508,12 +502,15 @@ func (a *App) pollAndBroadcast(sub *WebSocketSubscription) {
 				if string(dataJSON) != string(lastDataJSON) {
 					lastData = data
 
-					// Emit Wails event
-					eventData := map[string]interface{}{
-						"type": sub.EventType,
-						"data": data,
+					// Emit Wails v3 event
+					app := application.Get()
+					if app != nil {
+						eventData := map[string]interface{}{
+							"type": sub.EventType,
+							"data": data,
+						}
+						app.Event.Emit("rapid:"+sub.EventType, eventData)
 					}
-					runtime.EventsEmit(a.ctx, "rapid:"+sub.EventType, eventData)
 
 					// Also try to send on channel for compatibility
 					select {
@@ -528,9 +525,9 @@ func (a *App) pollAndBroadcast(sub *WebSocketSubscription) {
 }
 
 // SendMessage sends a message to an agent or broadcasts to all agents
-func (a *App) SendMessage(targetAgent string, messageType string, content string) (string, error) {
+func (a *AppService) SendMessage(targetAgent string, messageType string, content string) (string, error) {
 	if messageType != "coordination" && messageType != "discovery" && messageType != "completion" &&
-	   messageType != "error" && messageType != "question" && messageType != "learning" {
+		messageType != "error" && messageType != "question" && messageType != "learning" {
 		return "", fmt.Errorf("invalid message type: %s", messageType)
 	}
 
@@ -551,27 +548,31 @@ func (a *App) SendMessage(targetAgent string, messageType string, content string
 	}
 
 	// Send via RPC to daemon (if available)
-	// This would integrate with the actual event bus on the daemon
+	app := application.Get()
 	_, err := a.rpcCall("message.send", messagePayload)
 	if err != nil {
 		// Fall back to local event emission
-		runtime.EventsEmit(a.ctx, "rapid:message:sent", map[string]interface{}{
-			"type": messageType,
-			"data": messagePayload,
-		})
+		if app != nil {
+			app.Event.Emit("rapid:message:sent", map[string]interface{}{
+				"type": messageType,
+				"data": messagePayload,
+			})
+		}
 	}
 
 	// Also emit locally for immediate UI update
-	runtime.EventsEmit(a.ctx, "rapid:messages", map[string]interface{}{
-		"type": "message",
-		"data": messagePayload,
-	})
+	if app != nil {
+		app.Event.Emit("rapid:messages", map[string]interface{}{
+			"type": "message",
+			"data": messagePayload,
+		})
+	}
 
 	return messageID, nil
 }
 
 // GetChatHistory retrieves chat history with a specific agent or all messages
-func (a *App) GetChatHistory(agentID string, limit int) ([]Message, error) {
+func (a *AppService) GetChatHistory(agentID string, limit int) ([]Message, error) {
 	if limit <= 0 {
 		limit = 50
 	}

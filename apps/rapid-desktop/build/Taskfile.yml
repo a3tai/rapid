@@ -1,0 +1,27 @@
+version: '3'
+
+vars:
+  APP_NAME: "rapid-desktop"
+
+tasks:
+  setup:docker:
+    summary: Builds Docker image for cross-compilation
+    cmds:
+      - echo "Docker cross-compilation not configured"
+
+  dev:frontend:
+    summary: Runs the frontend in development mode
+    dir: "{{.ROOT_DIR}}/frontend"
+    cmds:
+      - npm run dev
+
+  build:frontend:
+    summary: Builds the frontend
+    dir: "{{.ROOT_DIR}}/frontend"
+    cmds:
+      - npm run build
+
+  update:build-assets:
+    summary: Updates build assets from config
+    cmds:
+      - echo "Build assets update not needed"

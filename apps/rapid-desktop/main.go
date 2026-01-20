@@ -27,7 +27,7 @@ func main() {
 	})
 
 	// Create main window with dark theme
-	app.NewWebviewWindowWithOptions(application.WebviewWindowOptions{
+	app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:  "RAPID Dashboard",
 		Width:  1280,
 		Height: 800,
