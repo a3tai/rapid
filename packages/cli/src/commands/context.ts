@@ -138,18 +138,19 @@ contextCommand
   .option('--confidence <score>', 'Confidence score (0-1)', '0.8')
   .option('--expires <iso>', 'ISO timestamp when knowledge expires')
   .description('Store new knowledge or learned information')
-  .action(async (key: string, value: string, options: any) => {
+  .action(async (key: string, value: string, options: Record<string, unknown>) => {
     const spinner = ora('Storing knowledge...').start();
     try {
       const engine = createContextEngine({
         projectDir: process.cwd(),
       });
 
-      const confidence = Math.min(1, Math.max(0, parseFloat(options.confidence)));
-      const entry = await engine.learn(key, value, options.memoryType, {
+      const confidence = Math.min(1, Math.max(0, parseFloat(String(options.confidence))));
+      const memoryType = (String(options.memoryType) || 'semantic') as 'episodic' | 'semantic' | 'procedural' | 'decision_trace';
+      const entry = await engine.learn(key, value, memoryType, {
         confidence,
-        tags: options.tags || [],
-        expiresAt: options.expires,
+        tags: (Array.isArray(options.tags) ? options.tags.map(String) : []) || [],
+        expiresAt: options.expires ? String(options.expires) : undefined,
       });
 
       spinner.succeed('Knowledge stored');
@@ -215,16 +216,17 @@ contextCommand
   .option('-m, --memory-type <type>', 'Filter by memory type')
   .option('-l, --limit <number>', 'Maximum results', '20')
   .description('Search across stored knowledge')
-  .action(async (query: string, options: any) => {
+  .action(async (query: string, options: Record<string, unknown>) => {
     const spinner = ora('Searching knowledge...').start();
     try {
       const engine = createContextEngine({
         projectDir: process.cwd(),
       });
 
+      const memoryType = options.memoryType ? (String(options.memoryType) as 'episodic' | 'semantic' | 'procedural' | 'decision_trace') : undefined;
       const results = await engine.search(query, {
-        memoryType: options.memoryType,
-        limit: parseInt(options.limit, 10),
+        memoryType,
+        limit: parseInt(String(options.limit), 10),
       });
 
       spinner.succeed('Search completed');
@@ -262,20 +264,21 @@ contextCommand
   .option('--confidence <score>', 'Minimum confidence score')
   .option('-l, --limit <number>', 'Maximum results', '50')
   .description('List all stored knowledge with optional filtering')
-  .action(async (options: any) => {
+  .action(async (options: Record<string, unknown>) => {
     const spinner = ora('Listing knowledge...').start();
     try {
       const engine = createContextEngine({
         projectDir: process.cwd(),
       });
 
+      const memoryType = options.memoryType ? (String(options.memoryType) as 'episodic' | 'semantic' | 'procedural' | 'decision_trace') : undefined;
       const entries = await engine.list({
-        memoryType: options.memoryType,
-        tags: options.tags,
-        minConfidence: options.confidence ? parseFloat(options.confidence) : undefined,
+        memoryType,
+        tags: Array.isArray(options.tags) ? options.tags.map(String) : [],
+        minConfidence: options.confidence ? parseFloat(String(options.confidence)) : undefined,
       });
 
-      const limited = entries.slice(0, parseInt(options.limit, 10));
+      const limited = entries.slice(0, parseInt(String(options.limit), 10));
 
       spinner.succeed('Knowledge listed');
       console.log();
@@ -308,7 +311,7 @@ contextCommand
   .command('forget <key>')
   .option('--confirm', 'Skip confirmation prompt')
   .description('Remove outdated or incorrect knowledge')
-  .action(async (key: string, options: any) => {
+  .action(async (key: string, options: Record<string, unknown>) => {
     if (!options.confirm) {
       console.log();
       console.log(`  ${chalk.yellow('⚠')} This will permanently delete knowledge for key: ${key}`);
@@ -372,6 +375,75 @@ contextCommand
       if (stats.mostAccessed) {
         console.log(`    Most Accessed: ${stats.mostAccessed}`);
       }
+      console.log();
+    } catch (error) {
+      spinner.fail(error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
+// Subcommand: Inject
+contextCommand
+  .command('inject <keywords...>')
+  .option('-l, --limit <number>', 'Maximum results', '10')
+  .description('Get context relevant to keywords for a task')
+  .action(async (keywords: string[], options: Record<string, unknown>) => {
+    const spinner = ora('Injecting relevant context...').start();
+    try {
+      const engine = createContextEngine({
+        projectDir: process.cwd(),
+      });
+
+      const entries = await engine.inject(keywords, parseInt(String(options.limit), 10));
+
+      spinner.succeed('Context injected');
+      console.log();
+      console.log(`  ${logger.brand('✓')} Relevant Context for Task`);
+      console.log(`    Keywords: ${keywords.join(', ')}`);
+      console.log(`    Found: ${entries.length} entry(ies)`);
+      console.log();
+
+      if (entries.length > 0) {
+        for (const entry of entries) {
+          console.log(`    ${logger.brand('•')} ${entry.key}`);
+          console.log(`      Type: ${entry.memoryType}`);
+          console.log(`      Confidence: ${(entry.metadata.confidence * 100).toFixed(0)}%`);
+        }
+      }
+      console.log();
+    } catch (error) {
+      spinner.fail(error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
+// Subcommand: Consolidate
+contextCommand
+  .command('consolidate')
+  .option('--max-age <days>', 'Maximum age in days', '30')
+  .option('--min-confidence <score>', 'Minimum confidence (0-1)', '0.5')
+  .description('Archive old, low-confidence entries')
+  .action(async (options: Record<string, unknown>) => {
+    const spinner = ora('Consolidating knowledge store...').start();
+    try {
+      const engine = createContextEngine({
+        projectDir: process.cwd(),
+      });
+
+      const maxAge = parseInt(String(options.maxAge), 10);
+      const minConfidence = parseFloat(String(options.minConfidence));
+
+      const result = await engine.consolidate({
+        maxAge,
+        minConfidence,
+      });
+
+      spinner.succeed('Knowledge consolidated');
+      console.log();
+      console.log(`  ${logger.brand('✓')} Knowledge Store Consolidation`);
+      console.log(`    Criteria: age > ${maxAge} days AND confidence < ${minConfidence}`);
+      console.log(`    Archived: ${result.archived} entries`);
+      console.log(`    Kept: ${result.kept} entries`);
       console.log();
     } catch (error) {
       spinner.fail(error instanceof Error ? error.message : String(error));
