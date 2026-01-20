@@ -61,7 +61,7 @@ test.describe('Dashboard', () => {
   test('should auto-refresh daemon status', async () => {
     // Get initial status text
     const statusBadge = page.locator('[data-testid="daemon-status-badge"]')
-    const initialStatus = await statusBadge.textContent()
+    await statusBadge.textContent()
 
     // Wait for refresh (5 seconds based on code)
     await page.waitForTimeout(6000)
