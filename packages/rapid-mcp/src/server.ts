@@ -19,6 +19,7 @@ import { registerSecurityTools } from './tools/security.js';
 import { registerEventBusTools } from './tools/eventbus.js';
 import { registerPersonaTools } from './tools/personas.js';
 import { registerTaskTools } from './tools/tasks.js';
+import { registerDependencyTools } from './tools/dependencies.js';
 
 // Import resource implementations
 import { registerConfigResource } from './resources/config.js';
@@ -61,6 +62,7 @@ export function createRapidMcpServer(config: RapidMcpServerConfig): McpServer {
   registerEventBusTools(server, context);
   registerPersonaTools(server, context);
   registerTaskTools(server, context);
+  registerDependencyTools(server, context);
 
   // Register resources
   registerConfigResource(server, context);
