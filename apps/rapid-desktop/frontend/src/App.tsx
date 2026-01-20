@@ -3,6 +3,7 @@ import { useAppStore, useActiveView, useDaemonStatus } from './stores/app'
 import { useData, useDataPolling, useMcpStatus } from './hooks/useData'
 import { Sidebar } from './components/Sidebar'
 import { Header } from './components/Header'
+import { CommandPalette, useCommandPalette } from './components/CommandPalette'
 import { Dashboard } from './pages/Dashboard'
 import { AgentsPage } from './pages/Agents'
 import { TasksPage } from './pages/Tasks'
@@ -18,6 +19,7 @@ function App() {
   const { initialize, isWails, mcpEndpoint } = useData()
   const { checkConnection } = useMcpStatus()
   const [mcpStatus, setMcpStatus] = useState<{ connected: boolean; toolCount: number } | null>(null)
+  const commandPalette = useCommandPalette()
 
   // Initialize data on mount
   useEffect(() => {
@@ -53,6 +55,9 @@ function App() {
 
   return (
     <div className="flex h-screen bg-rapid-bg">
+      {/* Command Palette */}
+      <CommandPalette isOpen={commandPalette.isOpen} onClose={commandPalette.close} />
+
       {/* Sidebar navigation */}
       <Sidebar />
 
@@ -97,6 +102,15 @@ function App() {
             {!isWails && (
               <span className="font-mono text-[10px] opacity-60">{mcpEndpoint}</span>
             )}
+            <button
+              onClick={commandPalette.open}
+              className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-rapid-elevated hover:bg-rapid-border transition-colors"
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <kbd className="text-[10px]">⌘K</kbd>
+            </button>
           </div>
         </div>
       </div>
