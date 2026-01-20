@@ -196,6 +196,25 @@ export class EventBus {
   }
 
   /**
+   * Unregister an agent from the event bus
+   */
+  async unregisterAgent(agentId: string): Promise<boolean> {
+    const members = await this.redis.zrangebyscore(this.agentsKey, '-inf', '+inf');
+    for (const member of members) {
+      try {
+        const agent = JSON.parse(member) as AgentInfo;
+        if (agent.id === agentId) {
+          await this.redis.zrem(this.agentsKey, member);
+          return true;
+        }
+      } catch {
+        // Skip invalid entries
+      }
+    }
+    return false;
+  }
+
+  /**
    * Send a message to the event bus
    */
   async sendMessage(
@@ -452,6 +471,10 @@ export class InMemoryEventBus {
 
   async getActiveAgents(): Promise<AgentInfo[]> {
     return Array.from(this.agents.values());
+  }
+
+  async unregisterAgent(agentId: string): Promise<boolean> {
+    return this.agents.delete(agentId);
   }
 
   async sendMessage(

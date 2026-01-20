@@ -15,6 +15,9 @@ importers:
       '@eslint/js':
         specifier: ^9.39.2
         version: 9.39.2
+      '@rollup/rollup-linux-arm64-gnu':
+        specifier: ^4.55.2
+        version: 4.55.2
       '@types/node':
         specifier: ^25.0.8
         version: 25.0.9
@@ -5686,8 +5689,7 @@ snapshots:
   '@rollup/rollup-linux-arm-musleabihf@4.55.2':
     optional: true
 
-  '@rollup/rollup-linux-arm64-gnu@4.55.2':
-    optional: true
+  '@rollup/rollup-linux-arm64-gnu@4.55.2': {}
 
   '@rollup/rollup-linux-arm64-musl@4.55.2':
     optional: true

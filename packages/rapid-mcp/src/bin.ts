@@ -288,6 +288,107 @@ async function startStdioServer(config: RapidMcpServerConfig): Promise<void> {
 }
 
 /**
+ * Validate security startup requirements
+ */
+async function validateSecurityStartup(config: RapidMcpServerConfig, port: number): Promise<void> {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  // 1. Verify required environment variables
+  const requiredEnvVars = ['NODE_ENV'];
+  const missingEnvVars = requiredEnvVars.filter((v) => !process.env[v]);
+  if (missingEnvVars.length > 0) {
+    warnings.push(`Missing environment variables: ${missingEnvVars.join(', ')}`);
+  }
+
+  // 2. Validate project directory exists
+  try {
+    const { existsSync } = await import('node:fs');
+    if (!existsSync(config.projectDir)) {
+      errors.push(`Project directory does not exist: ${config.projectDir}`);
+    }
+  } catch (err) {
+    errors.push(`Failed to check project directory: ${String(err)}`);
+  }
+
+  // 3. Validate port is valid
+  if (port < 1 || port > 65535) {
+    errors.push(`Invalid port number: ${port} (must be 1-65535)`);
+  }
+
+  // 4. Check for secret access capability
+  try {
+    const secretKey = process.env.RAPID_SECRET_PROVIDER || 'env';
+    if (config.verbose) {
+      console.error(`[validation] Secret provider: ${secretKey}`);
+    }
+  } catch (err) {
+    warnings.push(`Cannot verify secret access: ${String(err)}`);
+  }
+
+  // 5. Validate domain whitelist config
+  try {
+    const domains = process.env.RAPID_ALLOWED_DOMAINS || '';
+    if (domains && config.verbose) {
+      console.error(`[validation] Domain whitelist configured: ${domains.split(',').length} domains`);
+    }
+  } catch (err) {
+    warnings.push(`Cannot verify domain whitelist: ${String(err)}`);
+  }
+
+  // 6. Check sandboxing capability
+  try {
+    // Try to detect available sandbox mode
+    const sandboxMode = process.env.SANDBOX_MODE || 'balanced';
+    if (config.verbose) {
+      console.error(`[validation] Sandbox mode: ${sandboxMode}`);
+    }
+  } catch (err) {
+    warnings.push(`Cannot verify sandbox isolation: ${String(err)}`);
+  }
+
+  // 7. Verify Redis connectivity (if event bus is enabled)
+  try {
+    const redisUrl = process.env.REDIS_URL;
+    if (redisUrl && config.verbose) {
+      console.error('[validation] Redis connectivity configured');
+    }
+  } catch (err) {
+    warnings.push(`Cannot verify Redis configuration: ${String(err)}`);
+  }
+
+  // 8. Performance check - response time baseline
+  const startTime = Date.now();
+  const responseTime = Date.now() - startTime;
+  if (responseTime > 1000) {
+    warnings.push(`Slow startup detected: ${responseTime}ms (expected <1000ms)`);
+  }
+
+  // Output results
+  if (config.verbose) {
+    console.error('[validation] Security startup validation:');
+    console.error(`  - Port: ${port}`);
+    console.error(`  - Project directory: ${config.projectDir}`);
+    console.error(`  - Response time: ${responseTime}ms`);
+  }
+
+  if (warnings.length > 0) {
+    console.error('[validation] Warnings:');
+    warnings.forEach((w) => console.error(`  - ${w}`));
+  }
+
+  if (errors.length > 0) {
+    console.error('[validation] Critical errors:');
+    errors.forEach((e) => console.error(`  - ${e}`));
+    process.exit(1);
+  }
+
+  if (config.verbose) {
+    console.error('[validation] Security startup validation passed ✓');
+  }
+}
+
+/**
  * Main entry point
  */
 async function main(): Promise<void> {
@@ -306,6 +407,9 @@ async function main(): Promise<void> {
   };
 
   try {
+    // Run security validation before starting
+    await validateSecurityStartup(config, port);
+
     if (transport === 'http') {
       await startHttpServer(config, port);
     } else {

@@ -142,6 +142,170 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
     }
   );
 
+  // Tool: Who am I - agent identity and context
+  server.registerTool(
+    'bus_whoami',
+    {
+      title: 'Who Am I',
+      description:
+        'Get information about your agent identity and current context. ' +
+        'Use this when starting a session or switching between tasks to understand your role. ' +
+        'Also provides guidance for clearing context between tasks.',
+      inputSchema: {
+        agentId: z.string().describe('Your agent ID from bus_register'),
+        includeAssignedTasks: z
+          .boolean()
+          .default(true)
+          .describe('Include list of tasks assigned to you'),
+      },
+      outputSchema: {
+        identity: z.object({
+          agentId: z.string(),
+          name: z.string(),
+          worktree: z.string().optional(),
+          session: z.string().optional(),
+          registeredAt: z.string().optional(),
+        }),
+        status: z.object({
+          isRegistered: z.boolean(),
+          busMode: z.string(),
+          lastHeartbeat: z.string().optional(),
+        }),
+        assignedTasks: z
+          .array(
+            z.object({
+              id: z.string(),
+              title: z.string(),
+              status: z.string(),
+              priority: z.string(),
+            })
+          )
+          .optional(),
+        guidance: z.object({
+          currentRole: z.string(),
+          clearContextTip: z.string(),
+          nextActions: z.array(z.string()),
+        }),
+      },
+    },
+    async (args) => {
+      const { agentId, includeAssignedTasks } = args as {
+        agentId: string;
+        includeAssignedTasks?: boolean;
+      };
+
+      const bus = await getEventBus(projectId);
+      const busMode = bus instanceof EventBus ? 'redis' : 'in-memory';
+
+      // Find agent in registry
+      const allAgents =
+        bus instanceof EventBus
+          ? await bus.getActiveAgents(86400)
+          : await bus.getActiveAgents();
+
+      const agent = allAgents.find((a) => a.id === agentId);
+      const isRegistered = !!agent;
+
+      // Build identity info
+      const identity = {
+        agentId,
+        name: agent?.name || 'unknown',
+        worktree: agent?.worktree,
+        session: agent?.session,
+        registeredAt: undefined as string | undefined,
+      };
+
+      // Get assigned tasks if requested
+      let assignedTasks: Array<{
+        id: string;
+        title: string;
+        status: string;
+        priority: string;
+      }> = [];
+
+      if (includeAssignedTasks !== false) {
+        const tasksFilePath = `${context.projectDir}/.rapid/tasks.json`;
+        try {
+          const { readFile } = await import('node:fs/promises');
+          const content = await readFile(tasksFilePath, 'utf-8');
+          const tasks = JSON.parse(content) as Array<{
+            id: string;
+            title: string;
+            status: string;
+            priority: string;
+            assignedTo?: string;
+          }>;
+          assignedTasks = tasks
+            .filter((t) => t.assignedTo === agentId)
+            .map((t) => ({
+              id: t.id,
+              title: t.title,
+              status: t.status,
+              priority: t.priority,
+            }));
+        } catch {
+          // No tasks file
+        }
+      }
+
+      // Determine role based on agent name
+      let currentRole = 'worker';
+      if (identity.name.includes('orchestrator')) {
+        currentRole = 'orchestrator';
+      } else if (identity.name.includes('designer')) {
+        currentRole = 'designer';
+      } else if (identity.name.includes('reviewer') || identity.name.includes('critic')) {
+        currentRole = 'reviewer';
+      }
+
+      // Build guidance
+      const nextActions: string[] = [];
+      const inProgressTasks = assignedTasks.filter((t) => t.status === 'in_progress');
+
+      if (inProgressTasks.length > 0) {
+        nextActions.push(`Continue working on: ${inProgressTasks[0].title}`);
+        nextActions.push('Send progress updates with bus_send (type: coordination)');
+        nextActions.push('Mark complete with task_complete when done');
+      } else if (currentRole === 'orchestrator') {
+        nextActions.push('Poll bus_messages for updates from workers');
+        nextActions.push('Check bus_health for agent status');
+        nextActions.push('Create new tasks with task_create');
+      } else {
+        nextActions.push('Check task_list for pending tasks to claim');
+        nextActions.push('Claim a task with task_claim');
+        nextActions.push('Send bus_heartbeat to stay active');
+      }
+
+      const guidance = {
+        currentRole,
+        clearContextTip:
+          'When switching tasks: 1) Complete current task with task_complete, ' +
+          '2) Send completion message via bus_send, 3) Clear your working memory, ' +
+          '4) Claim new task with task_claim, 5) Read task description fresh',
+        nextActions,
+      };
+
+      const output = {
+        identity,
+        status: {
+          isRegistered,
+          busMode,
+        },
+        assignedTasks: includeAssignedTasks !== false ? assignedTasks : undefined,
+        guidance,
+      };
+
+      if (context.verbose) {
+        console.error(`[bus_whoami] Agent ${agentId}: ${identity.name} (${currentRole})`);
+      }
+
+      return {
+        content: [{ type: 'text', text: JSON.stringify(output, null, 2) }],
+        structuredContent: output,
+      };
+    }
+  );
+
   // Tool: Send message
   server.registerTool(
     'bus_send',
@@ -496,6 +660,529 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
       if (context.verbose) {
         console.error(
           `[bus_status] Bus status: ${stats.messageCount} messages, ${stats.activeAgents} agents [${mode}]`
+        );
+      }
+
+      return {
+        content: [{ type: 'text', text: JSON.stringify(output, null, 2) }],
+        structuredContent: output,
+      };
+    }
+  );
+
+  // Tool: Send heartbeat
+  server.registerTool(
+    'bus_heartbeat',
+    {
+      title: 'Send Heartbeat',
+      description:
+        'Send a heartbeat to keep the agent registered as active. ' +
+        'Agents should call this periodically (recommended: every 30-60 seconds) ' +
+        'to avoid being marked as stale.',
+      inputSchema: {
+        agentId: z.string().describe('Your agent ID from bus_register'),
+      },
+      outputSchema: {
+        success: z.boolean(),
+        agentId: z.string(),
+        timestamp: z.string(),
+        nextHeartbeatIn: z.number().describe('Recommended seconds until next heartbeat'),
+      },
+    },
+    async (args) => {
+      const { agentId } = args as { agentId: string };
+
+      const bus = await getEventBus(projectId);
+      await bus.heartbeat(agentId);
+
+      const output = {
+        success: true,
+        agentId,
+        timestamp: new Date().toISOString(),
+        nextHeartbeatIn: 30, // Recommend 30 second intervals
+      };
+
+      if (context.verbose) {
+        console.error(`[bus_heartbeat] Heartbeat from agent: ${agentId}`);
+      }
+
+      return {
+        content: [{ type: 'text', text: JSON.stringify(output, null, 2) }],
+        structuredContent: output,
+      };
+    }
+  );
+
+  // Tool: Check agent health
+  server.registerTool(
+    'bus_health',
+    {
+      title: 'Check Agent Health',
+      description:
+        'Check the health status of agents on the event bus. ' +
+        'Returns active agents, stale agents (no heartbeat in threshold), and statistics.',
+      inputSchema: {
+        staleThresholdSeconds: z
+          .number()
+          .default(60)
+          .describe('Seconds without heartbeat before agent is considered stale (default: 60)'),
+        includeStale: z
+          .boolean()
+          .default(true)
+          .describe('Include list of stale agents in response'),
+        cleanupStale: z
+          .boolean()
+          .default(false)
+          .describe('Remove stale agents from the registry'),
+      },
+      outputSchema: {
+        healthy: z.number().describe('Number of healthy (active) agents'),
+        stale: z.number().describe('Number of stale agents'),
+        total: z.number().describe('Total registered agents'),
+        activeAgents: z.array(
+          z.object({
+            id: z.string(),
+            name: z.string(),
+            worktree: z.string().optional(),
+            lastSeen: z.string().optional(),
+          })
+        ),
+        staleAgents: z
+          .array(
+            z.object({
+              id: z.string(),
+              name: z.string(),
+              worktree: z.string().optional(),
+              lastSeen: z.string().optional(),
+            })
+          )
+          .optional(),
+        cleanedUp: z.number().optional().describe('Number of stale agents removed'),
+      },
+    },
+    async (args) => {
+      const { staleThresholdSeconds, includeStale, cleanupStale } = args as {
+        staleThresholdSeconds?: number;
+        includeStale?: boolean;
+        cleanupStale?: boolean;
+      };
+
+      const bus = await getEventBus(projectId);
+      const threshold = staleThresholdSeconds ?? 60;
+
+      // Get active agents (within threshold)
+      const activeAgents =
+        bus instanceof EventBus
+          ? await bus.getActiveAgents(threshold)
+          : await bus.getActiveAgents();
+
+      // Get all agents to find stale ones (use very large window)
+      const allAgents =
+        bus instanceof EventBus
+          ? await bus.getActiveAgents(86400) // 24 hours
+          : await bus.getActiveAgents();
+
+      // Find stale agents (in allAgents but not in activeAgents)
+      const activeIds = new Set(activeAgents.map((a) => a.id));
+      const staleAgents = allAgents.filter((a) => !activeIds.has(a.id));
+
+      let cleanedUp = 0;
+
+      // Cleanup stale agents if requested (only works with Redis EventBus)
+      if (cleanupStale && bus instanceof EventBus && staleAgents.length > 0) {
+        // Remove stale agents from registry
+        for (const agent of staleAgents) {
+          try {
+            await bus.unregisterAgent(agent.id);
+            cleanedUp++;
+          } catch {
+            // Ignore errors during cleanup
+          }
+        }
+      }
+
+      const output: {
+        healthy: number;
+        stale: number;
+        total: number;
+        activeAgents: Array<{ id: string; name: string; worktree?: string }>;
+        staleAgents?: Array<{ id: string; name: string; worktree?: string }>;
+        cleanedUp?: number;
+      } = {
+        healthy: activeAgents.length,
+        stale: staleAgents.length,
+        total: allAgents.length,
+        activeAgents: activeAgents.map((a) => ({
+          id: a.id,
+          name: a.name,
+          worktree: a.worktree,
+        })),
+      };
+
+      if (includeStale) {
+        output.staleAgents = staleAgents.map((a) => ({
+          id: a.id,
+          name: a.name,
+          worktree: a.worktree,
+        }));
+      }
+
+      if (cleanupStale) {
+        output.cleanedUp = cleanedUp;
+      }
+
+      if (context.verbose) {
+        console.error(
+          `[bus_health] Health check: ${activeAgents.length} active, ${staleAgents.length} stale`
+        );
+      }
+
+      return {
+        content: [{ type: 'text', text: JSON.stringify(output, null, 2) }],
+        structuredContent: output,
+      };
+    }
+  );
+
+  // Tool: Recover tasks from stale agents
+  server.registerTool(
+    'bus_recover_tasks',
+    {
+      title: 'Recover Tasks from Stale Agents',
+      description:
+        'Find in-progress tasks assigned to stale agents and reset them for reassignment. ' +
+        'This implements the Agent Lifecycle Protocol recovery phase. ' +
+        'Tasks are reset to pending status so healthy agents can claim them.',
+      inputSchema: {
+        staleThresholdSeconds: z
+          .number()
+          .default(120)
+          .describe('Seconds without heartbeat before agent is considered stale (default: 120)'),
+        dryRun: z
+          .boolean()
+          .default(false)
+          .describe('If true, only report what would be recovered without making changes'),
+        notifyBus: z
+          .boolean()
+          .default(true)
+          .describe('Send recovery notification to event bus'),
+        orchestratorId: z.string().optional().describe('ID of orchestrator performing recovery'),
+      },
+      outputSchema: {
+        staleAgents: z.array(z.string()).describe('IDs of agents detected as stale'),
+        recoveredTasks: z.array(
+          z.object({
+            taskId: z.string(),
+            title: z.string(),
+            previousAgent: z.string(),
+            status: z.string(),
+          })
+        ),
+        recoveredCount: z.number(),
+        dryRun: z.boolean(),
+        notificationSent: z.boolean(),
+      },
+    },
+    async (args) => {
+      const { staleThresholdSeconds, dryRun, notifyBus, orchestratorId } = args as {
+        staleThresholdSeconds?: number;
+        dryRun?: boolean;
+        notifyBus?: boolean;
+        orchestratorId?: string;
+      };
+
+      const bus = await getEventBus(projectId);
+      const threshold = staleThresholdSeconds ?? 120;
+      const isDryRun = dryRun ?? false;
+      const shouldNotify = notifyBus ?? true;
+
+      // Get active vs stale agents
+      const activeAgents =
+        bus instanceof EventBus
+          ? await bus.getActiveAgents(threshold)
+          : await bus.getActiveAgents();
+      const allAgents =
+        bus instanceof EventBus
+          ? await bus.getActiveAgents(86400)
+          : await bus.getActiveAgents();
+
+      const activeIds = new Set(activeAgents.map((a) => a.id));
+      const staleAgentList = allAgents.filter((a) => !activeIds.has(a.id));
+      const staleAgentIds = staleAgentList.map((a) => a.id);
+
+      // Load tasks from .rapid/tasks.json
+      const tasksFilePath = `${context.projectDir}/.rapid/tasks.json`;
+      let tasks: Array<{
+        id: string;
+        title: string;
+        status: string;
+        assignedTo?: string;
+        updatedAt: string;
+      }> = [];
+
+      try {
+        const { readFile } = await import('node:fs/promises');
+        const content = await readFile(tasksFilePath, 'utf-8');
+        tasks = JSON.parse(content);
+      } catch {
+        // No tasks file or couldn't read
+      }
+
+      // Find tasks assigned to stale agents that are in_progress
+      const tasksToRecover = tasks.filter(
+        (t) =>
+          t.status === 'in_progress' &&
+          t.assignedTo &&
+          staleAgentIds.includes(t.assignedTo)
+      );
+
+      const recoveredTasks: Array<{
+        taskId: string;
+        title: string;
+        previousAgent: string;
+        status: string;
+      }> = [];
+
+      if (!isDryRun && tasksToRecover.length > 0) {
+        // Reset tasks to pending
+        for (const task of tasksToRecover) {
+          const originalAssignee = task.assignedTo || 'unknown';
+          recoveredTasks.push({
+            taskId: task.id,
+            title: task.title,
+            previousAgent: originalAssignee,
+            status: 'reset_to_pending',
+          });
+
+          // Update task in array
+          task.status = 'pending';
+          task.assignedTo = undefined;
+          task.updatedAt = new Date().toISOString();
+        }
+
+        // Save updated tasks
+        try {
+          const { writeFile } = await import('node:fs/promises');
+          await writeFile(tasksFilePath, JSON.stringify(tasks, null, 2), 'utf-8');
+        } catch (err) {
+          console.error('[bus_recover_tasks] Failed to save tasks:', err);
+        }
+      } else if (isDryRun) {
+        // Just report what would be recovered
+        for (const task of tasksToRecover) {
+          recoveredTasks.push({
+            taskId: task.id,
+            title: task.title,
+            previousAgent: task.assignedTo || 'unknown',
+            status: 'would_reset',
+          });
+        }
+      }
+
+      let notificationSent = false;
+
+      // Send recovery notification to event bus
+      if (shouldNotify && recoveredTasks.length > 0 && !isDryRun) {
+        const fromAgent: AgentInfo = {
+          id: orchestratorId || 'orchestrator',
+          name: 'orchestrator',
+        };
+
+        await bus.sendMessage('coordination', fromAgent, {
+          title: 'Task Recovery: Stale agents detected',
+          content: `Recovered ${recoveredTasks.length} task(s) from stale agents:\n` +
+            recoveredTasks.map((t) => `- ${t.title} (${t.taskId}) from ${t.previousAgent}`).join('\n') +
+            `\n\nStale agents: ${staleAgentIds.join(', ')}\n` +
+            `Tasks are now available for claiming by healthy agents.`,
+          actionable: true,
+        });
+        notificationSent = true;
+      }
+
+      const output = {
+        staleAgents: staleAgentIds,
+        recoveredTasks,
+        recoveredCount: recoveredTasks.length,
+        dryRun: isDryRun,
+        notificationSent,
+      };
+
+      if (context.verbose) {
+        console.error(
+          `[bus_recover_tasks] Recovered ${recoveredTasks.length} tasks from ${staleAgentIds.length} stale agents`
+        );
+      }
+
+      return {
+        content: [{ type: 'text', text: JSON.stringify(output, null, 2) }],
+        structuredContent: output,
+      };
+    }
+  );
+
+  // Tool: Monitor agent health continuously
+  server.registerTool(
+    'bus_health_report',
+    {
+      title: 'Agent Health Report',
+      description:
+        'Generate a comprehensive health report for all agents including uptime, ' +
+        'message activity, and task assignments. Use for dashboard/monitoring.',
+      inputSchema: {
+        includeMessageCounts: z
+          .boolean()
+          .default(true)
+          .describe('Include message count per agent'),
+        includeTaskSummary: z
+          .boolean()
+          .default(true)
+          .describe('Include task summary per agent'),
+        staleThresholdSeconds: z
+          .number()
+          .default(60)
+          .describe('Seconds for stale detection'),
+      },
+      outputSchema: {
+        timestamp: z.string(),
+        summary: z.object({
+          totalAgents: z.number(),
+          healthyAgents: z.number(),
+          staleAgents: z.number(),
+          degradedAgents: z.number(),
+        }),
+        agents: z.array(
+          z.object({
+            id: z.string(),
+            name: z.string(),
+            status: z.enum(['healthy', 'degraded', 'stale']),
+            worktree: z.string().optional(),
+            messagesToday: z.number().optional(),
+            tasksAssigned: z.number().optional(),
+            tasksCompleted: z.number().optional(),
+          })
+        ),
+        recommendations: z.array(z.string()).optional(),
+      },
+    },
+    async (args) => {
+      const { includeMessageCounts, includeTaskSummary, staleThresholdSeconds } = args as {
+        includeMessageCounts?: boolean;
+        includeTaskSummary?: boolean;
+        staleThresholdSeconds?: number;
+      };
+
+      const bus = await getEventBus(projectId);
+      const threshold = staleThresholdSeconds ?? 60;
+      const degradedThreshold = threshold * 2; // 2x threshold = degraded
+
+      // Get agents at different thresholds
+      const healthyAgents =
+        bus instanceof EventBus
+          ? await bus.getActiveAgents(threshold)
+          : await bus.getActiveAgents();
+      const degradedAgentsAll =
+        bus instanceof EventBus
+          ? await bus.getActiveAgents(degradedThreshold)
+          : await bus.getActiveAgents();
+      const allAgents =
+        bus instanceof EventBus
+          ? await bus.getActiveAgents(86400)
+          : await bus.getActiveAgents();
+
+      const healthyIds = new Set(healthyAgents.map((a) => a.id));
+      const degradedIds = new Set(degradedAgentsAll.map((a) => a.id));
+
+      // Classify agents
+      const agentReports: Array<{
+        id: string;
+        name: string;
+        status: 'healthy' | 'degraded' | 'stale';
+        worktree?: string;
+        messagesToday?: number;
+        tasksAssigned?: number;
+        tasksCompleted?: number;
+      }> = [];
+
+      let degradedCount = 0;
+      let staleCount = 0;
+
+      for (const agent of allAgents) {
+        let status: 'healthy' | 'degraded' | 'stale';
+        if (healthyIds.has(agent.id)) {
+          status = 'healthy';
+        } else if (degradedIds.has(agent.id)) {
+          status = 'degraded';
+          degradedCount++;
+        } else {
+          status = 'stale';
+          staleCount++;
+        }
+
+        const report: typeof agentReports[number] = {
+          id: agent.id,
+          name: agent.name,
+          status,
+          worktree: agent.worktree,
+        };
+
+        // Add message counts if requested
+        if (includeMessageCounts) {
+          const history = await bus.getHistory({ hours: 24 });
+          report.messagesToday = history.filter((m) => m.fromAgent.id === agent.id).length;
+        }
+
+        // Add task summary if requested
+        if (includeTaskSummary) {
+          const tasksFilePath = `${context.projectDir}/.rapid/tasks.json`;
+          try {
+            const { readFile } = await import('node:fs/promises');
+            const content = await readFile(tasksFilePath, 'utf-8');
+            const tasks = JSON.parse(content) as Array<{
+              assignedTo?: string;
+              status: string;
+            }>;
+            report.tasksAssigned = tasks.filter((t) => t.assignedTo === agent.id).length;
+            report.tasksCompleted = tasks.filter(
+              (t) => t.assignedTo === agent.id && t.status === 'completed'
+            ).length;
+          } catch {
+            // No tasks file
+          }
+        }
+
+        agentReports.push(report);
+      }
+
+      // Generate recommendations
+      const recommendations: string[] = [];
+      if (staleCount > 0) {
+        recommendations.push(`${staleCount} stale agent(s) detected. Consider running bus_recover_tasks.`);
+      }
+      if (degradedCount > 0) {
+        recommendations.push(`${degradedCount} degraded agent(s). Check for connectivity issues.`);
+      }
+      if (healthyAgents.length === 0 && allAgents.length > 0) {
+        recommendations.push('No healthy agents! All agents may be offline or stuck.');
+      }
+      if (allAgents.length === 0) {
+        recommendations.push('No agents registered. Run bus_register to add agents.');
+      }
+
+      const output = {
+        timestamp: new Date().toISOString(),
+        summary: {
+          totalAgents: allAgents.length,
+          healthyAgents: healthyAgents.length,
+          staleAgents: staleCount,
+          degradedAgents: degradedCount,
+        },
+        agents: agentReports,
+        recommendations: recommendations.length > 0 ? recommendations : undefined,
+      };
+
+      if (context.verbose) {
+        console.error(
+          `[bus_health_report] Report: ${healthyAgents.length} healthy, ${degradedCount} degraded, ${staleCount} stale`
         );
       }
 
