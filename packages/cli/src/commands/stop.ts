@@ -108,11 +108,68 @@ async function getRunningServices(): Promise<string[]> {
   }
 }
 
+/**
+ * Clean up agent worktrees
+ */
+async function pruneWorktrees(projectDir: string): Promise<{ cleaned: number; failed: number }> {
+  try {
+    // List all worktrees
+    const { stdout } = await execa('git', ['worktree', 'list', '--porcelain'], {
+      cwd: projectDir,
+      reject: false,
+    });
+
+    const worktrees = stdout
+      .split('\n')
+      .filter(Boolean)
+      .filter((line) => line.startsWith('worktree'))
+      .map((line) => {
+        const parts = line.split(' ');
+        return parts[1];
+      });
+
+    let cleaned = 0;
+    let failed = 0;
+
+    for (const worktree of worktrees) {
+      // Skip main worktree
+      if (worktree.includes('.git') || !worktree.includes('.worktrees')) {
+        continue;
+      }
+
+      try {
+        // Check if branch is merged to main
+        const { exitCode } = await execa('git', ['branch', '--merged', 'main', '-q'], {
+          cwd: projectDir,
+          reject: false,
+          stdio: 'pipe',
+        });
+
+        if (exitCode === 0) {
+          // Branch is merged, safe to remove
+          await execa('git', ['worktree', 'remove', worktree], {
+            cwd: projectDir,
+            reject: false,
+          });
+          cleaned++;
+        }
+      } catch {
+        failed++;
+      }
+    }
+
+    return { cleaned, failed };
+  } catch {
+    return { cleaned: 0, failed: 0 };
+  }
+}
+
 export const stopCommand = new Command('stop')
   .description('Stop all RAPID services (container, event bus, gateway)')
   .option('--remove', 'Remove containers and volumes after stopping', false)
   .option('--services-only', 'Only stop services, not the dev container')
-  .action(async (options) => {
+  .option('--prune-worktrees', 'Automatically clean up merged agent worktrees', false)
+  .action(async (options: { remove?: boolean; servicesOnly?: boolean; pruneWorktrees?: boolean }) => {
     const spinner = ora('Stopping RAPID environment...').start();
 
     try {
@@ -126,6 +183,17 @@ export const stopCommand = new Command('stop')
 
       const { config, rootDir } = loaded;
       const servicesStopped: string[] = [];
+
+      // ─────────────────────────────────────────────────────────────
+      // Clean up worktrees if requested
+      // ─────────────────────────────────────────────────────────────
+      if (options.pruneWorktrees) {
+        spinner.text = 'Cleaning up agent worktrees...';
+        const pruneResult = await pruneWorktrees(rootDir);
+        if (pruneResult.cleaned > 0) {
+          servicesStopped.push(`Agent Worktrees (cleaned: ${pruneResult.cleaned})`);
+        }
+      }
 
       // ─────────────────────────────────────────────────────────────
       // Stop Dev Container first
