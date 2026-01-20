@@ -146,60 +146,105 @@ func (a *App) GetDaemonStatus() (*DaemonStatus, error) {
 
 // GetAgents returns list of active agents
 func (a *App) GetAgents() ([]Agent, error) {
-	// For MVP, return mock data until MCP integration is complete
-	return []Agent{
-		{ID: "orchestrator-1", Name: "orchestrator", Worktree: "main"},
-		{ID: "worker-1", Name: "worker", Worktree: "feat/auth"},
-		{ID: "designer-1", Name: "designer", Worktree: "main"},
-	}, nil
+	// Try to get agents from daemon
+	result, err := a.rpcCall("agents.list", nil)
+	if err != nil {
+		// Fallback to mock data if daemon is not running
+		return []Agent{
+			{ID: "orchestrator-1", Name: "orchestrator", Worktree: "main"},
+			{ID: "worker-1", Name: "worker", Worktree: "feat/auth"},
+			{ID: "designer-1", Name: "designer", Worktree: "main"},
+		}, nil
+	}
+
+	// Parse the result
+	data, _ := json.Marshal(result)
+	var response struct {
+		Agents []Agent `json:"agents"`
+	}
+	if err := json.Unmarshal(data, &response); err != nil {
+		// Try parsing as direct array
+		var agents []Agent
+		if err := json.Unmarshal(data, &agents); err != nil {
+			return nil, fmt.Errorf("failed to parse agents: %w", err)
+		}
+		return agents, nil
+	}
+
+	return response.Agents, nil
 }
 
 // GetTasks returns list of tasks
 func (a *App) GetTasks(status string) ([]Task, error) {
-	// For MVP, return mock data
-	tasks := []Task{
-		{
-			ID:         "task-1",
-			Title:      "Implement authentication",
-			Status:     "in_progress",
-			Priority:   "high",
-			AssignedTo: "worker-1",
-			CreatedAt:  time.Now().Add(-2 * time.Hour).Format(time.RFC3339),
-			UpdatedAt:  time.Now().Add(-30 * time.Minute).Format(time.RFC3339),
-			Tags:       []string{"feature", "auth"},
-		},
-		{
-			ID:        "task-2",
-			Title:     "Review PR #42",
-			Status:    "pending",
-			Priority:  "normal",
-			CreatedAt: time.Now().Add(-1 * time.Hour).Format(time.RFC3339),
-			UpdatedAt: time.Now().Add(-1 * time.Hour).Format(time.RFC3339),
-			Tags:      []string{"review"},
-		},
-		{
-			ID:         "task-3",
-			Title:      "Fix build errors",
-			Status:     "completed",
-			Priority:   "urgent",
-			AssignedTo: "worker-1",
-			CreatedAt:  time.Now().Add(-3 * time.Hour).Format(time.RFC3339),
-			UpdatedAt:  time.Now().Add(-1 * time.Hour).Format(time.RFC3339),
-			Tags:       []string{"bug", "ci"},
-		},
-	}
-
+	// Try to get tasks from daemon
+	params := map[string]interface{}{}
 	if status != "" {
-		var filtered []Task
-		for _, t := range tasks {
-			if t.Status == status {
-				filtered = append(filtered, t)
-			}
-		}
-		return filtered, nil
+		params["status"] = status
 	}
 
-	return tasks, nil
+	result, err := a.rpcCall("tasks.list", params)
+	if err != nil {
+		// Fallback to mock data if daemon is not running
+		tasks := []Task{
+			{
+				ID:         "task-1",
+				Title:      "Implement authentication",
+				Status:     "in_progress",
+				Priority:   "high",
+				AssignedTo: "worker-1",
+				CreatedAt:  time.Now().Add(-2 * time.Hour).Format(time.RFC3339),
+				UpdatedAt:  time.Now().Add(-30 * time.Minute).Format(time.RFC3339),
+				Tags:       []string{"feature", "auth"},
+			},
+			{
+				ID:        "task-2",
+				Title:     "Review PR #42",
+				Status:    "pending",
+				Priority:  "normal",
+				CreatedAt: time.Now().Add(-1 * time.Hour).Format(time.RFC3339),
+				UpdatedAt: time.Now().Add(-1 * time.Hour).Format(time.RFC3339),
+				Tags:      []string{"review"},
+			},
+			{
+				ID:         "task-3",
+				Title:      "Fix build errors",
+				Status:     "completed",
+				Priority:   "urgent",
+				AssignedTo: "worker-1",
+				CreatedAt:  time.Now().Add(-3 * time.Hour).Format(time.RFC3339),
+				UpdatedAt:  time.Now().Add(-1 * time.Hour).Format(time.RFC3339),
+				Tags:       []string{"bug", "ci"},
+			},
+		}
+
+		if status != "" {
+			var filtered []Task
+			for _, t := range tasks {
+				if t.Status == status {
+					filtered = append(filtered, t)
+				}
+			}
+			return filtered, nil
+		}
+
+		return tasks, nil
+	}
+
+	// Parse the result
+	data, _ := json.Marshal(result)
+	var response struct {
+		Tasks []Task `json:"tasks"`
+	}
+	if err := json.Unmarshal(data, &response); err != nil {
+		// Try parsing as direct array
+		var tasks []Task
+		if err := json.Unmarshal(data, &tasks); err != nil {
+			return nil, fmt.Errorf("failed to parse tasks: %w", err)
+		}
+		return tasks, nil
+	}
+
+	return response.Tasks, nil
 }
 
 // GetMessages returns recent event bus messages
@@ -208,39 +253,63 @@ func (a *App) GetMessages(limit int) ([]Message, error) {
 		limit = 20
 	}
 
-	// For MVP, return mock data
-	return []Message{
-		{
-			ID:        "msg-1",
-			Type:      "completion",
-			FromAgent: Agent{ID: "worker-1", Name: "worker"},
-			Timestamp: time.Now().Add(-5 * time.Minute).Format(time.RFC3339),
-			Payload: map[string]interface{}{
-				"title":   "Task completed",
-				"content": "Implemented user authentication module",
+	// Try to get messages from daemon
+	params := map[string]interface{}{
+		"limit": limit,
+	}
+
+	result, err := a.rpcCall("messages.list", params)
+	if err != nil {
+		// Fallback to mock data if daemon is not running
+		return []Message{
+			{
+				ID:        "msg-1",
+				Type:      "completion",
+				FromAgent: Agent{ID: "worker-1", Name: "worker"},
+				Timestamp: time.Now().Add(-5 * time.Minute).Format(time.RFC3339),
+				Payload: map[string]interface{}{
+					"title":   "Task completed",
+					"content": "Implemented user authentication module",
+				},
 			},
-		},
-		{
-			ID:        "msg-2",
-			Type:      "discovery",
-			FromAgent: Agent{ID: "designer-1", Name: "designer"},
-			Timestamp: time.Now().Add(-10 * time.Minute).Format(time.RFC3339),
-			Payload: map[string]interface{}{
-				"title":   "Found existing pattern",
-				"content": "Discovered auth middleware in src/middleware/auth.ts",
+			{
+				ID:        "msg-2",
+				Type:      "discovery",
+				FromAgent: Agent{ID: "designer-1", Name: "designer"},
+				Timestamp: time.Now().Add(-10 * time.Minute).Format(time.RFC3339),
+				Payload: map[string]interface{}{
+					"title":   "Found existing pattern",
+					"content": "Discovered auth middleware in src/middleware/auth.ts",
+				},
 			},
-		},
-		{
-			ID:        "msg-3",
-			Type:      "coordination",
-			FromAgent: Agent{ID: "orchestrator-1", Name: "orchestrator"},
-			Timestamp: time.Now().Add(-15 * time.Minute).Format(time.RFC3339),
-			Payload: map[string]interface{}{
-				"title":   "Task assigned",
-				"content": "Assigned auth implementation to worker-1",
+			{
+				ID:        "msg-3",
+				Type:      "coordination",
+				FromAgent: Agent{ID: "orchestrator-1", Name: "orchestrator"},
+				Timestamp: time.Now().Add(-15 * time.Minute).Format(time.RFC3339),
+				Payload: map[string]interface{}{
+					"title":   "Task assigned",
+					"content": "Assigned auth implementation to worker-1",
+				},
 			},
-		},
-	}, nil
+		}, nil
+	}
+
+	// Parse the result
+	data, _ := json.Marshal(result)
+	var response struct {
+		Messages []Message `json:"messages"`
+	}
+	if err := json.Unmarshal(data, &response); err != nil {
+		// Try parsing as direct array
+		var messages []Message
+		if err := json.Unmarshal(data, &messages); err != nil {
+			return nil, fmt.Errorf("failed to parse messages: %w", err)
+		}
+		return messages, nil
+	}
+
+	return response.Messages, nil
 }
 
 // CreateTask creates a new task
@@ -260,13 +329,45 @@ func (a *App) CreateTask(title, description, priority string, tags []string) (*T
 
 // SpawnAgent spawns a new agent with a persona
 func (a *App) SpawnAgent(persona, worktree string) error {
-	// This would call the daemon or MCP to spawn an agent
+	// Call the daemon to spawn a new agent
+	params := map[string]interface{}{
+		"persona":  persona,
+		"worktree": worktree,
+	}
+
+	result, err := a.rpcCall("persona.spawn", params)
+	if err != nil {
+		return fmt.Errorf("failed to spawn agent: %w", err)
+	}
+
+	// Log spawn success
+	runtime.EventsEmit(a.ctx, "rapid:agent:spawned", map[string]interface{}{
+		"persona":  persona,
+		"worktree": worktree,
+		"result":   result,
+	})
+
 	return nil
 }
 
 // StopAgent stops a running agent
 func (a *App) StopAgent(agentID string) error {
-	// This would call the daemon or MCP to stop an agent
+	// Call the daemon to stop the agent
+	params := map[string]interface{}{
+		"agentId": agentID,
+	}
+
+	result, err := a.rpcCall("persona.stop", params)
+	if err != nil {
+		return fmt.Errorf("failed to stop agent: %w", err)
+	}
+
+	// Log stop success
+	runtime.EventsEmit(a.ctx, "rapid:agent:stopped", map[string]interface{}{
+		"agentId": agentID,
+		"result":  result,
+	})
+
 	return nil
 }
 
