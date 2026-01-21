@@ -143,13 +143,13 @@ export function Sidebar() {
 
   return (
     <aside className="w-64 bg-rapid-surface border-r border-rapid-border flex flex-col">
-      {/* Logo */}
-      <div className="h-14 flex items-center px-4 border-b border-rapid-border wails-drag">
-        <div className="flex items-center gap-2 wails-no-drag">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-rapid-accent to-blue-600 flex items-center justify-center">
-            <span className="text-white font-bold text-sm">R</span>
-          </div>
-          <span className="font-semibold text-lg">RAPID</span>
+      {/* Logo - macOS traffic lights need ~52px clearance from top */}
+      <div className="pt-14 pb-4 px-4 border-b border-rapid-border wails-drag">
+        <div className="wails-no-drag flex items-center">
+          <span className="font-mono text-xl font-normal tracking-[0.1em] bg-gradient-to-br from-rapid-text to-rapid-accent bg-clip-text text-transparent">
+            RAPID
+          </span>
+          <span className="font-mono text-xl text-rapid-accent animate-cursor-blink">_</span>
         </div>
       </div>
 

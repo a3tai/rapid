@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { clsx } from 'clsx';
 import { formatDistanceToNow, format } from 'date-fns';
 import { useMessages, type Message } from '../stores/app';
+import { useMcp } from '../hooks/useMcp';
 
 const MESSAGE_TYPES = [
   'all',
@@ -12,14 +13,160 @@ const MESSAGE_TYPES = [
   'question',
   'learning',
   'heartbeat',
+  'suggestion',
+  'vote',
 ] as const;
 
 type FilterType = (typeof MESSAGE_TYPES)[number];
 
+interface BusStatus {
+  connected: boolean;
+  mode: string;
+  messageCount: number;
+  activeAgents: number;
+}
+
+interface AgentHealth {
+  id: string;
+  name: string;
+  lastSeen: string;
+  status: 'active' | 'stale' | 'unknown';
+  messageCount?: number;
+}
+
+// Safe date formatting helpers to prevent crashes on invalid date strings
+function safeDate(dateStr: string | undefined): Date | null {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function safeFormat(dateStr: string | undefined, formatStr: string, fallback = 'N/A'): string {
+  const d = safeDate(dateStr);
+  return d ? format(d, formatStr) : fallback;
+}
+
+function safeFormatDistance(dateStr: string | undefined, fallback = 'unknown'): string {
+  const d = safeDate(dateStr);
+  return d ? formatDistanceToNow(d, { addSuffix: true }) : fallback;
+}
+
 export function EventsPage() {
   const messages = useMessages();
+  const { callTool, fetchMessages, fetchAgents } = useMcp();
+
   const [filter, setFilter] = useState<FilterType>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [busStatus, setBusStatus] = useState<BusStatus | null>(null);
+  const [agentHealth, setAgentHealth] = useState<AgentHealth[]>([]);
+  const [isPolling, setIsPolling] = useState(true);
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [newMessageIds, setNewMessageIds] = useState<Set<string>>(new Set());
+  const prevMessageCount = useRef(messages.length);
+
+  // Fetch bus status
+  const fetchBusStatus = useCallback(async () => {
+    try {
+      const result = await callTool('bus_status', {});
+      const data = result.structuredContent as {
+        connected?: boolean;
+        mode?: string;
+        messageCount?: number;
+        activeAgents?: number;
+      };
+      setBusStatus({
+        connected: data?.connected ?? true,
+        mode: data?.mode || 'unknown',
+        messageCount: data?.messageCount || 0,
+        activeAgents: data?.activeAgents || 0,
+      });
+    } catch (err) {
+      console.error('Failed to fetch bus status:', err);
+      setBusStatus({ connected: false, mode: 'error', messageCount: 0, activeAgents: 0 });
+    }
+  }, [callTool]);
+
+  // Fetch agent health - agents are stale if no heartbeat in 15 minutes (900 seconds)
+  const STALE_THRESHOLD_SECONDS = 900; // 15 minutes
+
+  const fetchAgentHealth = useCallback(async () => {
+    try {
+      const result = await callTool('bus_health', { staleThresholdSeconds: STALE_THRESHOLD_SECONDS });
+      const data = result.structuredContent as {
+        activeAgents?: Array<{ id: string; name: string; lastSeen: string }>;
+        staleAgents?: Array<{ id: string; name: string; lastSeen: string }>;
+      };
+
+      const healthList: AgentHealth[] = [];
+      if (data?.activeAgents) {
+        healthList.push(...data.activeAgents.map(a => ({
+          ...a,
+          status: 'active' as const,
+        })));
+      }
+      if (data?.staleAgents) {
+        healthList.push(...data.staleAgents.map(a => ({
+          ...a,
+          status: 'stale' as const,
+        })));
+      }
+      setAgentHealth(healthList);
+    } catch (err) {
+      console.error('Failed to fetch agent health:', err);
+    }
+  }, [callTool]);
+
+  // Auto-cleanup stale agents (15 min timeout)
+  const cleanupStaleAgents = useCallback(async () => {
+    try {
+      const result = await callTool('bus_health', { cleanupStale: true, staleThresholdSeconds: STALE_THRESHOLD_SECONDS });
+      const data = result.structuredContent as { cleanedUp?: number };
+      if (data?.cleanedUp && data.cleanedUp > 0) {
+        console.log(`Cleaned up ${data.cleanedUp} stale agents`);
+      }
+      await fetchAgentHealth();
+      await fetchAgents();
+    } catch (err) {
+      console.error('Failed to cleanup stale agents:', err);
+    }
+  }, [callTool, fetchAgentHealth, fetchAgents]);
+
+  // Poll for updates
+  useEffect(() => {
+    if (!isPolling) return;
+
+    const poll = async () => {
+      await Promise.all([
+        fetchMessages(100),
+        fetchAgents(),
+        fetchBusStatus(),
+        fetchAgentHealth(),
+      ]);
+      setLastUpdate(new Date());
+    };
+
+    poll(); // Initial fetch
+    const interval = setInterval(poll, 1500); // Poll every 1.5s for real-time feel
+
+    return () => clearInterval(interval);
+  }, [isPolling, fetchMessages, fetchAgents, fetchBusStatus, fetchAgentHealth]);
+
+  // Auto-cleanup stale agents every minute
+  useEffect(() => {
+    const cleanup = setInterval(cleanupStaleAgents, 60000); // Every 60 seconds
+    return () => clearInterval(cleanup);
+  }, [cleanupStaleAgents]);
+
+  // Track new messages for highlighting
+  useEffect(() => {
+    if (messages.length > prevMessageCount.current) {
+      const newIds = new Set(messages.slice(0, messages.length - prevMessageCount.current).map(m => m.id));
+      setNewMessageIds(newIds);
+      // Clear highlighting after 3 seconds
+      setTimeout(() => setNewMessageIds(new Set()), 3000);
+    }
+    prevMessageCount.current = messages.length;
+  }, [messages]);
 
   const filteredMessages = useMemo(() => {
     let result = messages;
@@ -50,14 +197,59 @@ export function EventsPage() {
   }, [messages]);
 
   return (
-    <div className="space-y-6 h-full flex flex-col">
-      {/* Header */}
+    <div className="space-y-4 h-full flex flex-col">
+      {/* Header with Bus Status */}
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">Event Bus</h2>
-          <p className="text-rapid-muted text-sm mt-1">Real-time agent communication feed</p>
+        <div className="flex items-center gap-4">
+          <div>
+            <h2 className="text-xl font-semibold">Event Bus</h2>
+            <p className="text-rapid-muted text-sm mt-1">Real-time agent communication</p>
+          </div>
+          {/* Bus Status Indicator */}
+          {busStatus && (
+            <div className={clsx(
+              'flex items-center gap-3 px-4 py-2 rounded-lg border',
+              busStatus.connected
+                ? 'bg-green-500/10 border-green-500/30 text-green-400'
+                : 'bg-red-500/10 border-red-500/30 text-red-400'
+            )}>
+              <div className={clsx(
+                'w-2 h-2 rounded-full',
+                busStatus.connected ? 'bg-green-400 animate-pulse' : 'bg-red-400'
+              )} />
+              <span className="text-sm font-medium">
+                {busStatus.connected ? 'Connected' : 'Disconnected'}
+              </span>
+              <span className="text-xs opacity-70">({busStatus.mode})</span>
+              <div className="border-l border-current/30 pl-3 ml-1">
+                <span className="text-xs">{busStatus.messageCount} msgs</span>
+              </div>
+              <div className="border-l border-current/30 pl-3">
+                <span className="text-xs">{busStatus.activeAgents} agents</span>
+              </div>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-3">
+          {/* Last Update */}
+          <span className="text-xs text-rapid-muted">
+            Updated: {format(lastUpdate, 'HH:mm:ss')}
+          </span>
+          {/* Polling Toggle */}
+          <button
+            onClick={() => setIsPolling(!isPolling)}
+            className={clsx(
+              'btn btn-sm',
+              isPolling ? 'btn-primary' : 'btn-ghost'
+            )}
+          >
+            {isPolling ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-white animate-pulse mr-2" />
+                Live
+              </>
+            ) : 'Paused'}
+          </button>
           {/* Search */}
           <div className="relative">
             <svg
@@ -107,47 +299,110 @@ export function EventsPage() {
         ))}
       </div>
 
-      {/* Message list */}
-      <div className="flex-1 card overflow-hidden flex flex-col">
-        <div className="flex-1 overflow-auto">
-          {filteredMessages.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-rapid-muted">
-              <div className="text-center">
-                <svg
-                  className="w-12 h-12 mx-auto mb-4 opacity-50"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                  />
-                </svg>
-                <p className="text-lg font-medium">No events found</p>
-                <p className="text-sm mt-1">
-                  {filter !== 'all' || searchQuery
-                    ? 'Try adjusting your filters'
-                    : 'Events will appear here as agents communicate'}
-                </p>
+      {/* Main content with sidebar */}
+      <div className="flex-1 flex gap-4 overflow-hidden">
+        {/* Message list */}
+        <div className="flex-1 card overflow-hidden flex flex-col">
+          <div className="flex-1 overflow-auto">
+            {filteredMessages.length === 0 ? (
+              <div className="flex items-center justify-center h-full text-rapid-muted">
+                <div className="text-center">
+                  <svg
+                    className="w-12 h-12 mx-auto mb-4 opacity-50"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                    />
+                  </svg>
+                  <p className="text-lg font-medium">No events found</p>
+                  <p className="text-sm mt-1">
+                    {filter !== 'all' || searchQuery
+                      ? 'Try adjusting your filters'
+                      : 'Events will appear here as agents communicate'}
+                  </p>
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="divide-y divide-rapid-border">
-              {filteredMessages.map((message) => (
-                <MessageItem key={message.id} message={message} />
-              ))}
-            </div>
-          )}
+            ) : (
+              <div className="divide-y divide-rapid-border">
+                {filteredMessages.map((message) => (
+                  <MessageItem
+                    key={message.id}
+                    message={message}
+                    isNew={newMessageIds.has(message.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Agent Health Sidebar */}
+        <div className="w-64 flex-shrink-0 card overflow-hidden flex flex-col">
+          <div className="p-3 border-b border-rapid-border">
+            <h3 className="font-semibold text-sm">Agent Health</h3>
+            <p className="text-xs text-rapid-muted mt-0.5">
+              {agentHealth.filter(a => a.status === 'active').length} active,{' '}
+              {agentHealth.filter(a => a.status === 'stale').length} stale
+            </p>
+          </div>
+          <div className="flex-1 overflow-auto">
+            {agentHealth.length === 0 ? (
+              <div className="p-4 text-center text-rapid-muted text-sm">
+                No agents registered
+              </div>
+            ) : (
+              <div className="p-2 space-y-1">
+                {agentHealth.map((agent) => (
+                  <div
+                    key={agent.id}
+                    className={clsx(
+                      'p-2 rounded-lg text-sm',
+                      agent.status === 'active'
+                        ? 'bg-green-500/10 border border-green-500/20'
+                        : 'bg-yellow-500/10 border border-yellow-500/20'
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className={clsx(
+                        'w-2 h-2 rounded-full',
+                        agent.status === 'active' ? 'bg-green-400 animate-pulse' : 'bg-yellow-400'
+                      )} />
+                      <span className="font-medium truncate">{agent.name}</span>
+                    </div>
+                    <div className="text-xs text-rapid-muted mt-1 pl-4">
+                      {agent.status === 'active' ? 'Active' : 'Stale'} •{' '}
+                      {safeFormatDistance(agent.lastSeen)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          {/* Quick Actions */}
+          <div className="p-2 border-t border-rapid-border space-y-1">
+            <button
+              onClick={cleanupStaleAgents}
+              className="btn btn-ghost btn-sm w-full text-xs"
+            >
+              Cleanup Stale Agents
+            </button>
+            <p className="text-[10px] text-rapid-muted text-center">
+              Auto-cleanup: 15 min timeout
+            </p>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function MessageItem({ message }: { message: Message }) {
+function MessageItem({ message, isNew = false }: { message: Message; isNew?: boolean }) {
   const [expanded, setExpanded] = useState(false);
 
   const typeIcon = {
@@ -258,8 +513,9 @@ function MessageItem({ message }: { message: Message }) {
   return (
     <div
       className={clsx(
-        'p-4 hover:bg-rapid-elevated transition-colors cursor-pointer',
-        expanded && 'bg-rapid-elevated'
+        'p-4 hover:bg-rapid-elevated transition-all cursor-pointer',
+        expanded && 'bg-rapid-elevated',
+        isNew && 'bg-rapid-accent/10 border-l-2 border-rapid-accent animate-pulse'
       )}
       onClick={() => setExpanded(!expanded)}
     >
@@ -273,7 +529,7 @@ function MessageItem({ message }: { message: Message }) {
             <span className="font-medium">{message.fromAgent.name}</span>
             <span className={clsx('badge', getTypeBadgeClass(message.type))}>{message.type}</span>
             <span className="text-sm text-rapid-muted ml-auto">
-              {format(new Date(message.timestamp), 'HH:mm:ss')}
+              {safeFormat(message.timestamp, 'HH:mm:ss')}
             </span>
           </div>
 
@@ -298,7 +554,7 @@ function MessageItem({ message }: { message: Message }) {
           <div className="flex items-center gap-4 mt-2 text-xs text-rapid-muted">
             <span>ID: {message.id}</span>
             <span>Agent: {message.fromAgent.id}</span>
-            <span>{formatDistanceToNow(new Date(message.timestamp), { addSuffix: true })}</span>
+            <span>{safeFormatDistance(message.timestamp)}</span>
           </div>
         </div>
       </div>

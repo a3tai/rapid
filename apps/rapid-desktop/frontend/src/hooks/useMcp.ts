@@ -12,6 +12,126 @@ import { useAppStore, type Task, type Message, type Agent } from '../stores/app'
 // MCP server endpoint - can be configured via env var
 const MCP_ENDPOINT = import.meta.env.VITE_MCP_URL || 'http://localhost:3100/mcp';
 
+/**
+ * Centralized Polling Manager
+ *
+ * Prevents race conditions from multiple competing polling intervals.
+ * All components share a single polling instance per data type.
+ */
+type PollingCallback = (data: any) => void;
+type FetchFunction = () => Promise<any>;
+
+interface PollingSubscription {
+  callbacks: Set<PollingCallback>;
+  interval: NodeJS.Timeout | null;
+  cache: { data: any; timestamp: number } | null;
+  fetcher: FetchFunction | null;
+}
+
+class PollingManager {
+  private subscriptions: Map<string, PollingSubscription> = new Map();
+  private defaultIntervalMs = 3000;
+
+  /**
+   * Subscribe to a polling key with a callback
+   * Returns an unsubscribe function
+   */
+  subscribe(
+    key: string,
+    callback: PollingCallback,
+    fetcher: FetchFunction,
+    intervalMs: number = this.defaultIntervalMs
+  ): () => void {
+    let sub = this.subscriptions.get(key);
+
+    if (!sub) {
+      sub = {
+        callbacks: new Set(),
+        interval: null,
+        cache: null,
+        fetcher,
+      };
+      this.subscriptions.set(key, sub);
+    }
+
+    sub.callbacks.add(callback);
+    sub.fetcher = fetcher;
+
+    // Return cached data immediately if fresh
+    if (sub.cache && Date.now() - sub.cache.timestamp < intervalMs) {
+      callback(sub.cache.data);
+    }
+
+    // Start polling if not already running
+    if (!sub.interval) {
+      this.startPolling(key, intervalMs);
+    }
+
+    // Return unsubscribe function
+    return () => this.unsubscribe(key, callback);
+  }
+
+  private unsubscribe(key: string, callback: PollingCallback): void {
+    const sub = this.subscriptions.get(key);
+    if (!sub) return;
+
+    sub.callbacks.delete(callback);
+
+    // Stop polling if no more subscribers
+    if (sub.callbacks.size === 0 && sub.interval) {
+      clearInterval(sub.interval);
+      sub.interval = null;
+    }
+  }
+
+  private startPolling(key: string, intervalMs: number): void {
+    const sub = this.subscriptions.get(key);
+    if (!sub || !sub.fetcher) return;
+
+    // Initial fetch
+    this.poll(key);
+
+    // Set up interval
+    sub.interval = setInterval(() => this.poll(key), intervalMs);
+  }
+
+  private async poll(key: string): Promise<void> {
+    const sub = this.subscriptions.get(key);
+    if (!sub || !sub.fetcher) return;
+
+    try {
+      const data = await sub.fetcher();
+      sub.cache = { data, timestamp: Date.now() };
+      sub.callbacks.forEach(cb => cb(data));
+    } catch (err) {
+      console.error(`[PollingManager] Error polling ${key}:`, err);
+    }
+  }
+
+  /**
+   * Force an immediate refresh of a key
+   */
+  async refresh(key: string): Promise<void> {
+    await this.poll(key);
+  }
+
+  /**
+   * Stop all polling (cleanup)
+   */
+  stopAll(): void {
+    for (const [, sub] of this.subscriptions) {
+      if (sub.interval) {
+        clearInterval(sub.interval);
+        sub.interval = null;
+      }
+    }
+    this.subscriptions.clear();
+  }
+}
+
+// Singleton polling manager
+export const pollingManager = new PollingManager();
+
 interface McpToolResult {
   content?: Array<{ type: string; text: string }>;
   structuredContent?: unknown;
@@ -22,31 +142,43 @@ interface McpToolResult {
  * Hook to interact with RAPID MCP server directly
  */
 export function useMcp() {
-  const { setDaemonStatus, setAgents, setTasks, setMessages, setError, setConnecting } =
+  const { setDaemonStatus, mergeAgents, mergeTasks, mergeMessages, setError, setConnecting } =
     useAppStore();
 
+  const mcpSessionId = useRef<string | null>(null);
   const sessionId = useRef<string | null>(null);
 
   /**
-   * Call an MCP tool on the server
+   * Make an MCP request with proper session handling
    */
-  const callTool = useCallback(
-    async (toolName: string, args: Record<string, unknown> = {}): Promise<McpToolResult> => {
+  const mcpRequest = useCallback(
+    async (method: string, params: Record<string, unknown> = {}): Promise<any> => {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json, text/event-stream',
+      };
+
+      // Include session ID if we have one
+      if (mcpSessionId.current) {
+        headers['mcp-session-id'] = mcpSessionId.current;
+      }
+
       const response = await fetch(MCP_ENDPOINT, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           jsonrpc: '2.0',
           id: Date.now(),
-          method: 'tools/call',
-          params: {
-            name: toolName,
-            arguments: args,
-          },
+          method,
+          params,
         }),
       });
+
+      // Store session ID from response
+      const responseSessionId = response.headers.get('mcp-session-id');
+      if (responseSessionId) {
+        mcpSessionId.current = responseSessionId;
+      }
 
       if (!response.ok) {
         throw new Error(`MCP request failed: ${response.status}`);
@@ -57,20 +189,37 @@ export function useMcp() {
         throw new Error(result.error.message || 'MCP call failed');
       }
 
-      return result.result;
+      return result;
     },
     []
   );
 
   /**
+   * Call an MCP tool on the server
+   */
+  const callTool = useCallback(
+    async (toolName: string, args: Record<string, unknown> = {}): Promise<McpToolResult> => {
+      const result = await mcpRequest('tools/call', {
+        name: toolName,
+        arguments: args,
+      });
+      return result.result;
+    },
+    [mcpRequest]
+  );
+
+  /**
    * Fetch agents from event bus
+   * Uses mergeAgents to preserve local cache and prevent flickering
    */
   const fetchAgents = useCallback(async () => {
     try {
-      const result = await callTool('bus_agents', { maxAgeSeconds: 300 });
+      // Use maxAgeSeconds: 60 to get active agents (heartbeat within last minute)
+      const result = await callTool('bus_agents', { maxAgeSeconds: 60 });
       const data = result.structuredContent as { agents?: Agent[] };
-      if (data?.agents) {
-        setAgents(
+      if (data?.agents && data.agents.length > 0) {
+        // Merge with existing agents instead of replacing
+        mergeAgents(
           data.agents.map((a) => ({
             id: a.id,
             name: a.name,
@@ -78,44 +227,48 @@ export function useMcp() {
             session: a.session,
           }))
         );
-      } else {
-        setAgents([]);
       }
+      // Don't clear agents on empty result - they may just not have heartbeat yet
     } catch (err) {
+      // Don't clear agents on error - keep showing what we had
       console.error('Failed to fetch agents:', err);
-      setAgents([]);
-      setError(`Failed to fetch agents: ${err}`);
     }
-  }, [callTool, setAgents, setError]);
+  }, [callTool, mergeAgents]);
 
   /**
    * Fetch tasks
+   * Uses mergeTasks to preserve local cache and prevent flickering
    */
   const fetchTasks = useCallback(async () => {
     try {
       const result = await callTool('task_list', {});
       const data = result.structuredContent as { tasks?: Task[] };
-      setTasks(data?.tasks || []);
+      if (data?.tasks && data.tasks.length > 0) {
+        // Merge with existing tasks instead of replacing
+        mergeTasks(data.tasks);
+      }
+      // Don't clear tasks on empty result - keep cache for stability
     } catch (err) {
+      // Don't clear tasks on error - keep cache for stability
       console.error('Failed to fetch tasks:', err);
-      setTasks([]);
-      setError(`Failed to fetch tasks: ${err}`);
     }
-  }, [callTool, setTasks, setError]);
+  }, [callTool, mergeTasks]);
 
   /**
    * Fetch messages from event bus
+   * Uses mergeMessages to preserve local cache and avoid flicker
    */
   const fetchMessages = useCallback(
-    async (limit = 20) => {
+    async (limit = 50) => {
       try {
         const result = await callTool('bus_messages', {
           limit,
           brief: false,
         });
         const data = result.structuredContent as { messages?: Message[] };
-        if (data?.messages) {
-          setMessages(
+        if (data?.messages && data.messages.length > 0) {
+          // Merge with existing messages instead of replacing
+          mergeMessages(
             data.messages.map((m) => ({
               id: m.id,
               type: m.type,
@@ -124,16 +277,14 @@ export function useMcp() {
               payload: m.payload,
             }))
           );
-        } else {
-          setMessages([]);
         }
+        // Don't clear messages if fetch returns empty - keep cache
       } catch (err) {
+        // Don't clear messages on error - keep cache for stability
         console.error('Failed to fetch messages:', err);
-        setMessages([]);
-        setError(`Failed to fetch messages: ${err}`);
       }
     },
-    [callTool, setMessages, setError]
+    [callTool, mergeMessages]
   );
 
   /**
@@ -337,11 +488,11 @@ export function useMcp() {
    * Spawn a new agent
    */
   const spawnAgent = useCallback(
-    async (persona: string, worktree: string) => {
+    async (persona: string, task: string) => {
       try {
         await callTool('persona_spawn', {
           name: persona,
-          task: `Work on ${worktree}`,
+          task,
           background: true,
           connectToBus: true,
         });
@@ -405,16 +556,93 @@ export function useMcp() {
   );
 
   /**
-   * Initialize all data
+   * Initialize MCP session and all data
    */
   const initialize = useCallback(async () => {
     setConnecting(true);
     try {
+      // First, initialize the MCP session if we don't have one
+      if (!mcpSessionId.current) {
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json, text/event-stream',
+        };
+
+        const response = await fetch(MCP_ENDPOINT, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: Date.now(),
+            method: 'initialize',
+            params: {
+              protocolVersion: '2024-11-05',
+              capabilities: {},
+              clientInfo: { name: 'rapid-desktop', version: '1.0.0' },
+            },
+          }),
+        });
+
+        // Store session ID from response
+        const responseSessionId = response.headers.get('mcp-session-id');
+        if (responseSessionId) {
+          mcpSessionId.current = responseSessionId;
+          console.log('[MCP] Session initialized:', responseSessionId.slice(0, 8));
+        }
+      }
+
+      // Now fetch all data
       await Promise.all([fetchDaemonStatus(), fetchAgents(), fetchTasks(), fetchMessages()]);
+    } catch (err) {
+      console.error('[MCP] Initialization failed:', err);
+      setError(`MCP initialization failed: ${err}`);
     } finally {
       setConnecting(false);
     }
-  }, [fetchDaemonStatus, fetchAgents, fetchTasks, fetchMessages, setConnecting]);
+  }, [fetchDaemonStatus, fetchAgents, fetchTasks, fetchMessages, setConnecting, setError]);
+
+  /**
+   * Start unified polling for all data types
+   * Uses the centralized PollingManager to prevent race conditions
+   * Returns an unsubscribe function to stop polling
+   */
+  const startPolling = useCallback(
+    (intervalMs: number = 3000): (() => void) => {
+      const unsubAgents = pollingManager.subscribe(
+        'agents',
+        () => {},
+        fetchAgents,
+        intervalMs
+      );
+      const unsubTasks = pollingManager.subscribe(
+        'tasks',
+        () => {},
+        fetchTasks,
+        intervalMs
+      );
+      const unsubMessages = pollingManager.subscribe(
+        'messages',
+        () => {},
+        () => fetchMessages(50),
+        intervalMs
+      );
+      const unsubStatus = pollingManager.subscribe(
+        'status',
+        () => {},
+        fetchDaemonStatus,
+        intervalMs * 2 // Status can poll less frequently
+      );
+
+      // Return cleanup function
+      return () => {
+        unsubAgents();
+        unsubTasks();
+        unsubMessages();
+        unsubStatus();
+      };
+    },
+    [fetchAgents, fetchTasks, fetchMessages, fetchDaemonStatus]
+  );
 
   return {
     initialize,
@@ -434,5 +662,7 @@ export function useMcp() {
     stopAgent,
     sendMessage,
     callTool,
+    startPolling,
+    pollingManager,
   };
 }

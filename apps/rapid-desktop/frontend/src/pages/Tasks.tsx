@@ -3,12 +3,8 @@ import { useState } from 'react';
 import { clsx } from 'clsx';
 import { formatDistanceToNow } from 'date-fns';
 import { useTasks, useAppStore, type Task } from '../stores/app';
-import { useWails } from '../hooks/useWails';
 import { useMcp } from '../hooks/useMcp';
 import { useToast } from '../components/Toast';
-
-// Re-export useState for use in component functions
-export { useState };
 
 type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'blocked' | 'cancelled';
 
@@ -34,9 +30,10 @@ export function TasksPage() {
   const [sortBy, setSortBy] = useState<SortBy>('date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
-  const { createTask } = useWails();
-  const { updateTaskStatus } = useMcp();
+  const { updateTaskStatus, createTask } = useMcp();
   const toast = useToast();
+
+  // App.tsx handles centralized polling - individual pages should not start their own
 
   // Apply filters
   const filteredTasks = tasks.filter((t) => {

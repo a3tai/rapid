@@ -106,8 +106,11 @@ interface AppState {
   // Actions
   setDaemonStatus: (status: DaemonStatus | null) => void;
   setAgents: (agents: Agent[]) => void;
+  mergeAgents: (agents: Agent[]) => void;
   setTasks: (tasks: Task[]) => void;
+  mergeTasks: (tasks: Task[]) => void;
   setMessages: (messages: Message[]) => void;
+  mergeMessages: (messages: Message[]) => void;
   addMessage: (message: Message) => void;
   setSuggestions: (suggestions: Suggestion[]) => void;
   addSuggestion: (suggestion: Suggestion) => void;
@@ -134,11 +137,51 @@ export const useAppStore = create<AppState>((set) => ({
   // Actions
   setDaemonStatus: (status) => set({ daemonStatus: status }),
   setAgents: (agents) => set({ agents }),
+  // Merge new agents with existing ones (preserves local cache, prevents flickering)
+  mergeAgents: (newAgents) =>
+    set((state) => {
+      const existingMap = new Map(state.agents.map((a) => [a.id, a]));
+      for (const agent of newAgents) {
+        existingMap.set(agent.id, agent);
+      }
+      return { agents: Array.from(existingMap.values()) };
+    }),
   setTasks: (tasks) => set({ tasks }),
+  // Merge new tasks with existing ones (preserves local cache, prevents flickering)
+  mergeTasks: (newTasks) =>
+    set((state) => {
+      const existingMap = new Map(state.tasks.map((t) => [t.id, t]));
+      for (const task of newTasks) {
+        existingMap.set(task.id, task);
+      }
+      // Sort by updatedAt (newest first)
+      const merged = Array.from(existingMap.values()).sort(
+        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+      );
+      return { tasks: merged };
+    }),
   setMessages: (messages) => set({ messages }),
+  // Merge new messages with existing ones (preserves local cache)
+  mergeMessages: (newMessages) =>
+    set((state) => {
+      // Create a map of existing messages by ID for fast lookup
+      const existingMap = new Map(state.messages.map((m) => [m.id, m]));
+
+      // Add new messages, updating existing ones
+      for (const msg of newMessages) {
+        existingMap.set(msg.id, msg);
+      }
+
+      // Convert back to array and sort by timestamp (newest first)
+      const merged = Array.from(existingMap.values())
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .slice(0, 200); // Keep last 200 messages
+
+      return { messages: merged };
+    }),
   addMessage: (message) =>
     set((state) => ({
-      messages: [message, ...state.messages].slice(0, 100), // Keep last 100
+      messages: [message, ...state.messages].slice(0, 200), // Keep last 200
     })),
   setSuggestions: (suggestions) => set({ suggestions }),
   addSuggestion: (suggestion) =>

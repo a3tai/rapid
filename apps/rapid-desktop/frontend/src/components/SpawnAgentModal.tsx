@@ -1,5 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useMcp } from '../hooks/useMcp';
+
+interface Persona {
+  name: string;
+  description?: string;
+}
 
 interface SpawnAgentModalProps {
   isOpen: boolean;
@@ -11,16 +16,35 @@ interface SpawnAgentModalProps {
  * Modal for spawning new agents (workers or orchestrators)
  */
 export function SpawnAgentModal({ isOpen, onClose, type = 'worker' }: SpawnAgentModalProps) {
-  const [personaName, setPersonaName] = useState('');
-  const [worktree, setWorktree] = useState('main');
+  const [selectedPersona, setSelectedPersona] = useState('worker');
+  const [personas, setPersonas] = useState<Persona[]>([]);
+  const [task, setTask] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { spawnAgent } = useMcp();
+  const { spawnAgent, callTool } = useMcp();
+
+  // Fetch available personas when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      callTool('persona_list', {})
+        .then((result) => {
+          const data = result.structuredContent as { personas?: Persona[] };
+          if (data?.personas) {
+            setPersonas(data.personas);
+            // Set default based on type
+            const defaultPersona = type === 'orchestrator' ? 'orchestrator' : 'worker';
+            const hasDefault = data.personas.some((p) => p.name === defaultPersona);
+            setSelectedPersona(hasDefault ? defaultPersona : data.personas[0]?.name || 'worker');
+          }
+        })
+        .catch(console.error);
+    }
+  }, [isOpen, type, callTool]);
 
   const handleSpawn = useCallback(async () => {
-    if (!personaName.trim()) {
-      setError('Persona name is required');
+    if (!selectedPersona) {
+      setError('Please select a persona');
       return;
     }
 
@@ -28,11 +52,8 @@ export function SpawnAgentModal({ isOpen, onClose, type = 'worker' }: SpawnAgent
     setError(null);
 
     try {
-      const persona = type === 'orchestrator' ? 'orchestrator' : 'claude';
-      await spawnAgent(persona, worktree);
-
-      setPersonaName('');
-      setWorktree('main');
+      await spawnAgent(selectedPersona, task || `Work as ${selectedPersona}`);
+      setTask('');
       onClose();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to spawn agent';
@@ -40,7 +61,7 @@ export function SpawnAgentModal({ isOpen, onClose, type = 'worker' }: SpawnAgent
     } finally {
       setLoading(false);
     }
-  }, [personaName, worktree, type, spawnAgent, onClose]);
+  }, [selectedPersona, task, spawnAgent, onClose]);
 
   if (!isOpen) return null;
 
@@ -82,37 +103,41 @@ export function SpawnAgentModal({ isOpen, onClose, type = 'worker' }: SpawnAgent
             </div>
           )}
 
-          {/* Persona name */}
+          {/* Persona selection */}
           <div>
-            <label className="block text-sm font-medium text-rapid-text mb-2">Persona Name</label>
-            <input
-              type="text"
-              value={personaName}
+            <label className="block text-sm font-medium text-rapid-text mb-2">Persona</label>
+            <select
+              value={selectedPersona}
               onChange={(e) => {
-                setPersonaName(e.target.value);
+                setSelectedPersona(e.target.value);
                 setError(null);
               }}
-              placeholder={type === 'orchestrator' ? 'e.g., orchestrator-1' : 'e.g., claude'}
-              className="w-full px-3 py-2 bg-rapid-elevated border border-rapid-border rounded-lg text-rapid-text placeholder-rapid-muted focus:outline-none focus:border-rapid-accent"
+              className="w-full px-3 py-2 bg-rapid-elevated border border-rapid-border rounded-lg text-rapid-text focus:outline-none focus:border-rapid-accent"
               disabled={loading}
-            />
-            <p className="mt-1 text-xs text-rapid-muted">Name for this agent instance</p>
+            >
+              {personas.map((p) => (
+                <option key={p.name} value={p.name}>
+                  {p.name} {p.description ? `- ${p.description}` : ''}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-rapid-muted">Select the agent persona to spawn</p>
           </div>
 
-          {/* Worktree */}
+          {/* Task description */}
           <div>
             <label className="block text-sm font-medium text-rapid-text mb-2">
-              Worktree / Branch
+              Task (optional)
             </label>
-            <input
-              type="text"
-              value={worktree}
-              onChange={(e) => setWorktree(e.target.value)}
-              placeholder="main"
-              className="w-full px-3 py-2 bg-rapid-elevated border border-rapid-border rounded-lg text-rapid-text placeholder-rapid-muted focus:outline-none focus:border-rapid-accent"
+            <textarea
+              value={task}
+              onChange={(e) => setTask(e.target.value)}
+              placeholder="Describe what this agent should work on..."
+              rows={3}
+              className="w-full px-3 py-2 bg-rapid-elevated border border-rapid-border rounded-lg text-rapid-text placeholder-rapid-muted focus:outline-none focus:border-rapid-accent resize-none"
               disabled={loading}
             />
-            <p className="mt-1 text-xs text-rapid-muted">Git branch or worktree for this agent</p>
+            <p className="mt-1 text-xs text-rapid-muted">What should this agent work on?</p>
           </div>
 
           {/* Agent type info */}
@@ -140,7 +165,7 @@ export function SpawnAgentModal({ isOpen, onClose, type = 'worker' }: SpawnAgent
           <button
             onClick={handleSpawn}
             className="flex-1 px-4 py-2 bg-rapid-accent text-rapid-surface rounded-lg font-medium hover:bg-rapid-accent/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-            disabled={loading || !personaName.trim()}
+            disabled={loading || !selectedPersona}
           >
             {loading ? (
               <>

@@ -15,6 +15,7 @@ declare global {
 /**
  * Hook to listen for Wails events and sync to store
  * This handles real-time updates from the Go backend
+ * NOTE: Uses merge functions to preserve existing data and prevent flickering
  */
 export function useWailsEvents() {
   const store = useAppStore();
@@ -28,33 +29,33 @@ export function useWailsEvents() {
       return;
     }
 
-    // Listen for agents updates
+    // Listen for agents updates - use merge to preserve existing data
     const unlistenAgents = runtime.EventsOn('rapid:agents', (event: any) => {
       try {
         if (event.data && Array.isArray(event.data)) {
-          store.setAgents(event.data);
+          store.mergeAgents(event.data);
         }
       } catch (err) {
         console.error('[WailsEvents] Error syncing agents:', err);
       }
     });
 
-    // Listen for tasks updates
+    // Listen for tasks updates - use merge to preserve existing data
     const unlistenTasks = runtime.EventsOn('rapid:tasks', (event: any) => {
       try {
         if (event.data && Array.isArray(event.data)) {
-          store.setTasks(event.data);
+          store.mergeTasks(event.data);
         }
       } catch (err) {
         console.error('[WailsEvents] Error syncing tasks:', err);
       }
     });
 
-    // Listen for messages updates
+    // Listen for messages updates - use merge to preserve history
     const unlistenMessages = runtime.EventsOn('rapid:messages', (event: any) => {
       try {
         if (event.data && Array.isArray(event.data)) {
-          store.setMessages(event.data);
+          store.mergeMessages(event.data);
         }
       } catch (err) {
         console.error('[WailsEvents] Error syncing messages:', err);

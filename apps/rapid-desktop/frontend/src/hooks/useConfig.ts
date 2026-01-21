@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useAsyncOperation } from './useAsyncOperation';
 import { AppError } from '../utils/errorHandling';
+import * as AppService from '@wails/go/main/AppService';
 
 export interface RapidConfig {
   $schema?: string;
@@ -51,11 +52,7 @@ export function useConfig() {
     execute: loadConfig,
   } = useAsyncOperation<Record<string, unknown>>(
     async () => {
-      if (typeof window === 'undefined' || !window.go?.main?.App) {
-        throw new AppError('Wails not available', 'WAILS_ERROR', 'warning', false);
-      }
-
-      const result = await window.go.main.App.GetConfig();
+      const result = await AppService.GetConfig();
       if (!result) {
         throw new AppError('No config returned', 'CONFIG_ERROR', 'warning', false);
       }
@@ -108,22 +105,12 @@ export function useConfig() {
     setSaveError(null);
 
     try {
-      if (typeof window === 'undefined' || !window.go?.main?.App) {
-        throw new AppError('Wails not available', 'WAILS_ERROR', 'warning', false);
-      }
-
       // Convert typed config back to raw format for saving
       const rawConfig: Record<string, unknown> = {
         ...updatedConfig,
       };
 
-      // SaveConfig added to backend but TypeScript types not yet regenerated
-      // Use type assertion to allow calling the method
-      await (
-        window.go.main.App as unknown as {
-          SaveConfig(config: Record<string, unknown>): Promise<void>;
-        }
-      ).SaveConfig(rawConfig);
+      await AppService.SaveConfig(rawConfig);
       setIsDirty(false);
       setSaving(false);
       return true;

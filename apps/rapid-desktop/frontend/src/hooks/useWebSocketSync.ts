@@ -19,22 +19,22 @@ export function useWebSocketSync() {
       if (!detail) return;
 
       try {
-        // Handle agents update
+        // Handle agents update - use merge to preserve existing data
         if (detail.type === 'agents' && Array.isArray(detail.data)) {
           const agents = detail.data as Agent[];
-          store.setAgents(agents);
+          store.mergeAgents(agents);
         }
 
-        // Handle tasks update
+        // Handle tasks update - use merge to preserve existing data
         if (detail.type === 'tasks' && Array.isArray(detail.data)) {
           const tasks = detail.data as Task[];
-          store.setTasks(tasks);
+          store.mergeTasks(tasks);
         }
 
-        // Handle messages update
+        // Handle messages update - use merge to preserve history
         if (detail.type === 'messages' && Array.isArray(detail.data)) {
           const messages = detail.data as Message[];
-          store.setMessages(messages);
+          store.mergeMessages(messages);
         }
 
         // Handle single message (append mode)

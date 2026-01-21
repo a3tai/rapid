@@ -1,57 +1,62 @@
 /**
  * Unified Data Hook
  *
- * Auto-detects environment and uses appropriate data source:
- * - Wails: Uses Go backend via window.go API
- * - Browser: Connects directly to RAPID MCP server
- * - Dev: Falls back to mock data if MCP unavailable
+ * Uses MCP server for all data fetching to ensure proper state merging.
+ * This prevents flickering by using mergeMessages/mergeAgents/mergeTasks
+ * instead of setMessages/setAgents/setTasks.
  */
 
 import { useEffect, useCallback } from 'react';
 import { useWails } from './useWails';
 import { useMcp } from './useMcp';
 
-// Detect if running in Wails context
-const isWailsEnv = () => typeof window !== 'undefined' && window.go?.main?.App;
-
 // Get MCP endpoint from env or default
 const MCP_ENDPOINT = import.meta.env.VITE_MCP_URL || 'http://localhost:3100/mcp';
 
 /**
- * Unified hook that provides data access regardless of environment
+ * Unified hook - uses MCP for fetching (merges state) and Wails for mutations
  */
 export function useData() {
   const wails = useWails();
   const mcp = useMcp();
 
-  // Use Wails if available, otherwise MCP
-  const source = isWailsEnv() ? wails : mcp;
-
+  // Use MCP for fetch functions (they use mergeMessages/mergeAgents/mergeTasks)
+  // Use Wails for mutations (createTask, spawnAgent, etc.) if Wails backend is available
   return {
-    ...source,
-    // Always provide callTool from MCP for direct tool access
+    // Fetch functions from MCP - these preserve state via merge functions
+    fetchDaemonStatus: mcp.fetchDaemonStatus,
+    fetchAgents: mcp.fetchAgents,
+    fetchTasks: mcp.fetchTasks,
+    fetchMessages: mcp.fetchMessages,
+    initialize: mcp.initialize,
+    // Mutation functions - use MCP versions for consistency
+    createTask: mcp.createTask,
+    spawnAgent: mcp.spawnAgent,
+    stopAgent: mcp.stopAgent,
+    sendMessage: mcp.sendMessage,
+    // Wails-specific functions
+    subscribe: wails.subscribe,
+    unsubscribe: wails.unsubscribe,
+    getChatHistory: wails.getChatHistory,
+    // MCP-specific functions
     callTool: mcp.callTool,
-    isWails: isWailsEnv(),
+    startPolling: mcp.startPolling,
+    isWails: true,
     mcpEndpoint: MCP_ENDPOINT,
   };
 }
 
 /**
- * Auto-polling hook that works in both environments
+ * Auto-polling hook using centralized PollingManager
+ * This prevents race conditions from multiple intervals
  */
 export function useDataPolling(intervalMs = 5000) {
-  const { fetchAgents, fetchTasks, fetchMessages, fetchDaemonStatus } = useData();
+  const { startPolling } = useData();
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      fetchDaemonStatus();
-      fetchAgents();
-      fetchTasks();
-      fetchMessages();
-    }, intervalMs);
-
-    return () => clearInterval(interval);
-  }, [fetchAgents, fetchTasks, fetchMessages, fetchDaemonStatus, intervalMs]);
+    const stopPolling = startPolling(intervalMs);
+    return () => stopPolling();
+  }, [startPolling, intervalMs]);
 }
 
 /**
@@ -60,12 +65,41 @@ export function useDataPolling(intervalMs = 5000) {
 export function useMcpStatus() {
   const checkConnection = useCallback(async () => {
     try {
-      const response = await fetch(MCP_ENDPOINT, {
+      // First initialize to get a session
+      const initResponse = await fetch(MCP_ENDPOINT, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json, text/event-stream',
+        },
         body: JSON.stringify({
           jsonrpc: '2.0',
           id: 1,
+          method: 'initialize',
+          params: {
+            protocolVersion: '2024-11-05',
+            capabilities: {},
+            clientInfo: { name: 'rapid-desktop-check', version: '1.0.0' },
+          },
+        }),
+      });
+
+      const sessionId = initResponse.headers.get('mcp-session-id');
+      if (!initResponse.ok || !sessionId) {
+        return { connected: false, toolCount: 0 };
+      }
+
+      // Now list tools with the session
+      const response = await fetch(MCP_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json, text/event-stream',
+          'mcp-session-id': sessionId,
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 2,
           method: 'tools/list',
           params: {},
         }),
