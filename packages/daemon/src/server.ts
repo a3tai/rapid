@@ -421,6 +421,13 @@ export class DaemonServer {
       return;
     }
 
+    // Handle SSE agent stream endpoint: /agents/stream/:agentId (alias for /logs)
+    const agentStreamMatch = url.pathname.match(/^\/agents\/stream\/([^/]+)$/);
+    if (agentStreamMatch && agentStreamMatch[1] && req.method === 'GET') {
+      await this.handleLogStream(req, res, agentStreamMatch[1]);
+      return;
+    }
+
     // Handle task dependency graph endpoint: /api/dependencies
     if (url.pathname === '/api/dependencies' && req.method === 'GET') {
       await this.handleDependencyGraph(req, res);
