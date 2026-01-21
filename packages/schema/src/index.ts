@@ -620,6 +620,53 @@ export interface PersonaConfig {
 
   /** Custom metadata */
   metadata?: Record<string, unknown>;
+
+  /**
+   * Security configuration for HITL controls
+   */
+  security?: PersonaSecurityConfig;
+}
+
+/**
+ * Per-persona security configuration for HITL controls
+ */
+export interface PersonaSecurityConfig {
+  /**
+   * Tool patterns that require human approval before execution.
+   * Supports wildcards: "file_*", "secure_exec", "persona_spawn"
+   */
+  approvalRequired?: string[];
+
+  /**
+   * Trust level for this persona: 'low', 'medium', 'high'
+   * - low: all sensitive operations require approval
+   * - medium: only high-risk operations require approval
+   * - high: operates autonomously (yolo mode)
+   */
+  trustLevel?: 'low' | 'medium' | 'high';
+
+  /**
+   * Maximum budget in USD for this persona's session.
+   * Operations exceeding this will be blocked.
+   */
+  budgetLimit?: number;
+
+  /**
+   * Whether this persona can approve requests from other agents.
+   * Only orchestrator-level personas should have this.
+   */
+  canApprove?: boolean;
+
+  /**
+   * Require approval for spawning other agents (default: true for low trust)
+   */
+  approveSpawn?: boolean;
+
+  /**
+   * Allowed file paths/patterns this persona can write to.
+   * Empty means no restrictions. Supports globs.
+   */
+  allowedPaths?: string[];
 }
 
 /**
@@ -646,6 +693,13 @@ export interface PersonasConfig {
 
   /** Orchestrator persona name (coordinates the team) */
   orchestrator?: string;
+
+  /**
+   * Enable yolo mode: skip all permission prompts for spawned agents.
+   * When false (default), HITL approval requests surface in the UI.
+   * Use with caution - allows agents to execute without human approval.
+   */
+  yoloMode?: boolean;
 }
 
 /**

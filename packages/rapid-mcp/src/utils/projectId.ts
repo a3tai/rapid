@@ -5,7 +5,7 @@
  * Ensures all agents in the same RAPID project can discover each other.
  */
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
@@ -41,12 +41,28 @@ export async function findProjectRoot(startDir: string): Promise<string> {
  *
  * Strategy:
  * 1. Find the actual project root (directory containing rapid.json)
- * 2. Use the basename of the project root as the project ID
- * 3. This ensures all worktrees of the same project use the same ID
+ * 2. Read the project name from rapid.json if available
+ * 3. Fall back to directory basename if name not in config
+ * 4. This ensures all worktrees of the same project use the same ID
  */
 export async function getProjectId(directory: string): Promise<string> {
   try {
     const projectRoot = await findProjectRoot(directory);
+
+    // Try to read project name from rapid.json
+    const rapidJsonPath = join(projectRoot, 'rapid.json');
+    if (existsSync(rapidJsonPath)) {
+      try {
+        const config = JSON.parse(readFileSync(rapidJsonPath, 'utf-8'));
+        if (config.name && typeof config.name === 'string') {
+          return config.name;
+        }
+      } catch {
+        // JSON parse error, fall through to basename
+      }
+    }
+
+    // Fallback to directory basename
     const projectName = projectRoot.split('/').pop();
     return projectName || 'rapid-project';
   } catch {

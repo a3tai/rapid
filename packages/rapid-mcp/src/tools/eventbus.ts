@@ -19,6 +19,56 @@ import {
 import type { ServerContext } from '../server.js';
 import { getProjectId } from '../utils/projectId.js';
 
+/**
+ * Parse @mentions from message content
+ * Supports: @all (broadcast), @agentname (direct), @role (e.g., @orchestrator, @worker)
+ *
+ * Returns array of target agent IDs/names, or undefined for broadcast
+ */
+function parseMentions(
+  content: string,
+  registeredAgents: Array<{ id: string; name: string }>
+): { targets: string[] | undefined; mentionedAll: boolean } {
+  // Match @mentions at word boundaries
+  const mentionPattern = /@(\w+)/g;
+  const mentions = new Set<string>();
+  let mentionedAll = false;
+
+  let match;
+  while ((match = mentionPattern.exec(content)) !== null) {
+    const mention = match[1]!.toLowerCase();
+
+    if (mention === 'all' || mention === 'everyone' || mention === 'broadcast') {
+      mentionedAll = true;
+      break; // @all means broadcast to everyone, no need to parse further
+    }
+
+    // Check if it matches a registered agent name or ID
+    const agent = registeredAgents.find(
+      (a) => a.name.toLowerCase() === mention || a.id.toLowerCase() === mention
+    );
+    if (agent) {
+      mentions.add(agent.id);
+    } else {
+      // Also allow role-based mentions (orchestrator, worker, etc.)
+      // These match by agent name prefix
+      const roleAgents = registeredAgents.filter(
+        (a) => a.name.toLowerCase().startsWith(mention)
+      );
+      for (const ra of roleAgents) {
+        mentions.add(ra.id);
+      }
+    }
+  }
+
+  // If @all was mentioned or no specific mentions, broadcast to all
+  if (mentionedAll || mentions.size === 0) {
+    return { targets: undefined, mentionedAll: mentionedAll || mentions.size === 0 };
+  }
+
+  return { targets: Array.from(mentions), mentionedAll: false };
+}
+
 // Singleton event bus instance per project
 const busInstances = new Map<string, EventBus | InMemoryEventBus>();
 
@@ -384,9 +434,22 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
       const fromAgent: AgentInfo = { id: agentId, name: agentName, worktree };
 
       const sendOptions: { toAgents?: string[]; priority?: z.infer<typeof MessagePriority> } = {};
+
+      // If toAgents not explicitly provided, parse @mentions from content
       if (toAgents !== undefined) {
         sendOptions.toAgents = toAgents;
+      } else {
+        // Get registered agents to resolve @mentions
+        const registeredAgents = await bus.getActiveAgents(300); // 5 minute staleness
+        const { targets } = parseMentions(content, registeredAgents);
+        if (targets) {
+          sendOptions.toAgents = targets;
+          if (context.verbose) {
+            console.error(`[bus_send] Parsed @mentions: ${targets.join(', ')}`);
+          }
+        }
       }
+
       if (priority !== undefined) {
         sendOptions.priority = priority;
       }

@@ -6,7 +6,7 @@
         <key>CFBundleName</key>
         <string>rapid-desktop</string>
         <key>CFBundleExecutable</key>
-        <string>RAPID Dashboard</string>
+        <string>rapid-desktop</string>
         <key>CFBundleIdentifier</key>
         <string>com.wails.rapid-desktop</string>
         <key>CFBundleVersion</key>
@@ -25,10 +25,5 @@
         <string>Copyright.........</string>
         
         
-        <key>NSAppTransportSecurity</key>
-        <dict>
-            <key>NSAllowsLocalNetworking</key>
-            <true/>
-        </dict>
     </dict>
 </plist>

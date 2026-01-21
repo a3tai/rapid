@@ -2,16 +2,16 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
 
-	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // WebSocketSubscription represents a subscription to real-time updates
@@ -21,8 +21,10 @@ type WebSocketSubscription struct {
 	Channel   chan interface{}
 }
 
-// AppService is the main service for the RAPID desktop app (Wails v3)
+// AppService is the main service for the RAPID desktop app (Wails v2)
 type AppService struct {
+	ctx           context.Context
+	daemonURL     string
 	socketPath    string
 	subscriptions map[string]*WebSocketSubscription
 	subMutex      sync.RWMutex
@@ -31,10 +33,22 @@ type AppService struct {
 // NewAppService creates a new AppService instance
 func NewAppService() *AppService {
 	homeDir, _ := os.UserHomeDir()
+	// Use RAPID_DAEMON_URL env var, default to localhost:3200
+	daemonURL := os.Getenv("RAPID_DAEMON_URL")
+	if daemonURL == "" {
+		daemonURL = "http://localhost:3200/rpc"
+	}
 	return &AppService{
+		daemonURL:     daemonURL,
 		socketPath:    filepath.Join(homeDir, ".rapid", "rapid.sock"),
 		subscriptions: make(map[string]*WebSocketSubscription),
 	}
+}
+
+// startup is called when the app starts. The context is saved
+// so we can call the runtime methods
+func (a *AppService) startup(ctx context.Context) {
+	a.ctx = ctx
 }
 
 // Agent represents an agent on the event bus
@@ -77,14 +91,8 @@ type DaemonStatus struct {
 	Sessions   int    `json:"sessions,omitempty"`
 }
 
-// rpcCall makes a JSON-RPC call to the daemon
+// rpcCall makes a JSON-RPC call to the daemon via HTTP
 func (a *AppService) rpcCall(method string, params interface{}) (interface{}, error) {
-	conn, err := net.DialTimeout("unix", a.socketPath, 5*time.Second)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to daemon: %w", err)
-	}
-	defer conn.Close()
-
 	// Build request
 	request := map[string]interface{}{
 		"jsonrpc": "2.0",
@@ -95,19 +103,26 @@ func (a *AppService) rpcCall(method string, params interface{}) (interface{}, er
 		request["params"] = params
 	}
 
-	// Send request
-	encoder := json.NewEncoder(conn)
-	if err := encoder.Encode(request); err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
+	// Encode request body
+	body, err := json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode request: %w", err)
 	}
+
+	// Make HTTP request
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Post(a.daemonURL, "application/json", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to daemon: %w", err)
+	}
+	defer resp.Body.Close()
 
 	// Read response
 	var response struct {
 		Result interface{}            `json:"result"`
 		Error  map[string]interface{} `json:"error"`
 	}
-	decoder := json.NewDecoder(conn)
-	if err := decoder.Decode(&response); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
@@ -124,27 +139,28 @@ func (a *AppService) GetDaemonStatus() (*DaemonStatus, error) {
 	if err != nil {
 		return &DaemonStatus{
 			Running:    false,
-			SocketPath: a.socketPath,
+			SocketPath: a.daemonURL,
 		}, nil
 	}
 
 	data, _ := json.Marshal(result)
 	var status DaemonStatus
 	json.Unmarshal(data, &status)
+	status.SocketPath = a.daemonURL
 	return &status, nil
 }
 
 // GetAgents returns list of active agents
 func (a *AppService) GetAgents() ([]Agent, error) {
 	// Try to get agents from daemon
-	result, err := a.rpcCall("agents.list", nil)
+	// Use 0 to get all agents (no time filter)
+	params := map[string]interface{}{
+		"maxAgeSeconds": 0,
+	}
+	result, err := a.rpcCall("agents.list", params)
 	if err != nil {
-		// Fallback to mock data if daemon is not running
-		return []Agent{
-			{ID: "orchestrator-1", Name: "orchestrator", Worktree: "main"},
-			{ID: "worker-1", Name: "worker", Worktree: "feat/auth"},
-			{ID: "designer-1", Name: "designer", Worktree: "main"},
-		}, nil
+		// Return empty list if daemon is not running (no mock data)
+		return []Agent{}, nil
 	}
 
 	// Parse the result
@@ -174,50 +190,8 @@ func (a *AppService) GetTasks(status string) ([]Task, error) {
 
 	result, err := a.rpcCall("tasks.list", params)
 	if err != nil {
-		// Fallback to mock data if daemon is not running
-		tasks := []Task{
-			{
-				ID:         "task-1",
-				Title:      "Implement authentication",
-				Status:     "in_progress",
-				Priority:   "high",
-				AssignedTo: "worker-1",
-				CreatedAt:  time.Now().Add(-2 * time.Hour).Format(time.RFC3339),
-				UpdatedAt:  time.Now().Add(-30 * time.Minute).Format(time.RFC3339),
-				Tags:       []string{"feature", "auth"},
-			},
-			{
-				ID:        "task-2",
-				Title:     "Review PR #42",
-				Status:    "pending",
-				Priority:  "normal",
-				CreatedAt: time.Now().Add(-1 * time.Hour).Format(time.RFC3339),
-				UpdatedAt: time.Now().Add(-1 * time.Hour).Format(time.RFC3339),
-				Tags:      []string{"review"},
-			},
-			{
-				ID:         "task-3",
-				Title:      "Fix build errors",
-				Status:     "completed",
-				Priority:   "urgent",
-				AssignedTo: "worker-1",
-				CreatedAt:  time.Now().Add(-3 * time.Hour).Format(time.RFC3339),
-				UpdatedAt:  time.Now().Add(-1 * time.Hour).Format(time.RFC3339),
-				Tags:       []string{"bug", "ci"},
-			},
-		}
-
-		if status != "" {
-			var filtered []Task
-			for _, t := range tasks {
-				if t.Status == status {
-					filtered = append(filtered, t)
-				}
-			}
-			return filtered, nil
-		}
-
-		return tasks, nil
+		// Return empty list if daemon is not running (no mock data)
+		return []Task{}, nil
 	}
 
 	// Parse the result
@@ -250,39 +224,8 @@ func (a *AppService) GetMessages(limit int) ([]Message, error) {
 
 	result, err := a.rpcCall("messages.list", params)
 	if err != nil {
-		// Fallback to mock data if daemon is not running
-		return []Message{
-			{
-				ID:        "msg-1",
-				Type:      "completion",
-				FromAgent: Agent{ID: "worker-1", Name: "worker"},
-				Timestamp: time.Now().Add(-5 * time.Minute).Format(time.RFC3339),
-				Payload: map[string]interface{}{
-					"title":   "Task completed",
-					"content": "Implemented user authentication module",
-				},
-			},
-			{
-				ID:        "msg-2",
-				Type:      "discovery",
-				FromAgent: Agent{ID: "designer-1", Name: "designer"},
-				Timestamp: time.Now().Add(-10 * time.Minute).Format(time.RFC3339),
-				Payload: map[string]interface{}{
-					"title":   "Found existing pattern",
-					"content": "Discovered auth middleware in src/middleware/auth.ts",
-				},
-			},
-			{
-				ID:        "msg-3",
-				Type:      "coordination",
-				FromAgent: Agent{ID: "orchestrator-1", Name: "orchestrator"},
-				Timestamp: time.Now().Add(-15 * time.Minute).Format(time.RFC3339),
-				Payload: map[string]interface{}{
-					"title":   "Task assigned",
-					"content": "Assigned auth implementation to worker-1",
-				},
-			},
-		}, nil
+		// Return empty list if daemon is not running (no mock data)
+		return []Message{}, nil
 	}
 
 	// Parse the result
@@ -359,10 +302,9 @@ func (a *AppService) SpawnAgent(persona, worktree string) error {
 		return fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	// Emit event via Wails v3 application
-	app := application.Get()
-	if app != nil {
-		app.Event.Emit("rapid:agent:spawned", map[string]interface{}{
+	// Emit event via Wails v2 runtime
+	if a.ctx != nil {
+		runtime.EventsEmit(a.ctx, "rapid:agent:spawned", map[string]interface{}{
 			"persona":  persona,
 			"worktree": worktree,
 			"result":   result,
@@ -384,10 +326,9 @@ func (a *AppService) StopAgent(agentID string) error {
 		return fmt.Errorf("failed to stop agent: %w", err)
 	}
 
-	// Emit event via Wails v3 application
-	app := application.Get()
-	if app != nil {
-		app.Event.Emit("rapid:agent:stopped", map[string]interface{}{
+	// Emit event via Wails v2 runtime
+	if a.ctx != nil {
+		runtime.EventsEmit(a.ctx, "rapid:agent:stopped", map[string]interface{}{
 			"agentId": agentID,
 			"result":  result,
 		})
@@ -502,14 +443,13 @@ func (a *AppService) pollAndBroadcast(sub *WebSocketSubscription) {
 				if string(dataJSON) != string(lastDataJSON) {
 					lastData = data
 
-					// Emit Wails v3 event
-					app := application.Get()
-					if app != nil {
+					// Emit Wails v2 event
+					if a.ctx != nil {
 						eventData := map[string]interface{}{
 							"type": sub.EventType,
 							"data": data,
 						}
-						app.Event.Emit("rapid:"+sub.EventType, eventData)
+						runtime.EventsEmit(a.ctx, "rapid:"+sub.EventType, eventData)
 					}
 
 					// Also try to send on channel for compatibility
@@ -548,12 +488,11 @@ func (a *AppService) SendMessage(targetAgent string, messageType string, content
 	}
 
 	// Send via RPC to daemon (if available)
-	app := application.Get()
 	_, err := a.rpcCall("message.send", messagePayload)
 	if err != nil {
 		// Fall back to local event emission
-		if app != nil {
-			app.Event.Emit("rapid:message:sent", map[string]interface{}{
+		if a.ctx != nil {
+			runtime.EventsEmit(a.ctx, "rapid:message:sent", map[string]interface{}{
 				"type": messageType,
 				"data": messagePayload,
 			})
@@ -561,8 +500,8 @@ func (a *AppService) SendMessage(targetAgent string, messageType string, content
 	}
 
 	// Also emit locally for immediate UI update
-	if app != nil {
-		app.Event.Emit("rapid:messages", map[string]interface{}{
+	if a.ctx != nil {
+		runtime.EventsEmit(a.ctx, "rapid:messages", map[string]interface{}{
 			"type": "message",
 			"data": messagePayload,
 		})

@@ -10,121 +10,16 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { readdir, readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { createWriteStream } from 'node:fs';
 import { randomUUID } from 'node:crypto';
-import { execa } from 'execa';
+import { parse as parseYaml } from 'yaml';
 import type { ServerContext } from '../server.js';
-
-// Simple YAML parser for persona configs (handles basic YAML structure)
-function parseYaml(content: string): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  const lines = content.split('\n');
-  let currentKey: string | null = null;
-  let currentValue: string[] = [];
-  let inMultiline = false;
-  let multilineIndent = 0;
-
-  for (const line of lines) {
-    // Skip empty lines and comments at root level
-    if (!inMultiline && (line.trim() === '' || line.trim().startsWith('#'))) {
-      continue;
-    }
-
-    // Check for multiline indicator
-    if (line.includes(': |')) {
-      if (currentKey && currentValue.length > 0) {
-        result[currentKey] = currentValue.join('\n').trim();
-        currentValue = [];
-      }
-      currentKey = line.split(':')[0]?.trim() ?? '';
-      inMultiline = true;
-      multilineIndent = 0;
-      continue;
-    }
-
-    // Handle multiline content
-    if (inMultiline) {
-      const trimmed = line.trimStart();
-      const indent = line.length - trimmed.length;
-
-      if (multilineIndent === 0 && trimmed.length > 0) {
-        multilineIndent = indent;
-      }
-
-      // Check if we've exited the multiline block
-      if (indent < multilineIndent && trimmed.length > 0 && !line.startsWith(' ')) {
-        result[currentKey!] = currentValue.join('\n');
-        currentValue = [];
-        inMultiline = false;
-        currentKey = null;
-      } else {
-        currentValue.push(line.slice(multilineIndent) || '');
-        continue;
-      }
-    }
-
-    // Handle key: value pairs
-    if (line.includes(':') && !line.startsWith(' ') && !line.startsWith('-')) {
-      if (currentKey && currentValue.length > 0) {
-        result[currentKey] = currentValue.join('\n').trim();
-        currentValue = [];
-      }
-
-      const colonIdx = line.indexOf(':');
-      const key = line.slice(0, colonIdx).trim();
-      const value = line.slice(colonIdx + 1).trim();
-
-      if (value === '') {
-        currentKey = key;
-      } else if (value.startsWith('[') && value.endsWith(']')) {
-        // Simple array: [item1, item2]
-        result[key] = value
-          .slice(1, -1)
-          .split(',')
-          .map((s) => s.trim());
-      } else if (value === 'true') {
-        result[key] = true;
-      } else if (value === 'false') {
-        result[key] = false;
-      } else if (/^\d+$/.test(value)) {
-        result[key] = parseInt(value, 10);
-      } else {
-        result[key] = value;
-      }
-      currentKey = key;
-    } else if (line.trim().startsWith('- ')) {
-      // Array item
-      const item = line.trim().slice(2);
-      if (!Array.isArray(result[currentKey!])) {
-        result[currentKey!] = [];
-      }
-      (result[currentKey!] as string[]).push(item);
-    }
-  }
-
-  // Handle final multiline block
-  if (inMultiline && currentKey && currentValue.length > 0) {
-    result[currentKey] = currentValue.join('\n');
-  }
-
-  return result;
-}
 
 // Persona schema matching @a3t/rapid-schema types
 const PersonaModelSchema = z.enum(['opus', 'sonnet', 'haiku', 'gpt-4o', 'gpt-4o-mini', 'custom']);
 
-const PersonalityTraitSchema = z.enum([
-  'thorough',
-  'concise',
-  'cautious',
-  'bold',
-  'creative',
-  'analytical',
-  'friendly',
-  'formal',
-  'asks_clarifying_questions',
-  'autonomous',
-]);
+// Use string instead of strict enum to allow custom personality traits
+// Common traits: thorough, concise, cautious, bold, creative, analytical, friendly, formal, asks_clarifying_questions, autonomous
+const PersonalityTraitSchema = z.string();
 
 const PersonaTriggerSchema = z.enum([
   'on_pr',
@@ -135,19 +30,19 @@ const PersonaTriggerSchema = z.enum([
   'manual',
 ]);
 
-const PersonaToolSchema = z.enum([
-  'read',
-  'write',
-  'edit',
-  'grep',
-  'glob',
-  'bash',
-  'bus_send',
-  'bus_messages',
-  'bus_agents',
-  'web_search',
-  'web_fetch',
-]);
+// Use string instead of strict enum to allow custom tools
+// Common tools: read, write, edit, grep, glob, bash, bus_send, bus_messages, bus_agents, bus_wait, bus_poll, web_search, web_fetch
+const PersonaToolSchema = z.string();
+
+// Security configuration schema for HITL controls
+const PersonaSecurityConfigSchema = z.object({
+  approvalRequired: z.array(z.string()).optional(),
+  trustLevel: z.enum(['low', 'medium', 'high']).optional(),
+  budgetLimit: z.number().optional(),
+  canApprove: z.boolean().optional(),
+  approveSpawn: z.boolean().optional(),
+  allowedPaths: z.array(z.string()).optional(),
+});
 
 const PersonaConfigSchema = z.object({
   name: z.string(),
@@ -164,6 +59,7 @@ const PersonaConfigSchema = z.object({
   contextFiles: z.array(z.string()).optional(),
   envVars: z.array(z.string()).optional(),
   metadata: z.record(z.unknown()).optional(),
+  security: PersonaSecurityConfigSchema.optional(),
 });
 
 type PersonaConfig = z.infer<typeof PersonaConfigSchema>;
@@ -412,11 +308,11 @@ export function registerPersonaTools(server: McpServer, context: ServerContext):
         };
       }
 
-      // Map persona model to Claude model ID
+      // Map persona model to Claude 4.5 model IDs
       const modelMap: Record<string, string> = {
         opus: 'claude-opus-4-5-20251101',
-        sonnet: 'claude-sonnet-4-20250514',
-        haiku: 'claude-haiku-4-20250514',
+        sonnet: 'claude-sonnet-4-5-20250929',
+        haiku: 'claude-haiku-4-5-20251001',
       };
 
       const modelId = persona.model
@@ -470,6 +366,7 @@ export function registerPersonaTools(server: McpServer, context: ServerContext):
           .string()
           .optional()
           .describe('Git worktree name or branch (auto-generated if not provided)'),
+        yoloMode: z.boolean().optional().describe('Skip permission prompts (uses rapid.json if not specified)'),
       },
       outputSchema: {
         agentId: z.string(),
@@ -485,16 +382,19 @@ export function registerPersonaTools(server: McpServer, context: ServerContext):
       const {
         name,
         task,
-        background = true,
+        background: _background = true,
         connectToBus = true,
         worktree: _worktree,
+        yoloMode: yoloModeArg,
       } = args as {
         name: string;
         task: string;
         background?: boolean;
         connectToBus?: boolean;
         worktree?: string;
+        yoloMode?: boolean;
       };
+      // Note: _background is captured but not used - all agents run as background containers
 
       // Generate worktree if not provided
       let worktree = _worktree;
@@ -527,48 +427,43 @@ export function registerPersonaTools(server: McpServer, context: ServerContext):
       // Generate UUID for the agent
       const agentId = randomUUID();
 
-      // Create worktree for the agent
-      try {
-        const worktreeDir = join(context.projectDir, '.worktrees', worktree);
-        if (context.verbose) {
-          console.error(`[persona_spawn] Creating worktree '${worktree}' at ${worktreeDir}`);
-        }
-
-        // Create git worktree
-        await execa('git', ['worktree', 'add', '-b', worktree, worktreeDir], {
-          cwd: context.projectDir,
-          reject: false,
-        });
-
-        if (context.verbose) {
-          console.error(`[persona_spawn] Worktree '${worktree}' created successfully`);
-        }
-      } catch (err) {
-        if (context.verbose) {
-          const errMsg = err instanceof Error ? err.message : String(err);
-          console.error(`[persona_spawn] Warning: Failed to create worktree: ${errMsg}`);
-        }
-        // Don't fail the whole spawn, just log the warning
-      }
-
-      // Map persona model to Claude model ID
-      const modelMap: Record<string, string> = {
-        opus: 'opus',
-        sonnet: 'sonnet',
-        haiku: 'haiku',
-      };
-
-      const model = persona.model ? modelMap[persona.model] || 'sonnet' : 'sonnet';
-
       // Generate system prompt with task
       let systemPrompt = generateSystemPrompt(persona);
 
       // Add event bus registration instructions if enabled
       if (connectToBus) {
-        systemPrompt += `\n\n## Event Bus Integration
-You are connected to the RAPID event bus as agent "${agentId}" with name "${name}".
-Use bus_send to share discoveries, errors, and completions with other agents.
-Check bus_messages periodically for coordination messages from other agents.`;
+        systemPrompt += `\n\n## Event Bus Integration - CRITICAL STARTUP REQUIREMENT
+Your agent ID is "${agentId}" and your role is "${name}".
+
+**FIRST ACTION REQUIRED**: Before doing anything else, you MUST:
+1. Register with the event bus by calling bus_register with:
+   - agentName: "${name}"
+   - session: "${worktree}"
+   - role: "${name}"
+2. Send an initial "coordination" message announcing your presence:
+   - type: "coordination"
+   - title: "Agent ${name} starting"
+   - content: "Registered and ready to work on task: ${task}"
+3. Check for orchestrator messages and coordinate your work
+
+## RALPH LOOP - CONTINUOUS OPERATION
+You MUST run continuously using Ralph Loop. After completing your setup:
+
+1. Invoke the ralph-loop skill with your ongoing task:
+   /ralph-loop "Check bus_messages for new tasks from orchestrator. Execute any assigned work. Poll every 5 seconds. Report status via bus_send. Coordinate with other agents." --max-iterations 0
+
+2. The Ralph Loop will keep you running indefinitely:
+   - You work on tasks from the event bus
+   - When you try to exit, Ralph restarts you with the same prompt
+   - You see your previous work in files and continue
+   - Only stop if orchestrator sends explicit shutdown signal
+
+**Ongoing Communication**:
+- Use bus_send to share discoveries, errors, and completions
+- Check bus_messages continuously for coordination messages
+- Send a "completion" message when each task is done
+- Send an "error" message if you encounter issues
+- Coordinate with the orchestrator for task prioritization`;
       }
 
       // Create output directory for agent logs
@@ -579,7 +474,6 @@ Check bus_messages periodically for coordination messages from other agents.`;
         // Directory may already exist
       }
 
-      const outputFile = join(agentsDir, `${agentId}.log`);
       const promptFile = join(agentsDir, `${agentId}.prompt`);
 
       // Write system prompt to file for reference
@@ -592,99 +486,182 @@ Check bus_messages periodically for coordination messages from other agents.`;
         task,
         startedAt: new Date(),
         status: 'running',
-        outputFile,
       };
 
       try {
-        // Build the claude command with proper arguments
-        const claudeArgs = [
-          '--model',
-          model,
-          '--print',
-          '--output-format',
-          'text',
-          '--append-system-prompt',
-          systemPrompt,
-          task,
-        ];
+        // Call daemon API to spawn agent in Docker container
+        // Use DAEMON_URL env var, or auto-detect based on environment
+        // In Docker: rapid-daemon:3200, otherwise localhost:3200
+        const isDocker = process.env.DOCKER_ENV === 'true' || process.env.HOSTNAME?.includes('rapid');
+        const daemonUrl = process.env.DAEMON_URL || (isDocker ? 'http://rapid-daemon:3200' : 'http://localhost:3200');
 
-        if (background) {
-          // Spawn in background, capture output to file
-          const worktreeDir = join(context.projectDir, '.worktrees', worktree);
-          const proc = execa('claude', claudeArgs, {
-            cwd: worktreeDir,
-            detached: true,
-            stdio: ['ignore', 'pipe', 'pipe'],
-            reject: false,
-            env: {
-              ...process.env,
-              RAPID_AGENT_ID: agentId,
-              RAPID_PERSONA: name,
-              RAPID_PROJECT_DIR: context.projectDir,
-              RAPID_WORKTREE: worktree,
-              RAPID_WORKTREE_DIR: worktreeDir,
-            },
-          });
+        if (context.verbose) {
+          console.error(`[persona_spawn] Calling daemon at ${daemonUrl} to spawn ${name}`);
+        }
 
-          agent.process = proc;
-          spawnedAgents.set(agentId, agent);
+        // Check if yoloMode is enabled - explicit arg takes precedence over rapid.json
+        let yoloMode = yoloModeArg;
+        if (yoloMode === undefined) {
+          try {
+            const rapidJsonPath = join(context.projectDir, 'rapid.json');
+            const rapidJson = await readFile(rapidJsonPath, 'utf-8');
+            const rapidConfig = JSON.parse(rapidJson) as { agents?: { available?: { claude?: { yolo?: boolean } } } };
+            yoloMode = rapidConfig.agents?.available?.claude?.yolo ?? false;
+            if (context.verbose) {
+              console.error(`[persona_spawn] yoloMode from rapid.json: ${yoloMode}`);
+            }
+          } catch {
+            // rapid.json not found or invalid, default to HITL mode
+            if (context.verbose) {
+              console.error(`[persona_spawn] Could not read rapid.json, defaulting to HITL mode`);
+            }
+            yoloMode = false;
+          }
+        } else if (context.verbose) {
+          console.error(`[persona_spawn] yoloMode from explicit arg: ${yoloMode}`);
+        }
 
-          // Stream output to file
-          const outputStream = createWriteStream(outputFile, { flags: 'a' });
+        // HITL approval check for spawning agents
+        // If not in yolo mode and persona has approveSpawn: true, request approval
+        const needsApproval = !yoloMode && (persona.security?.approveSpawn ?? persona.security?.trustLevel === 'low');
+        if (needsApproval) {
+          if (context.verbose) {
+            console.error(`[persona_spawn] HITL: Approval required to spawn ${name}`);
+          }
 
-          proc.stdout?.pipe(outputStream);
-          proc.stderr?.pipe(outputStream);
-
-          // Handle completion
-          proc
-            .then((result) => {
-              const a = spawnedAgents.get(agentId);
-              if (a) {
-                a.status = result.exitCode === 0 ? 'completed' : 'failed';
-                a.exitCode = result.exitCode ?? 1;
-              }
-            })
-            .catch(() => {
-              const a = spawnedAgents.get(agentId);
-              if (a) {
-                a.status = 'failed';
-              }
+          // Create approval request via MCP endpoint
+          const mcpUrl = process.env.MCP_URL || 'http://localhost:3100/mcp';
+          try {
+            const approvalResponse = await fetch(mcpUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                jsonrpc: '2.0',
+                id: Date.now(),
+                method: 'tools/call',
+                params: {
+                  name: 'approval_request',
+                  arguments: {
+                    toolName: 'persona_spawn',
+                    args: { persona: name, task, worktree },
+                    agentId: 'orchestrator',
+                    agentName: 'orchestrator',
+                    reason: `Spawn ${name} agent for task: ${task.slice(0, 100)}...`,
+                    timeoutMs: 300000, // 5 minute timeout
+                  },
+                },
+              }),
             });
 
-          if (context.verbose) {
-            console.error(`[persona_spawn] Spawned ${name} as ${agentId} in background`);
+            const approvalResult = await approvalResponse.json() as {
+              result?: { content?: Array<{ text?: string }>; structuredContent?: { approved: boolean } };
+              error?: { message: string };
+            };
+
+            const approved = approvalResult.result?.structuredContent?.approved ?? false;
+
+            if (!approved) {
+              if (context.verbose) {
+                console.error(`[persona_spawn] HITL: Approval denied for spawning ${name}`);
+              }
+              return {
+                content: [
+                  { type: 'text', text: JSON.stringify({ error: 'Approval denied for spawning agent' }) },
+                ],
+                structuredContent: {
+                  agentId: '',
+                  personaName: name,
+                  task,
+                  status: 'failed',
+                  error: 'HITL approval denied',
+                },
+              };
+            }
+
+            if (context.verbose) {
+              console.error(`[persona_spawn] HITL: Approved to spawn ${name}`);
+            }
+          } catch (approvalErr) {
+            if (context.verbose) {
+              console.error(`[persona_spawn] HITL: Approval request failed: ${approvalErr}`);
+            }
+            // On approval system failure, continue with spawn (fail-open for now)
+            // In production, you might want fail-closed behavior
           }
-        } else {
-          // Run synchronously and wait for completion
-          spawnedAgents.set(agentId, agent);
+        }
 
-          const worktreeDir = join(context.projectDir, '.worktrees', worktree);
-          const result = await execa('claude', claudeArgs, {
-            cwd: worktreeDir,
-            reject: false,
-            env: {
-              ...process.env,
-              RAPID_AGENT_ID: agentId,
-              RAPID_PERSONA: name,
-              RAPID_PROJECT_DIR: context.projectDir,
-              RAPID_WORKTREE: worktree,
-              RAPID_WORKTREE_DIR: worktreeDir,
+        // Determine model based on persona type
+        // orchestrator → opus (smart model for coordination)
+        // worker → haiku (fast model for execution)
+        // thinking/designer/reviewer → sonnet (balanced model)
+        let agentModel: string | undefined;
+        const personaLower = name.toLowerCase();
+        if (personaLower.includes('orchestrator') || personaLower.includes('lead') || personaLower.includes('architect')) {
+          agentModel = 'opus';
+        } else if (personaLower.includes('worker') || personaLower.includes('builder') || personaLower.includes('implementer')) {
+          agentModel = 'haiku';
+        } else if (personaLower.includes('think') || personaLower.includes('design') || personaLower.includes('review') || personaLower.includes('plan')) {
+          agentModel = 'sonnet';
+        } else if (persona.model) {
+          // Use model from persona config if specified
+          agentModel = persona.model;
+        }
+
+        if (context.verbose && agentModel) {
+          console.error(`[persona_spawn] Auto-selected model '${agentModel}' for ${name}`);
+        }
+
+        const response = await fetch(daemonUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: Date.now(),
+            method: 'agent.spawn',
+            params: {
+              projectDir: context.projectDir,
+              persona: name,
+              task,
+              systemPrompt,
+              yoloMode,
+              model: agentModel,
+              env: {
+                RAPID_AGENT_ID: agentId,
+                RAPID_PERSONA: name,
+                RAPID_WORKTREE: worktree,
+                // Pass auth tokens if available (prevents empty string from overriding secrets)
+                // IMPORTANT: Use CLAUDE_CODE_OAUTH_TOKEN for OAuth, NOT ANTHROPIC_AUTH_TOKEN
+                // ANTHROPIC_AUTH_TOKEN conflicts with Claude Code's OAuth handling
+                ...(process.env.CLAUDE_CODE_OAUTH_TOKEN ? { CLAUDE_CODE_OAUTH_TOKEN: process.env.CLAUDE_CODE_OAUTH_TOKEN } : {}),
+                // API key fallback (for console.anthropic.com accounts)
+                ...(process.env.ANTHROPIC_API_KEY ? { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY } : {}),
+              },
             },
-          });
+          }),
+        });
 
-          // Write output to file
-          await writeFile(outputFile, result.stdout + '\n' + result.stderr, 'utf-8');
+        const result = await response.json() as {
+          result?: { sessionId: string; status: string };
+          error?: { message: string };
+        };
 
-          agent.status = result.exitCode === 0 ? 'completed' : 'failed';
-          agent.exitCode = result.exitCode ?? 1;
+        if (result.error) {
+          throw new Error(result.error.message);
+        }
+
+        const sessionId = result.result?.sessionId || agentId;
+        agent.id = sessionId;
+        spawnedAgents.set(sessionId, agent);
+
+        if (context.verbose) {
+          console.error(`[persona_spawn] Spawned ${name} as ${sessionId} via daemon`);
         }
 
         const output = {
-          agentId,
+          agentId: sessionId,
           personaName: name,
           task,
-          status: agent.status,
-          outputFile,
+          status: 'running',
           worktree,
         };
 
@@ -798,68 +775,134 @@ Check bus_messages periodically for coordination messages from other agents.`;
 
       const agent = spawnedAgents.get(agentId);
 
-      if (!agent) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({ error: `Agent '${agentId}' not found` }),
+      // If agent is in local map, try to stop it locally first
+      if (agent) {
+        const previousStatus = agent.status;
+
+        if (agent.status !== 'running') {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({
+                  agentId,
+                  stopped: false,
+                  previousStatus,
+                  error: `Agent is not running (status: ${agent.status})`,
+                }),
+              },
+            ],
+            structuredContent: {
+              agentId,
+              stopped: false,
+              previousStatus,
+              error: `Agent is not running (status: ${agent.status})`,
             },
-          ],
-          structuredContent: {
-            agentId,
-            stopped: false,
-            previousStatus: 'unknown',
-            error: `Agent '${agentId}' not found`,
-          },
-        };
+          };
+        }
+
+        try {
+          if (agent.process) {
+            agent.process.kill('SIGTERM');
+          }
+          agent.status = 'stopped';
+
+          if (context.verbose) {
+            console.error(`[persona_stop] Stopped local agent ${agentId}`);
+          }
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({ agentId, stopped: true, previousStatus }),
+              },
+            ],
+            structuredContent: {
+              agentId,
+              stopped: true,
+              previousStatus,
+            },
+          };
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({ error: `Failed to stop: ${errorMsg}` }),
+              },
+            ],
+            structuredContent: {
+              agentId,
+              stopped: false,
+              previousStatus,
+              error: errorMsg,
+            },
+          };
+        }
       }
 
-      const previousStatus = agent.status;
-
-      if (agent.status !== 'running') {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
-                agentId,
-                stopped: false,
-                previousStatus,
-                error: `Agent is not running (status: ${agent.status})`,
-              }),
-            },
-          ],
-          structuredContent: {
-            agentId,
-            stopped: false,
-            previousStatus,
-            error: `Agent is not running (status: ${agent.status})`,
-          },
-        };
-      }
+      // Agent not in local map - try to stop via daemon (Docker-based agent)
+      const daemonUrl = process.env.DAEMON_URL || 'http://localhost:3200';
 
       try {
-        if (agent.process) {
-          agent.process.kill('SIGTERM');
+        if (context.verbose) {
+          console.error(`[persona_stop] Stopping Docker agent ${agentId} via daemon`);
         }
-        agent.status = 'stopped';
+
+        const response = await fetch(daemonUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: Date.now(),
+            method: 'agent.stop',
+            params: { agentId },
+          }),
+        });
+
+        const result = (await response.json()) as {
+          result?: { agentId: string; stopped: boolean; error?: string };
+          error?: { message: string };
+        };
+
+        if (result.error) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({ error: result.error.message }),
+              },
+            ],
+            structuredContent: {
+              agentId,
+              stopped: false,
+              previousStatus: 'unknown',
+              error: result.error.message,
+            },
+          };
+        }
+
+        const stopped = result.result?.stopped ?? false;
+        const error = result.result?.error;
 
         if (context.verbose) {
-          console.error(`[persona_stop] Stopped agent ${agentId}`);
+          console.error(`[persona_stop] Daemon response: stopped=${stopped}, error=${error}`);
         }
 
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({ agentId, stopped: true, previousStatus }),
+              text: JSON.stringify({ agentId, stopped, previousStatus: 'running', error }),
             },
           ],
           structuredContent: {
             agentId,
-            stopped: true,
-            previousStatus,
+            stopped,
+            previousStatus: 'running',
+            ...(error && { error }),
           },
         };
       } catch (error) {
@@ -868,14 +911,14 @@ Check bus_messages periodically for coordination messages from other agents.`;
           content: [
             {
               type: 'text',
-              text: JSON.stringify({ error: `Failed to stop: ${errorMsg}` }),
+              text: JSON.stringify({ error: `Failed to stop via daemon: ${errorMsg}` }),
             },
           ],
           structuredContent: {
             agentId,
             stopped: false,
-            previousStatus,
-            error: errorMsg,
+            previousStatus: 'unknown',
+            error: `Failed to stop via daemon: ${errorMsg}`,
           },
         };
       }
@@ -890,7 +933,7 @@ Check bus_messages periodically for coordination messages from other agents.`;
       description: 'Get the output from a spawned agent.',
       inputSchema: {
         agentId: z.string().describe('Agent ID'),
-        tail: z.number().default(100).describe('Number of lines from the end (default 100)'),
+        lines: z.number().default(100).describe('Number of lines from the end (default 100)'),
       },
       outputSchema: {
         agentId: z.string(),
@@ -901,7 +944,7 @@ Check bus_messages periodically for coordination messages from other agents.`;
       },
     },
     async (args) => {
-      const { agentId, tail = 100 } = args as { agentId: string; tail?: number };
+      const { agentId, lines = 100 } = args as { agentId: string; lines?: number };
 
       const agent = spawnedAgents.get(agentId);
 
@@ -924,14 +967,50 @@ Check bus_messages periodically for coordination messages from other agents.`;
       }
 
       let output = '';
+      let error: string | undefined;
+
       try {
-        if (agent.outputFile) {
-          const content = await readFile(agent.outputFile, 'utf-8');
-          const lines = content.split('\n');
-          output = lines.slice(-tail).join('\n');
+        // Call daemon API to get container logs
+        const isDocker = process.env.DOCKER_ENV === 'true' || process.env.HOSTNAME?.includes('rapid');
+        const daemonUrl = process.env.DAEMON_URL || (isDocker ? 'http://rapid-daemon:3200' : 'http://localhost:3200');
+
+        const response = await fetch(`${daemonUrl}/rpc`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'agent.logs',
+            params: { sessionId: agent.id, tail: lines },
+            id: Date.now(),
+          }),
+        });
+
+        const result = await response.json() as { result?: { logs?: string; error?: string }; error?: { message: string } };
+
+        if (result.error) {
+          error = result.error.message;
+          output = '(failed to get logs)';
+        } else if (result.result?.error) {
+          error = result.result.error;
+          output = '(failed to get logs)';
+        } else {
+          output = result.result?.logs || '(no output yet)';
         }
-      } catch {
-        output = '(no output yet)';
+      } catch (err) {
+        // Fall back to reading from file if daemon call fails
+        try {
+          if (agent.outputFile) {
+            const content = await readFile(agent.outputFile, 'utf-8');
+            const allLines = content.split('\n');
+            output = allLines.slice(-lines).join('\n');
+          } else {
+            output = '(no output available)';
+            error = err instanceof Error ? err.message : String(err);
+          }
+        } catch {
+          output = '(no output yet)';
+          error = err instanceof Error ? err.message : String(err);
+        }
       }
 
       const result = {
@@ -939,12 +1018,219 @@ Check bus_messages periodically for coordination messages from other agents.`;
         personaName: agent.personaName,
         status: agent.status,
         output,
+        ...(error && { error }),
       };
 
       return {
         content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
         structuredContent: result,
       };
+    }
+  );
+
+  // Tool: Delegate work to available agents
+  server.registerTool(
+    'work_delegate',
+    {
+      title: 'Delegate Work',
+      description:
+        'Find available worker agents and assign tasks to them. ' +
+        'Creates a task and optionally assigns it to an idle agent with matching capabilities. ' +
+        'Use this for orchestrating work across the agent swarm.',
+      inputSchema: {
+        taskDescription: z.string().describe('Description of the work to delegate'),
+        taskTitle: z.string().optional().describe('Short title for the task'),
+        requiredCapabilities: z
+          .array(z.string())
+          .optional()
+          .describe('Required agent capabilities (e.g., ["code", "test"])'),
+        priority: z
+          .enum(['low', 'normal', 'high', 'urgent'])
+          .default('normal')
+          .describe('Task priority'),
+        autoAssign: z
+          .boolean()
+          .default(true)
+          .describe('Automatically assign to first available worker'),
+      },
+      outputSchema: {
+        taskId: z.string(),
+        taskTitle: z.string(),
+        assignedTo: z.string().nullable(),
+        assignedAgentName: z.string().nullable(),
+        availableAgents: z.array(
+          z.object({
+            id: z.string(),
+            name: z.string(),
+            capabilities: z.array(z.string()).optional(),
+          })
+        ),
+        message: z.string(),
+      },
+    },
+    async (args) => {
+      const {
+        taskDescription,
+        taskTitle,
+        requiredCapabilities = [],
+        priority = 'normal',
+        autoAssign = true,
+      } = args as {
+        taskDescription: string;
+        taskTitle?: string;
+        requiredCapabilities?: string[];
+        priority?: string;
+        autoAssign?: boolean;
+      };
+
+      const isDocker = process.env.DOCKER_ENV === 'true' || process.env.HOSTNAME?.includes('rapid');
+      const mcpUrl = process.env.MCP_URL || (isDocker ? 'http://rapid-mcp:3100/mcp' : 'http://localhost:3100/mcp');
+
+      try {
+        // 1. Get available agents with matching capabilities
+        const agentsResponse = await fetch(mcpUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: Date.now(),
+            method: 'tools/call',
+            params: {
+              name: 'bus_agents',
+              arguments: { maxAgeSeconds: 60 },
+            },
+          }),
+        });
+
+        const agentsResult = await agentsResponse.json() as {
+          result?: { structuredContent?: { agents?: Array<{ id: string; name: string; status?: string; capabilities?: string[] }> } };
+        };
+
+        const allAgents = agentsResult.result?.structuredContent?.agents || [];
+
+        // Filter for idle workers that match required capabilities
+        const availableAgents = allAgents.filter((agent) => {
+          // Check if agent is a worker (not orchestrator)
+          const isWorker = agent.name.toLowerCase().includes('worker') ||
+                          !agent.name.toLowerCase().includes('orchestrator');
+          if (!isWorker) return false;
+
+          // Check capabilities if specified
+          if (requiredCapabilities.length > 0) {
+            const agentCaps = agent.capabilities || ['code', 'test', 'review']; // Default capabilities
+            return requiredCapabilities.every((cap) => agentCaps.includes(cap));
+          }
+
+          return true;
+        });
+
+        // 2. Create task
+        const title = taskTitle || taskDescription.slice(0, 50) + (taskDescription.length > 50 ? '...' : '');
+
+        const taskResponse = await fetch(mcpUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: Date.now(),
+            method: 'tools/call',
+            params: {
+              name: 'task_create',
+              arguments: {
+                title,
+                description: taskDescription,
+                priority,
+                createdBy: 'orchestrator',
+                requiredCapabilities,
+              },
+            },
+          }),
+        });
+
+        const taskResult = await taskResponse.json() as {
+          result?: { structuredContent?: { id?: string; taskId?: string } };
+        };
+
+        const taskId = taskResult.result?.structuredContent?.id ||
+                       taskResult.result?.structuredContent?.taskId ||
+                       `task-${Date.now()}`;
+
+        // 3. If autoAssign and we have available agents, assign to first one
+        let assignedTo: string | null = null;
+        let assignedAgentName: string | null = null;
+
+        const targetAgent = autoAssign ? availableAgents[0] : undefined;
+        if (targetAgent) {
+          assignedTo = targetAgent.id;
+          assignedAgentName = targetAgent.name;
+
+          await fetch(mcpUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: Date.now(),
+              method: 'tools/call',
+              params: {
+                name: 'task_assign',
+                arguments: {
+                  id: taskId,
+                  agentId: targetAgent.id,
+                },
+              },
+            }),
+          });
+
+          if (context.verbose) {
+            console.error(`[work_delegate] Assigned task ${taskId} to ${targetAgent.name}`);
+          }
+        }
+
+        const output = {
+          taskId,
+          taskTitle: title,
+          assignedTo,
+          assignedAgentName,
+          availableAgents: availableAgents.map((a) => ({
+            id: a.id,
+            name: a.name,
+            capabilities: a.capabilities,
+          })),
+          message: assignedTo
+            ? `Task created and assigned to ${assignedAgentName}`
+            : availableAgents.length > 0
+              ? `Task created. ${availableAgents.length} agents available for manual assignment.`
+              : 'Task created but no available workers found. Task will be claimed when workers come online.',
+        };
+
+        return {
+          content: [{ type: 'text', text: JSON.stringify(output, null, 2) }],
+          structuredContent: output,
+        };
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+
+        if (context.verbose) {
+          console.error(`[work_delegate] Failed: ${errorMsg}`);
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ error: `Failed to delegate work: ${errorMsg}` }),
+            },
+          ],
+          structuredContent: {
+            taskId: '',
+            taskTitle: '',
+            assignedTo: null,
+            assignedAgentName: null,
+            availableAgents: [],
+            message: `Failed to delegate work: ${errorMsg}`,
+          },
+        };
+      }
     }
   );
 }

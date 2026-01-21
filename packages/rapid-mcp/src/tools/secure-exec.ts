@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { execa } from 'execa';
 import { SandboxManager, type SandboxManagerOptions } from '@a3t/rapid-runtime';
 import type { ServerContext } from '../server.js';
+import { SECURE_EXEC_DEFAULT } from '../constants.js';
 
 /**
  * Sandbox preset mapping from our API to runtime API
@@ -28,7 +29,7 @@ const inputSchema = {
   command: z.string().describe('Command to execute'),
   args: z.array(z.string()).optional().describe('Command arguments'),
   cwd: z.string().optional().describe('Working directory (relative to project)'),
-  timeout: z.number().default(120000).describe('Timeout in milliseconds'),
+  timeout: z.number().default(SECURE_EXEC_DEFAULT).describe('Timeout in milliseconds'),
   allowNetwork: z.boolean().default(false).describe('Allow network access'),
   sandbox: z
     .enum(['strict', 'balanced', 'permissive', 'none'])

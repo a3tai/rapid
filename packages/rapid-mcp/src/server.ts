@@ -23,11 +23,14 @@ import { registerTaskTools } from './tools/tasks.js';
 import { registerTaskWatchTools } from './tools/task-watch.js';
 import { registerDependencyTools } from './tools/dependencies.js';
 import { registerMetricsTools } from './tools/metrics.js';
-import { registerKnowledgeTools } from './tools/knowledge.js';
+// NOTE: knowledge.ts tools are superseded by context-engine.ts which provides
+// the same tools plus additional ones (context_stats, context_inject, context_consolidate)
+// import { registerKnowledgeTools } from './tools/knowledge.js';
 import { registerSuggestionTools } from './tools/suggestions.js';
 import { registerContextEngineTools } from './tools/context-engine.js';
 import { registerBudgetTrackingTools } from './tools/budget-tracking.js';
 import { registerAuditTrailTools } from './tools/audit-trail.js';
+import { registerApprovalTools } from './tools/approval.js';
 
 // Import resource implementations
 import { registerConfigResource } from './resources/config.js';
@@ -73,11 +76,12 @@ export function createRapidMcpServer(config: RapidMcpServerConfig): McpServer {
   registerTaskWatchTools(server, context);
   registerDependencyTools(server, context);
   registerMetricsTools(server, context);
-  registerKnowledgeTools(server, context);
+  // registerKnowledgeTools superseded by registerContextEngineTools
   registerSuggestionTools(server, context);
   registerContextEngineTools(server, context);
   registerBudgetTrackingTools(server, context);
   registerAuditTrailTools(server, context);
+  registerApprovalTools(server, context);
 
   // Register resources
   registerConfigResource(server, context);

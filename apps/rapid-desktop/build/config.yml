@@ -30,9 +30,9 @@ dev_mode:
       - '*.go'
     git_ignore: true
   executes:
-    - cmd: go build -tags desktop -ldflags="-s -w" -o bin/rapid-desktop .
+    - cmd: go build -tags desktop -o bin/rapid-desktop .
       type: blocking
-    - cmd: cd frontend && npm run dev -- --port 9245
+    - cmd: cd frontend && pnpm run dev --port 9245
       type: background
     - cmd: ./bin/rapid-desktop
       type: primary

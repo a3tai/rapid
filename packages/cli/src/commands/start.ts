@@ -23,6 +23,7 @@ import {
   getContainerStatus,
   startContainer,
   loadSecrets,
+  getAuthEnvironment,
 } from '@a3t/rapid-core';
 import ora from 'ora';
 import { execa } from 'execa';
@@ -117,7 +118,7 @@ async function getServicesStatus(): Promise<{
  */
 async function startServices(
   dockerDir: string,
-  options: { rebuild?: boolean; services?: string[]; secrets?: Record<string, string> }
+  options: { rebuild?: boolean; services?: string[]; secrets?: Record<string, string>; projectDir?: string }
 ): Promise<{ success: boolean; error?: string }> {
   const composeCmd = await getDockerComposeCmd();
   const composeFile = join(dockerDir, 'docker-compose.yml');
@@ -144,6 +145,8 @@ async function startServices(
         ...process.env,
         ...options.secrets, // Pass secrets to containers
         COMPOSE_PROJECT_NAME: 'rapid-services',
+        // CRITICAL: Pass project dir for volume mounts
+        RAPID_PROJECT_DIR: options.projectDir || process.cwd(),
       },
     });
     return { success: true };
@@ -214,6 +217,20 @@ export const startCommand = new Command('start')
         }
       }
 
+      // Load auth credentials from CLI tools (Claude Code, Codex, etc.)
+      spinner.text = 'Detecting authentication...';
+      try {
+        const authEnv = await getAuthEnvironment();
+        const authCount = Object.keys(authEnv).length;
+        if (authCount > 0) {
+          logger.debug(`Detected ${authCount} auth credentials to pass to containers`);
+          // Auth credentials override secrets if there's a conflict
+          secrets = { ...secrets, ...authEnv };
+        }
+      } catch (error) {
+        logger.debug(`Failed to detect auth credentials: ${error}`);
+      }
+
       // ─────────────────────────────────────────────────────────────
       // Start RAPID Services Stack
       // ─────────────────────────────────────────────────────────────
@@ -231,6 +248,7 @@ export const startCommand = new Command('start')
           rebuild: options.rebuild,
           ...(servicesToStart && { services: servicesToStart }),
           secrets,
+          projectDir: rootDir,
         });
 
         if (!result.success) {

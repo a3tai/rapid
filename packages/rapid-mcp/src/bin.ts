@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { DEFAULT_HTTP_PORT, SESSION_CHECK_INTERVAL } from './constants.js';
 /**
  * RAPID MCP Server CLI
  *
@@ -28,8 +29,9 @@ function parseArgs(): {
 } {
   const args = process.argv.slice(2);
   let transport: 'stdio' | 'http' = 'stdio';
-  let port = 3000;
-  let projectDir = process.cwd();
+  let port = DEFAULT_HTTP_PORT;
+  // Use RAPID_PROJECT_DIR env var if set, otherwise default to cwd
+  let projectDir = process.env.RAPID_PROJECT_DIR || process.cwd();
   let verbose = false;
   let help = false;
 
@@ -128,6 +130,29 @@ async function startHttpServer(config: RapidMcpServerConfig, port: number): Prom
     await import('@modelcontextprotocol/sdk/server/streamableHttp.js');
 
   const app = express();
+
+  // Add Accept header if missing (required by MCP SDK's StreamableHTTPServerTransport)
+  // This must be the FIRST middleware to patch headers before anything else accesses them
+  app.use('/mcp', (req: Request, _res: Response, next: () => void) => {
+    const requiredAccept = 'application/json, text/event-stream';
+    // Patch the raw headers object
+    req.headers['accept'] = requiredAccept;
+    // Patch the raw socket headers if they exist (for Node.js http.IncomingMessage)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawReq = req as any;
+    if (rawReq.rawHeaders) {
+      const acceptIndex = rawReq.rawHeaders.findIndex(
+        (h: string) => h.toLowerCase() === 'accept'
+      );
+      if (acceptIndex >= 0) {
+        rawReq.rawHeaders[acceptIndex + 1] = requiredAccept;
+      } else {
+        rawReq.rawHeaders.push('accept', requiredAccept);
+      }
+    }
+    next();
+  });
+
   app.use(cors());
   app.use(express.json());
 
@@ -149,7 +174,7 @@ async function startHttpServer(config: RapidMcpServerConfig, port: number): Prom
         entry.transport.close();
       }
     }
-  }, 60000); // Check every minute
+  }, SESSION_CHECK_INTERVAL); // Check every minute
 
   // Main MCP endpoint - handles both POST and GET per MCP spec
   app.all('/mcp', async (req: Request, res: Response) => {
@@ -160,6 +185,19 @@ async function startHttpServer(config: RapidMcpServerConfig, port: number): Prom
 
     // Get existing session or create new one
     let entry = sessions.get(sessionId);
+
+    // For new sessions (no client session ID), inject the generated session ID into request headers
+    // This is required because the MCP SDK validates the session header on incoming requests
+    // We must patch both req.headers and rawHeaders for the SDK to accept it
+    if (!clientSessionId) {
+      req.headers['mcp-session-id'] = sessionId;
+      // Also patch rawHeaders array which the Node.js http module uses internally
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rawReq = req as any;
+      if (rawReq.rawHeaders) {
+        rawReq.rawHeaders.push('mcp-session-id', sessionId);
+      }
+    }
 
     if (!entry) {
       // Create new session
@@ -209,21 +247,40 @@ async function startHttpServer(config: RapidMcpServerConfig, port: number): Prom
       };
 
       // Create a mock response to capture the init response
+      // Must include all methods that Hono/Node.js http module expects
       const initRes = {
         headersSent: false,
         statusCode: 200,
+        writableEnded: false,
+        writableFinished: false,
+        finished: false,
         setHeader: () => initRes,
         status: () => initRes,
         json: () => initRes,
         send: () => initRes,
-        end: () => {},
+        end: () => {
+          (initRes as any).writableEnded = true;
+          (initRes as any).finished = true;
+        },
         write: () => true,
+        writeHead: (statusCode: number, _headers?: Record<string, string>) => {
+          (initRes as any).statusCode = statusCode;
+          return initRes;
+        },
         on: () => initRes,
         once: () => initRes,
         emit: () => false,
         getHeader: () => undefined,
         removeHeader: () => {},
         flushHeaders: () => {},
+        cork: () => {},
+        uncork: () => {},
+        addTrailers: () => {},
+        setTimeout: () => initRes,
+        getHeaders: () => ({}),
+        getHeaderNames: () => [],
+        hasHeader: () => false,
+        appendHeader: () => initRes,
       } as unknown as Response;
 
       try {

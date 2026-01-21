@@ -22,7 +22,7 @@ export type SessionState =
 /**
  * Environment provider types
  */
-export type ProviderType = 'local' | 'devcontainer' | 'lima' | 'remote-ssh';
+export type ProviderType = 'local' | 'devcontainer' | 'docker' | 'lima' | 'remote-ssh';
 
 /**
  * Session information
@@ -193,8 +193,23 @@ export interface EnvironmentProvider {
     options?: ExecuteOptions
   ): Promise<ExecuteResult>;
 
+  /** Get logs from the environment (optional) */
+  getLogs?(
+    handle: EnvironmentHandle,
+    options?: GetLogsOptions
+  ): Promise<string>;
+
   /** Clean up provider resources */
   cleanup(): Promise<void>;
+}
+
+/**
+ * Options for getting logs from an environment
+ */
+export interface GetLogsOptions {
+  tail?: number;
+  since?: number;
+  timestamps?: boolean;
 }
 
 /**

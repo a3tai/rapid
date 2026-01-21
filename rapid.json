@@ -24,6 +24,7 @@
     "provider": "1password",
     "vault": "A3T",
     "items": {
+      "ANTHROPIC_API_KEY": "op://A3T/RAPID/ANTHROPIC_API_KEY",
       "CONTEXT7_API_KEY": "op://A3T/RAPID/CONTEXT7_API_KEY",
       "TAVILY_API_KEY": "op://A3T/RAPID/TAVILY_API_KEY"
     }
@@ -42,7 +43,7 @@
       "rapid": {
         "enabled": true,
         "type": "remote",
-        "url": "http://host.docker.internal:3100/mcp"
+        "url": "http://localhost:3100/mcp"
       },
       "context7": {
         "enabled": true,

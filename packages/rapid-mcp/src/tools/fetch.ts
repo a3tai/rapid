@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { loadConfig } from '@a3t/rapid-core';
 import { isDomainAllowed, extractHostname } from '@a3t/rapid-runtime';
 import type { ServerContext } from '../server.js';
+import { FETCH_DEFAULT } from '../constants.js';
 
 /**
  * Input schema for fetch_via_proxy tool
@@ -22,7 +23,7 @@ const inputSchema = {
     .describe('HTTP method'),
   headers: z.record(z.string()).optional().describe('HTTP headers'),
   body: z.string().optional().describe('Request body'),
-  timeout: z.number().default(30000).describe('Timeout in milliseconds'),
+  timeout: z.number().default(FETCH_DEFAULT).describe('Timeout in milliseconds'),
 };
 
 /**

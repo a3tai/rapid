@@ -178,10 +178,12 @@ export class EventBus {
 
   /**
    * Get list of active agents
+   * @param maxAgeSeconds - Max age in seconds. Use 0 or negative to get all agents (no time filter).
    */
   async getActiveAgents(maxAgeSeconds = 300): Promise<AgentInfo[]> {
-    const cutoff = Date.now() - maxAgeSeconds * 1000;
-    const members = await this.redis.zrangebyscore(this.agentsKey, cutoff, '+inf');
+    // If maxAgeSeconds <= 0, get all agents (no time filter)
+    const minScore = maxAgeSeconds > 0 ? String(Date.now() - maxAgeSeconds * 1000) : '-inf';
+    const members = await this.redis.zrangebyscore(this.agentsKey, minScore, '+inf');
 
     const agents: AgentInfo[] = [];
     for (const member of members) {
