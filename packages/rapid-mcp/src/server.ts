@@ -29,7 +29,7 @@ import { registerContextEngineTools } from './tools/context-engine.js';
 import { registerBudgetTrackingTools } from './tools/budget-tracking.js';
 import { registerAuditTrailTools } from './tools/audit-trail.js';
 import { registerGitWorkflowTools } from './tools/git-workflow.js';
-import { registerWorktreeMergeTools } from './tools/worktree-merge.js';
+import { registerWorktreeMergeTools, registerWorktreeRecoveryTools } from './tools/worktree-merge.js';
 import { registerCapabilityTools } from './tools/capability-tools.js';
 import { registerContext7Tools } from './tools/context7.js';
 
@@ -86,6 +86,7 @@ export function createRapidMcpServer(config: RapidMcpServerConfig): McpServer {
   registerAuditTrailTools(server, context);
   registerGitWorkflowTools(server, context);
   registerWorktreeMergeTools(server, context);
+  registerWorktreeRecoveryTools(server, context);
   registerCapabilityTools(server, context);
   registerContext7Tools(server, context);
 

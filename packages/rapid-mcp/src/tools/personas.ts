@@ -535,18 +535,27 @@ const logger = createLogger('personas');
       // Create worktree for the agent
       try {
         // Resolve the actual host project directory (important for Docker environments)
+        // In Docker: RAPID_HOST_PROJECT_DIR = /Users/.../project (host), context.projectDir = /project (container)
+        // In native: RAPID_HOST_PROJECT_DIR is unset, use context.projectDir
         const hostProjectDir = process.env.RAPID_HOST_PROJECT_DIR || context.projectDir;
         const worktreeDir = join(hostProjectDir, '.worktrees', worktree);
 
-        if (context.verbose) {
-          logger.error(`[persona_spawn] Creating worktree '${worktree}' at ${worktreeDir}`);
-        }
+        logger.info(`[persona_spawn] Creating worktree '${worktree}'`, {
+          hostProjectDir,
+          worktreeDir,
+          contextProjectDir: context.projectDir,
+          envHostDir: process.env.RAPID_HOST_PROJECT_DIR,
+        });
 
         // Create git worktree using the host project directory
-        await execa('git', ['worktree', 'add', '-b', worktree, worktreeDir], {
+        const worktreeResult = await execa('git', ['worktree', 'add', '-b', worktree, worktreeDir], {
           cwd: hostProjectDir,
           reject: false,
         });
+
+        if (worktreeResult.exitCode !== 0) {
+          logger.warn(`[persona_spawn] Worktree creation warning: ${worktreeResult.stderr}`);
+        }
 
         if (context.verbose) {
           logger.error(`[persona_spawn] Worktree '${worktree}' created successfully`);

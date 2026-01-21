@@ -650,3 +650,160 @@ async function checkGhCliAvailable(): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Register orphaned worktree recovery tool
+ */
+export function registerWorktreeRecoveryTools(server: McpServer, context: ServerContext): void {
+  /**
+   * worktree_recover tool - Recover changes from orphaned worktrees
+   */
+  server.registerTool(
+    'worktree_recover',
+    {
+      title: 'Recover Orphaned Worktree Changes',
+      description:
+        'Recover file changes from an orphaned worktree (one with broken git references). ' +
+        'Copies modified files back to the main worktree for manual review and commit.',
+      inputSchema: z.object({
+        worktreeName: z.string().describe('Name of the orphaned worktree directory'),
+        targetBranch: z.string().default('main').describe('Branch to compare against'),
+        dryRun: z.boolean().default(true).describe('If true, only list files without copying'),
+        patterns: z.array(z.string()).optional().describe('File patterns to include (e.g., ["packages/**/*.ts"])'),
+      }),
+      outputSchema: z.object({
+        success: z.boolean(),
+        filesFound: z.number(),
+        filesCopied: z.number().optional(),
+        files: z.array(z.string()),
+        errors: z.array(z.string()).optional(),
+      }),
+    },
+    async (args) => {
+      const {
+        worktreeName,
+        dryRun = true,
+        patterns,
+      } = args as {
+        worktreeName: string;
+        targetBranch?: string;
+        dryRun?: boolean;
+        patterns?: string[];
+      };
+
+      const projectDir = process.env.RAPID_HOST_PROJECT_DIR || context.projectDir;
+      const worktreeDir = join(projectDir, '.worktrees', worktreeName);
+      const errors: string[] = [];
+      const files: string[] = [];
+      let filesCopied = 0;
+
+      try {
+        // Check if worktree directory exists
+        const { readdirSync, statSync, copyFileSync, mkdirSync } = await import('node:fs');
+        const { relative, dirname } = await import('node:path');
+
+        try {
+          statSync(worktreeDir);
+        } catch {
+          return {
+            content: [{ type: 'text', text: `Worktree directory not found: ${worktreeDir}` }],
+            structuredContent: { success: false, filesFound: 0, files: [], errors: [`Directory not found: ${worktreeDir}`] },
+          };
+        }
+
+        // Find modified files by comparing with main
+        // Since git state is broken, we compare file contents directly
+        const findModifiedFiles = async (dir: string, baseDir: string): Promise<string[]> => {
+          const modified: string[] = [];
+          const entries = readdirSync(dir, { withFileTypes: true });
+
+          for (const entry of entries) {
+            const fullPath = join(dir, entry.name);
+            const relativePath = relative(worktreeDir, fullPath);
+
+            // Skip node_modules, .git, and other common excludes
+            if (entry.name === 'node_modules' || entry.name === '.git' ||
+                entry.name === '.pnpm-store' || entry.name === 'dist' ||
+                entry.name === '.turbo') {
+              continue;
+            }
+
+            if (entry.isDirectory()) {
+              modified.push(...await findModifiedFiles(fullPath, baseDir));
+            } else if (entry.isFile()) {
+              // Check if file differs from main
+              const mainPath = join(projectDir, relativePath);
+              try {
+                const { readFileSync } = await import('node:fs');
+                const worktreeContent = readFileSync(fullPath, 'utf-8');
+                const mainContent = readFileSync(mainPath, 'utf-8');
+
+                if (worktreeContent !== mainContent) {
+                  // Check against patterns if provided (simple glob matching)
+                  if (patterns && patterns.length > 0) {
+                    const matchesPattern = patterns.some(p => {
+                      // Simple glob matching: convert * to regex
+                      const regex = new RegExp('^' + p.replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*') + '$');
+                      return regex.test(relativePath);
+                    });
+                    if (!matchesPattern) continue;
+                  }
+                  modified.push(relativePath);
+                }
+              } catch {
+                // File doesn't exist in main or can't be read - it's new
+                if (relativePath.endsWith('.ts') || relativePath.endsWith('.tsx') ||
+                    relativePath.endsWith('.js') || relativePath.endsWith('.md')) {
+                  modified.push(relativePath);
+                }
+              }
+            }
+          }
+          return modified;
+        };
+
+        const modifiedFiles = await findModifiedFiles(worktreeDir, projectDir);
+        files.push(...modifiedFiles);
+
+        if (!dryRun && modifiedFiles.length > 0) {
+          // Copy files back to main
+          for (const file of modifiedFiles) {
+            try {
+              const src = join(worktreeDir, file);
+              const dest = join(projectDir, file);
+              mkdirSync(dirname(dest), { recursive: true });
+              copyFileSync(src, dest);
+              filesCopied++;
+            } catch (err) {
+              errors.push(`Failed to copy ${file}: ${err instanceof Error ? err.message : String(err)}`);
+            }
+          }
+        }
+
+        const summary = dryRun
+          ? `Found ${files.length} modified files (dry run - no files copied)`
+          : `Copied ${filesCopied}/${files.length} files to main worktree`;
+
+        logger.info(`[worktree_recover] ${summary}`);
+
+        return {
+          content: [{ type: 'text', text: JSON.stringify({ success: true, summary, files, errors }, null, 2) }],
+          structuredContent: {
+            success: true,
+            filesFound: files.length,
+            filesCopied: dryRun ? undefined : filesCopied,
+            files,
+            errors: errors.length > 0 ? errors : undefined,
+          },
+        };
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        logger.error(`[worktree_recover] Failed: ${errorMsg}`);
+        return {
+          content: [{ type: 'text', text: `Recovery failed: ${errorMsg}` }],
+          structuredContent: { success: false, filesFound: 0, files: [], errors: [errorMsg] },
+        };
+      }
+    }
+  );
+}
