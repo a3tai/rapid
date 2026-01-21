@@ -10,6 +10,10 @@ import { z } from 'zod';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { ServerContext } from '../server.js';
+import { createLogger } from '../utils/logger.js';
+
+// @ts-ignore - logger available for future debug logging
+const logger = createLogger('task-watch');
 
 /**
  * Task interface (matches tasks.ts)

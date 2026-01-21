@@ -31,12 +31,23 @@ services:
       - '3100:3100'
     environment:
       - REDIS_URL=redis://redis:6379
+      - DAEMON_URL=http://daemon:3200
       - NODE_ENV=production
+      - NODE_OPTIONS=--max-old-space-size=4096
+      # Inside container, always use /project - the host path is only for the volume mount
+      - RAPID_PROJECT_DIR=/project
       # Secrets passed from host (fetched by rapid start)
       - CONTEXT7_API_KEY=${CONTEXT7_API_KEY:-}
       - TAVILY_API_KEY=${TAVILY_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      # OAuth token for Claude Max/Pro subscriptions (from getAuthEnvironment)
+      # NOTE: Use CLAUDE_CODE_OAUTH_TOKEN only, NOT ANTHROPIC_AUTH_TOKEN (causes conflict)
+      - CLAUDE_CODE_OAUTH_TOKEN=${CLAUDE_CODE_OAUTH_TOKEN:-}
+    volumes:
+      # Mount host project dir (RAPID_PROJECT_DIR env var) to /project in container
+      # Read-write needed for worktree creation and agent logs
+      - ${RAPID_PROJECT_DIR:-/tmp/rapid-project}:/project
     depends_on:
       redis:
         condition: service_healthy
@@ -92,20 +103,46 @@ services:
       - '3200:3200'
     environment:
       - REDIS_URL=redis://redis:6379
-      - MCP_URL=http://mcp:3100
+      - MCP_URL=http://mcp:3100/mcp
       - GATEWAY_URL=http://gateway:4000
       - NODE_ENV=production
+      # API keys for spawning agents
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      # MCP server secrets to pass to spawned agents
+      - CONTEXT7_API_KEY=${CONTEXT7_API_KEY:-}
+      - TAVILY_API_KEY=${TAVILY_API_KEY:-}
+      # OAuth token for Claude Max / Claude Pro subscriptions (from getAuthEnvironment)
+      # NOTE: Use CLAUDE_CODE_OAUTH_TOKEN only, NOT ANTHROPIC_AUTH_TOKEN (causes conflict)
+      - CLAUDE_CODE_OAUTH_TOKEN=${CLAUDE_CODE_OAUTH_TOKEN:-}
+      # Project directory for agent spawning
+      - RAPID_PROJECT_DIR=/project
+      # Host path for volume mounts when spawning agent containers
+      - RAPID_HOST_PROJECT_DIR=${RAPID_PROJECT_DIR:-/tmp/rapid-project}
+      # Host home directory for mounting .claude.json
+      - RAPID_HOST_HOME_DIR=${HOME:-/Users/Shared}
     depends_on:
       redis:
         condition: service_healthy
       mcp:
         condition: service_started
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/run/docker.sock:/var/run/docker.sock
       - rapid-sessions:/data/sessions
+      - ${RAPID_PROJECT_DIR:-/tmp/rapid-project}:/project
     restart: unless-stopped
     networks:
       - rapid-network
+
+  # Agent Container (for spawning workers/orchestrators)
+  # This doesn't run as a service, but we build it here for daemon to use
+  agent:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    image: rapid-dev:latest
+    profiles:
+      - build-only  # Don't run as a service, just build the image
 
 networks:
   rapid-network:

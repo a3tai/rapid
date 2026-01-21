@@ -9,6 +9,10 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { GatewayManager } from '@a3t/rapid-core';
 import type { ServerContext } from '../server.js';
+import { createLogger } from '../utils/logger.js';
+
+// @ts-ignore - logger available for future debug logging
+const logger = createLogger('budget-tracking');
 
 export interface BudgetAlert {
   timestamp: string;

@@ -12,6 +12,10 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { ServerContext } from '../server.js';
+import { createLogger } from '../utils/logger.js';
+
+// @ts-ignore - logger available for future debug logging
+const logger = createLogger('suggestions');
 
 // Suggestion category enum
 const SuggestionCategorySchema = z.enum(['feature', 'fix', 'improvement', 'refactor', 'docs']);

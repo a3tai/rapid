@@ -143,6 +143,55 @@ Set via environment or rapid.json:
 }
 ```
 
+## Logging
+
+The RAPID MCP server includes a centralized logging utility with support for multiple log levels and component-based namespacing.
+
+### Environment Variables
+
+- **`RAPID_LOGGING_DISABLED=true`** - Disable all logging output
+- **`RAPID_LOG_LEVEL=debug|info|warn|error`** - Set minimum log level (default: `info`)
+  - `debug` - Most verbose, includes all debug messages
+  - `info` - Normal operation messages
+  - `warn` - Warning messages only
+  - `error` - Errors only
+- **`NODE_ENV=production`** with **`RAPID_LOGGING=false`** - Disable logging in production
+
+### Usage
+
+```typescript
+import { createLogger } from '@a3t/rapid-mcp/utils/logger';
+
+// Create a logger for your component
+const logger = createLogger('my-component');
+
+// Log messages at different levels
+logger.debug('Debug information', { details: 'data' });
+logger.info('Operation started');
+logger.warn('Unexpected condition');
+logger.error('Operation failed', error);
+```
+
+### Programmatic Configuration
+
+```typescript
+import { configureLogger } from '@a3t/rapid-mcp/utils/logger';
+
+// Show debug messages
+configureLogger({ level: 'debug' });
+
+// Disable all logging
+configureLogger({ enabled: false });
+```
+
+### Log Format
+
+All logs are output to stderr with timestamps and component names:
+
+```
+2026-01-21T11:23:00.000Z [component-name] LEVEL: Message content
+```
+
 ## Transport Modes
 
 ### HTTP (Recommended)

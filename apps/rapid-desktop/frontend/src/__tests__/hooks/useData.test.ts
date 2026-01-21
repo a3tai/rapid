@@ -1,14 +1,54 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { renderHook, waitFor, act } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { renderHook, waitFor } from '@testing-library/react';
 import { useData, useMcpStatus } from '../../hooks/useData';
 
-// Note: useData tests are skipped due to React 18 concurrent mode conflicts
-// with nested hooks (useWails, useMcp). The hooks work correctly at runtime
-// but cause "Should not already be working" errors in test isolation.
-// TODO: Refactor tests to mock nested hooks or use integration tests.
-describe.skip('useData', () => {
+// Mock nested hooks
+vi.mock('../../hooks/useWails', () => ({
+  useWails: vi.fn(() => ({
+    initialize: vi.fn(),
+    fetchDaemonStatus: vi.fn(),
+    fetchAgents: vi.fn(),
+    fetchTasks: vi.fn(),
+    fetchMessages: vi.fn(),
+    subscribe: vi.fn(),
+    unsubscribe: vi.fn(),
+    sendMessage: vi.fn(),
+    getChatHistory: vi.fn(),
+    createTask: vi.fn(),
+    spawnAgent: vi.fn(),
+    stopAgent: vi.fn(),
+  })),
+}));
+
+vi.mock('../../hooks/useMcp', () => ({
+  useMcp: vi.fn(() => ({
+    initialize: vi.fn(),
+    fetchDaemonStatus: vi.fn(),
+    fetchAgents: vi.fn(),
+    fetchTasks: vi.fn(),
+    fetchMessages: vi.fn(),
+    createTask: vi.fn(),
+    updateTaskStatus: vi.fn(),
+    completeTask: vi.fn(),
+    fetchApprovals: vi.fn(),
+    approveRequest: vi.fn(),
+    rejectRequest: vi.fn(),
+    submitVote: vi.fn(),
+    overrideSuggestion: vi.fn(),
+    spawnAgent: vi.fn(),
+    stopAgent: vi.fn(),
+    sendMessage: vi.fn(),
+    callTool: vi.fn(),
+  })),
+}));
+
+describe('useData', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.resetModules();
   });
 
   it('should provide data access methods', () => {
@@ -42,11 +82,13 @@ describe.skip('useData', () => {
   });
 });
 
-// Note: useMcpStatus tests also have React 18 concurrent mode issues
-// TODO: Refactor to properly isolate async state updates
-describe.skip('useMcpStatus', () => {
+describe('useMcpStatus', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.resetModules();
   });
 
   it('should provide checkConnection method', () => {
@@ -71,35 +113,23 @@ describe.skip('useMcpStatus', () => {
     });
     global.fetch = mockFetch;
 
-    let hookResult: any;
-    await act(async () => {
-      const { result } = renderHook(() => useMcpStatus());
-      hookResult = result;
-    });
+    const { result } = renderHook(() => useMcpStatus());
 
-    let status: any;
-    await act(async () => {
-      status = await hookResult.current.checkConnection();
-    });
+    const status = await result.current.checkConnection();
 
     expect(status).toHaveProperty('connected');
     expect(status).toHaveProperty('toolCount');
+    expect(status.connected).toBe(true);
+    expect(status.toolCount).toBe(1);
   });
 
   it('should handle connection failures gracefully', async () => {
     const mockFetch = vi.fn().mockRejectedValue(new Error('Network error'));
     global.fetch = mockFetch;
 
-    let hookResult: any;
-    await act(async () => {
-      const { result } = renderHook(() => useMcpStatus());
-      hookResult = result;
-    });
+    const { result } = renderHook(() => useMcpStatus());
 
-    let status: any;
-    await act(async () => {
-      status = await hookResult.current.checkConnection();
-    });
+    const status = await result.current.checkConnection();
 
     expect(status.connected).toBe(false);
     expect(status.toolCount).toBe(0);

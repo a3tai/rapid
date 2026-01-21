@@ -1,8 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import userEvent from '@testing-library/user-event';
 import { ConfigPage } from '../../pages/Config';
 import type { RapidConfig } from '../../hooks/useConfig';
 
@@ -16,8 +13,14 @@ vi.mock('../../hooks/useWails', () => ({
   useWails: vi.fn(() => ({})),
 }));
 
+interface SkeletonProps {
+  height: number;
+  width: number;
+  className?: string;
+}
+
 vi.mock('../../components/Skeleton', () => ({
-  Skeleton: ({ height, width, className }: any) => (
+  Skeleton: ({ height, width, className }: SkeletonProps) => (
     <div
       className={`skeleton ${className}`}
       style={{ height: `${height}px`, width: `${width}px` }}
@@ -73,7 +76,7 @@ describe.skip('ConfigPage Integration Tests', () => {
 
   describe('Component Rendering', () => {
     it('should render loading skeleton when config is loading', () => {
-      const mockUseConfig = useConfig as any;
+      const mockUseConfig = useConfig as ReturnType<typeof vi.fn>;
       mockUseConfig.mockReturnValue({
         config: null,
         loading: true,
@@ -84,7 +87,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         saveConfig: vi.fn(),
       });
 
-      const mockUseValidation = useConfigValidation as any;
+      const mockUseValidation = useConfigValidation as ReturnType<typeof vi.fn>;
       mockUseValidation.mockReturnValue({
         validate: vi.fn(),
       });
@@ -95,7 +98,7 @@ describe.skip('ConfigPage Integration Tests', () => {
     });
 
     it('should render error message when config fails to load', () => {
-      const mockUseConfig = useConfig as any;
+      const mockUseConfig = useConfig as ReturnType<typeof vi.fn>;
       mockUseConfig.mockReturnValue({
         config: null,
         loading: false,
@@ -106,7 +109,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         saveConfig: vi.fn(),
       });
 
-      const mockUseValidation = useConfigValidation as any;
+      const mockUseValidation = useConfigValidation as ReturnType<typeof vi.fn>;
       mockUseValidation.mockReturnValue({
         validate: vi.fn(),
       });
@@ -118,7 +121,7 @@ describe.skip('ConfigPage Integration Tests', () => {
     });
 
     it('should render all configuration tabs', () => {
-      const mockUseConfig = useConfig as any;
+      const mockUseConfig = useConfig as ReturnType<typeof vi.fn>;
       mockUseConfig.mockReturnValue({
         config: mockConfig,
         loading: false,
@@ -129,7 +132,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         saveConfig: vi.fn(),
       });
 
-      const mockUseValidation = useConfigValidation as any;
+      const mockUseValidation = useConfigValidation as ReturnType<typeof vi.fn>;
       mockUseValidation.mockReturnValue({
         validate: vi.fn(),
       });
@@ -143,7 +146,7 @@ describe.skip('ConfigPage Integration Tests', () => {
     });
 
     it('should display config header with project name', () => {
-      const mockUseConfig = useConfig as any;
+      const mockUseConfig = useConfig as ReturnType<typeof vi.fn>;
       mockUseConfig.mockReturnValue({
         config: mockConfig,
         loading: false,
@@ -154,7 +157,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         saveConfig: vi.fn(),
       });
 
-      const mockUseValidation = useConfigValidation as any;
+      const mockUseValidation = useConfigValidation as ReturnType<typeof vi.fn>;
       mockUseValidation.mockReturnValue({
         validate: vi.fn(),
       });
@@ -166,7 +169,7 @@ describe.skip('ConfigPage Integration Tests', () => {
     });
 
     it('should render general settings tab content by default', () => {
-      const mockUseConfig = useConfig as any;
+      const mockUseConfig = useConfig as ReturnType<typeof vi.fn>;
       mockUseConfig.mockReturnValue({
         config: mockConfig,
         loading: false,
@@ -177,7 +180,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         saveConfig: vi.fn(),
       });
 
-      const mockUseValidation = useConfigValidation as any;
+      const mockUseValidation = useConfigValidation as ReturnType<typeof vi.fn>;
       mockUseValidation.mockReturnValue({
         validate: vi.fn(),
       });
@@ -197,7 +200,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         'project.name': 'Project name is required',
       });
 
-      const mockUseConfig = useConfig as any;
+      const mockUseConfig = useConfig as ReturnType<typeof vi.fn>;
       mockUseConfig.mockReturnValue({
         config: mockConfig,
         loading: false,
@@ -208,7 +211,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         saveConfig: saveConfigMock,
       });
 
-      const mockUseValidation = useConfigValidation as any;
+      const mockUseValidation = useConfigValidation as ReturnType<typeof vi.fn>;
       mockUseValidation.mockReturnValue({
         validate: validateMock,
       });
@@ -222,7 +225,7 @@ describe.skip('ConfigPage Integration Tests', () => {
     });
 
     it('should disable save button when form is not dirty', () => {
-      const mockUseConfig = useConfig as any;
+      const mockUseConfig = useConfig as ReturnType<typeof vi.fn>;
       mockUseConfig.mockReturnValue({
         config: mockConfig,
         loading: false,
@@ -233,7 +236,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         saveConfig: vi.fn(),
       });
 
-      const mockUseValidation = useConfigValidation as any;
+      const mockUseValidation = useConfigValidation as ReturnType<typeof vi.fn>;
       mockUseValidation.mockReturnValue({
         validate: vi.fn(),
       });
@@ -245,7 +248,7 @@ describe.skip('ConfigPage Integration Tests', () => {
     });
 
     it('should enable save button when form is dirty', () => {
-      const mockUseConfig = useConfig as any;
+      const mockUseConfig = useConfig as ReturnType<typeof vi.fn>;
       mockUseConfig.mockReturnValue({
         config: mockConfig,
         loading: false,
@@ -256,7 +259,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         saveConfig: vi.fn(),
       });
 
-      const mockUseValidation = useConfigValidation as any;
+      const mockUseValidation = useConfigValidation as ReturnType<typeof vi.fn>;
       mockUseValidation.mockReturnValue({
         validate: vi.fn(),
       });
@@ -268,7 +271,7 @@ describe.skip('ConfigPage Integration Tests', () => {
     });
 
     it('should show loading spinner while saving', async () => {
-      const mockUseConfig = useConfig as any;
+      const mockUseConfig = useConfig as ReturnType<typeof vi.fn>;
       mockUseConfig.mockReturnValue({
         config: mockConfig,
         loading: false,
@@ -279,7 +282,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         saveConfig: vi.fn(),
       });
 
-      const mockUseValidation = useConfigValidation as any;
+      const mockUseValidation = useConfigValidation as ReturnType<typeof vi.fn>;
       mockUseValidation.mockReturnValue({
         validate: vi.fn(),
       });
@@ -295,7 +298,7 @@ describe.skip('ConfigPage Integration Tests', () => {
       });
       const saveConfigMock = vi.fn();
 
-      const mockUseConfig = useConfig as any;
+      const mockUseConfig = useConfig as ReturnType<typeof vi.fn>;
       mockUseConfig.mockReturnValue({
         config: mockConfig,
         loading: false,
@@ -306,7 +309,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         saveConfig: saveConfigMock,
       });
 
-      const mockUseValidation = useConfigValidation as any;
+      const mockUseValidation = useConfigValidation as ReturnType<typeof vi.fn>;
       mockUseValidation.mockReturnValue({
         validate: validateMock,
       });
@@ -324,7 +327,7 @@ describe.skip('ConfigPage Integration Tests', () => {
 
   describe('Form Field Interactions', () => {
     it('should update form data when project name input changes', () => {
-      const mockUseConfig = useConfig as any;
+      const mockUseConfig = useConfig as ReturnType<typeof vi.fn>;
       mockUseConfig.mockReturnValue({
         config: mockConfig,
         loading: false,
@@ -335,7 +338,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         saveConfig: vi.fn(),
       });
 
-      const mockUseValidation = useConfigValidation as any;
+      const mockUseValidation = useConfigValidation as ReturnType<typeof vi.fn>;
       mockUseValidation.mockReturnValue({
         validate: vi.fn(),
       });
@@ -349,7 +352,7 @@ describe.skip('ConfigPage Integration Tests', () => {
     });
 
     it('should update form data when project root input changes', () => {
-      const mockUseConfig = useConfig as any;
+      const mockUseConfig = useConfig as ReturnType<typeof vi.fn>;
       mockUseConfig.mockReturnValue({
         config: mockConfig,
         loading: false,
@@ -360,7 +363,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         saveConfig: vi.fn(),
       });
 
-      const mockUseValidation = useConfigValidation as any;
+      const mockUseValidation = useConfigValidation as ReturnType<typeof vi.fn>;
       mockUseValidation.mockReturnValue({
         validate: vi.fn(),
       });
@@ -374,7 +377,7 @@ describe.skip('ConfigPage Integration Tests', () => {
     });
 
     it('should toggle sandbox enabled checkbox', () => {
-      const mockUseConfig = useConfig as any;
+      const mockUseConfig = useConfig as ReturnType<typeof vi.fn>;
       mockUseConfig.mockReturnValue({
         config: mockConfig,
         loading: false,
@@ -385,7 +388,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         saveConfig: vi.fn(),
       });
 
-      const mockUseValidation = useConfigValidation as any;
+      const mockUseValidation = useConfigValidation as ReturnType<typeof vi.fn>;
       mockUseValidation.mockReturnValue({
         validate: vi.fn(),
       });
@@ -400,7 +403,7 @@ describe.skip('ConfigPage Integration Tests', () => {
     });
 
     it('should change sandbox preset', () => {
-      const mockUseConfig = useConfig as any;
+      const mockUseConfig = useConfig as ReturnType<typeof vi.fn>;
       mockUseConfig.mockReturnValue({
         config: mockConfig,
         loading: false,
@@ -411,7 +414,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         saveConfig: vi.fn(),
       });
 
-      const mockUseValidation = useConfigValidation as any;
+      const mockUseValidation = useConfigValidation as ReturnType<typeof vi.fn>;
       mockUseValidation.mockReturnValue({
         validate: vi.fn(),
       });
@@ -425,7 +428,7 @@ describe.skip('ConfigPage Integration Tests', () => {
     });
 
     it('should toggle network access checkbox', () => {
-      const mockUseConfig = useConfig as any;
+      const mockUseConfig = useConfig as ReturnType<typeof vi.fn>;
       mockUseConfig.mockReturnValue({
         config: mockConfig,
         loading: false,
@@ -436,7 +439,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         saveConfig: vi.fn(),
       });
 
-      const mockUseValidation = useConfigValidation as any;
+      const mockUseValidation = useConfigValidation as ReturnType<typeof vi.fn>;
       mockUseValidation.mockReturnValue({
         validate: vi.fn(),
       });
@@ -453,7 +456,7 @@ describe.skip('ConfigPage Integration Tests', () => {
 
   describe('Tab Navigation', () => {
     it('should switch to personas tab', () => {
-      const mockUseConfig = useConfig as any;
+      const mockUseConfig = useConfig as ReturnType<typeof vi.fn>;
       mockUseConfig.mockReturnValue({
         config: mockConfig,
         loading: false,
@@ -464,7 +467,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         saveConfig: vi.fn(),
       });
 
-      const mockUseValidation = useConfigValidation as any;
+      const mockUseValidation = useConfigValidation as ReturnType<typeof vi.fn>;
       mockUseValidation.mockReturnValue({
         validate: vi.fn(),
       });
@@ -480,7 +483,7 @@ describe.skip('ConfigPage Integration Tests', () => {
     });
 
     it('should switch to MCP tab', () => {
-      const mockUseConfig = useConfig as any;
+      const mockUseConfig = useConfig as ReturnType<typeof vi.fn>;
       mockUseConfig.mockReturnValue({
         config: mockConfig,
         loading: false,
@@ -491,7 +494,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         saveConfig: vi.fn(),
       });
 
-      const mockUseValidation = useConfigValidation as any;
+      const mockUseValidation = useConfigValidation as ReturnType<typeof vi.fn>;
       mockUseValidation.mockReturnValue({
         validate: vi.fn(),
       });
@@ -506,7 +509,7 @@ describe.skip('ConfigPage Integration Tests', () => {
     });
 
     it('should switch to raw config tab', () => {
-      const mockUseConfig = useConfig as any;
+      const mockUseConfig = useConfig as ReturnType<typeof vi.fn>;
       mockUseConfig.mockReturnValue({
         config: mockConfig,
         loading: false,
@@ -517,7 +520,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         saveConfig: vi.fn(),
       });
 
-      const mockUseValidation = useConfigValidation as any;
+      const mockUseValidation = useConfigValidation as ReturnType<typeof vi.fn>;
       mockUseValidation.mockReturnValue({
         validate: vi.fn(),
       });
@@ -537,7 +540,7 @@ describe.skip('ConfigPage Integration Tests', () => {
       const saveConfigMock = vi.fn().mockResolvedValue(true);
       const validateMock = vi.fn().mockReturnValue({});
 
-      const mockUseConfig = useConfig as any;
+      const mockUseConfig = useConfig as ReturnType<typeof vi.fn>;
       mockUseConfig.mockReturnValue({
         config: mockConfig,
         loading: false,
@@ -548,7 +551,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         saveConfig: saveConfigMock,
       });
 
-      const mockUseValidation = useConfigValidation as any;
+      const mockUseValidation = useConfigValidation as ReturnType<typeof vi.fn>;
       mockUseValidation.mockReturnValue({
         validate: validateMock,
       });
@@ -567,7 +570,7 @@ describe.skip('ConfigPage Integration Tests', () => {
       const saveConfigMock = vi.fn().mockResolvedValue(false);
       const validateMock = vi.fn().mockReturnValue({});
 
-      const mockUseConfig = useConfig as any;
+      const mockUseConfig = useConfig as ReturnType<typeof vi.fn>;
       mockUseConfig.mockReturnValue({
         config: mockConfig,
         loading: false,
@@ -578,7 +581,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         saveConfig: saveConfigMock,
       });
 
-      const mockUseValidation = useConfigValidation as any;
+      const mockUseValidation = useConfigValidation as ReturnType<typeof vi.fn>;
       mockUseValidation.mockReturnValue({
         validate: validateMock,
       });
@@ -592,7 +595,7 @@ describe.skip('ConfigPage Integration Tests', () => {
     });
 
     it('should initialize form data when config loads', () => {
-      const mockUseConfig = useConfig as any;
+      const mockUseConfig = useConfig as ReturnType<typeof vi.fn>;
       mockUseConfig.mockReturnValue({
         config: mockConfig,
         loading: false,
@@ -603,7 +606,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         saveConfig: vi.fn(),
       });
 
-      const mockUseValidation = useConfigValidation as any;
+      const mockUseValidation = useConfigValidation as ReturnType<typeof vi.fn>;
       mockUseValidation.mockReturnValue({
         validate: vi.fn(),
       });
@@ -622,7 +625,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         'project.root': 'Project root is required',
       });
 
-      const mockUseConfig = useConfig as any;
+      const mockUseConfig = useConfig as ReturnType<typeof vi.fn>;
       mockUseConfig.mockReturnValue({
         config: mockConfig,
         loading: false,
@@ -633,7 +636,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         saveConfig: saveConfigMock,
       });
 
-      const mockUseValidation = useConfigValidation as any;
+      const mockUseValidation = useConfigValidation as ReturnType<typeof vi.fn>;
       mockUseValidation.mockReturnValue({
         validate: validateMock,
       });
@@ -653,7 +656,7 @@ describe.skip('ConfigPage Integration Tests', () => {
     it('should display error message in alert when saveError is present', () => {
       const saveError = { message: 'Permission denied writing to config file' };
 
-      const mockUseConfig = useConfig as any;
+      const mockUseConfig = useConfig as ReturnType<typeof vi.fn>;
       mockUseConfig.mockReturnValue({
         config: mockConfig,
         loading: false,
@@ -664,7 +667,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         saveConfig: vi.fn(),
       });
 
-      const mockUseValidation = useConfigValidation as any;
+      const mockUseValidation = useConfigValidation as ReturnType<typeof vi.fn>;
       mockUseValidation.mockReturnValue({
         validate: vi.fn(),
       });
@@ -681,7 +684,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         personas: undefined,
       };
 
-      const mockUseConfig = useConfig as any;
+      const mockUseConfig = useConfig as ReturnType<typeof vi.fn>;
       mockUseConfig.mockReturnValue({
         config: configWithoutPersonas,
         loading: false,
@@ -692,7 +695,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         saveConfig: vi.fn(),
       });
 
-      const mockUseValidation = useConfigValidation as any;
+      const mockUseValidation = useConfigValidation as ReturnType<typeof vi.fn>;
       mockUseValidation.mockReturnValue({
         validate: vi.fn(),
       });
@@ -709,7 +712,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         mcp: undefined,
       };
 
-      const mockUseConfig = useConfig as any;
+      const mockUseConfig = useConfig as ReturnType<typeof vi.fn>;
       mockUseConfig.mockReturnValue({
         config: configWithoutMcp,
         loading: false,
@@ -720,7 +723,7 @@ describe.skip('ConfigPage Integration Tests', () => {
         saveConfig: vi.fn(),
       });
 
-      const mockUseValidation = useConfigValidation as any;
+      const mockUseValidation = useConfigValidation as ReturnType<typeof vi.fn>;
       mockUseValidation.mockReturnValue({
         validate: vi.fn(),
       });

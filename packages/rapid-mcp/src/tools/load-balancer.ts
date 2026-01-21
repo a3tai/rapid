@@ -9,6 +9,9 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { ServerContext } from '../server.js';
 
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('load_balancer');
 // Worker load state
 interface WorkerState {
   agentId: string;
@@ -174,7 +177,7 @@ export function registerLoadBalancerTools(server: McpServer, context: ServerCont
       workers.set(agentId, worker);
 
       if (context.verbose) {
-        console.error(
+        logger.error(
           `[lb_register_worker] Registered ${name} (${agentId}) with capabilities: ${capabilities.join(', ')}`
         );
       }
@@ -214,7 +217,7 @@ export function registerLoadBalancerTools(server: McpServer, context: ServerCont
       const removed = workers.delete(agentId);
 
       if (context.verbose) {
-        console.error(`[lb_unregister_worker] ${removed ? 'Removed' : 'Not found'}: ${agentId}`);
+        logger.error(`[lb_unregister_worker] ${removed ? 'Removed' : 'Not found'}: ${agentId}`);
       }
 
       return {
@@ -366,7 +369,7 @@ export function registerLoadBalancerTools(server: McpServer, context: ServerCont
           : undefined;
 
       if (context.verbose) {
-        console.error(
+        logger.error(
           `[lb_select_worker] Selected ${selected.name} (${selected.agentId})${score !== undefined ? ` score=${score}` : ''}`
         );
       }
@@ -465,7 +468,7 @@ export function registerLoadBalancerTools(server: McpServer, context: ServerCont
       }
 
       if (context.verbose) {
-        console.error(`[lb_update_load] ${worker.name}: ${worker.currentTasks} tasks`);
+        logger.error(`[lb_update_load] ${worker.name}: ${worker.currentTasks} tasks`);
       }
 
       return {
@@ -517,7 +520,7 @@ export function registerLoadBalancerTools(server: McpServer, context: ServerCont
       worker.healthy = healthy;
 
       if (context.verbose) {
-        console.error(`[lb_set_health] ${worker.name}: ${healthy ? 'healthy' : 'unhealthy'}`);
+        logger.error(`[lb_set_health] ${worker.name}: ${healthy ? 'healthy' : 'unhealthy'}`);
       }
 
       return {
@@ -604,7 +607,7 @@ export function registerLoadBalancerTools(server: McpServer, context: ServerCont
       }
 
       if (context.verbose) {
-        console.error(
+        logger.error(
           `[lb_status] ${healthy.length}/${allWorkers.length} workers, ${utilization.toFixed(1)}% utilized`
         );
       }
@@ -681,7 +684,7 @@ export function registerLoadBalancerTools(server: McpServer, context: ServerCont
       };
 
       if (context.verbose) {
-        console.error(
+        logger.error(
           `[lb_rebalance] ${overloaded.length} overloaded, ${underutilized.length} available, ${suggestedMoves} moves suggested`
         );
       }

@@ -9,6 +9,7 @@
  */
 
 import type { SecurityConfig, AgentRole } from '@a3t/rapid-schema';
+import { APPROVAL_WINDOW, RATE_LIMIT_WINDOW } from '../constants.js';
 
 export interface SecurityContext {
   agentId: string;
@@ -121,7 +122,7 @@ export function checkToolAccess(
 
   // Check rate limiting
   if (acl.rateLimit) {
-    const recentCalls = countRecentCalls(toolName, context.agentId, 60000);
+    const recentCalls = countRecentCalls(toolName, context.agentId, RATE_LIMIT_WINDOW);
     if (recentCalls >= acl.rateLimit) {
       return {
         allowed: false,
@@ -142,7 +143,7 @@ export async function requestApproval(
   context: SecurityContext,
   config?: SecurityConfig
 ): Promise<boolean> {
-  const timeoutMs = config?.humanApproval?.timeout ?? 300000; // 5 minutes default
+  const timeoutMs = config?.humanApproval?.timeout ?? APPROVAL_WINDOW;
   const approvalId = generateApprovalId();
 
   return new Promise((resolve) => {

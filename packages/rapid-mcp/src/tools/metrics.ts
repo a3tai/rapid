@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { ServerContext } from '../server.js';
+import { createLogger } from '../utils/logger.js';
 
 // Metric event types
 type MetricEventType =
@@ -374,8 +375,9 @@ function toPrometheus(metrics: AggregatedMetrics): string {
  * Register metrics tools with the MCP server
  */
 export function registerMetricsTools(server: McpServer, context: ServerContext): void {
+const logger = createLogger('metrics');
   // Initialize metrics store
-  loadMetrics(context.projectDir).catch(console.error);
+  loadMetrics(context.projectDir).catch((err) => logger.error('Failed to load metrics', err));
 
   // Tool: Record a metric event
   server.registerTool(
@@ -427,7 +429,7 @@ export function registerMetricsTools(server: McpServer, context: ServerContext):
       recordEvent(event);
 
       if (context.verbose) {
-        console.error(
+        logger.error(
           `[metrics_record] ${type} for task ${taskId}${durationMs ? ` (${durationMs}ms)` : ''}`
         );
       }
@@ -481,7 +483,7 @@ export function registerMetricsTools(server: McpServer, context: ServerContext):
       const metrics = aggregateMetrics(periodMs, tags);
 
       if (context.verbose) {
-        console.error(`[metrics_get] Aggregated ${metrics.eventCount} events over ${periodHours}h`);
+        logger.error(`[metrics_get] Aggregated ${metrics.eventCount} events over ${periodHours}h`);
       }
 
       if (format === 'prometheus') {
@@ -576,7 +578,7 @@ export function registerMetricsTools(server: McpServer, context: ServerContext):
       };
 
       if (context.verbose) {
-        console.error(`[metrics_agent_report] ${agents.length} agents, top: ${topPerformer}`);
+        logger.error(`[metrics_agent_report] ${agents.length} agents, top: ${topPerformer}`);
       }
 
       return {
@@ -615,7 +617,7 @@ export function registerMetricsTools(server: McpServer, context: ServerContext):
       await saveMetrics();
 
       if (context.verbose) {
-        console.error(`[metrics_reset] Cleared ${clearedCount} events`);
+        logger.error(`[metrics_reset] Cleared ${clearedCount} events`);
       }
 
       return {

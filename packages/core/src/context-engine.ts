@@ -16,6 +16,15 @@ import { logger } from './logger.js';
 export type MemoryType = 'episodic' | 'semantic' | 'procedural' | 'decision_trace';
 
 /**
+ * Access control for knowledge sharing between agents
+ */
+export interface AccessControl {
+  scope: 'private' | 'shared' | 'public';
+  ownerAgentId: string;
+  allowedAgents?: string[]; // for 'shared' scope only
+}
+
+/**
  * A single entry in the context store
  */
 export interface ContextEntry {
@@ -34,6 +43,8 @@ export interface ContextEntry {
     expiresAt: string | undefined;
     tags: string[];
     relatedKeys: string[];
+    accessControl: AccessControl;
+    source?: string; // e.g., task_id, analysis_result, etc.
   };
 }
 
@@ -56,6 +67,8 @@ export interface ContextFilter {
   createdAfter?: Date;
   createdBefore?: Date;
   minConfidence?: number;
+  createdBy?: string;
+  agentId?: string; // agent requesting the data
 }
 
 /**
@@ -125,7 +138,7 @@ export class ContextEngine {
   }
 
   /**
-   * Learn new knowledge
+   * Learn new knowledge with optional access control
    */
   async learn(
     key: string,
@@ -136,8 +149,14 @@ export class ContextEngine {
       tags?: string[];
       relatedKeys?: string[];
       expiresAt?: string;
+      createdBy?: string;
+      scope?: 'private' | 'shared' | 'public';
+      allowedAgents?: string[];
+      source?: string;
     }
   ): Promise<ContextEntry> {
+    const agentId = metadata?.createdBy ?? 'system';
+
     const entry: ContextEntry = {
       id: randomUUID(),
       memoryType,
@@ -147,18 +166,24 @@ export class ContextEngine {
       metadata: {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        createdBy: 'unknown',
+        createdBy: agentId,
         confidence: metadata?.confidence ?? 0.8,
         accessCount: 0,
         lastAccessed: new Date().toISOString(),
         tags: metadata?.tags ?? [],
         relatedKeys: metadata?.relatedKeys ?? [],
         expiresAt: metadata?.expiresAt as string | undefined,
+        accessControl: {
+          scope: metadata?.scope ?? 'public',
+          ownerAgentId: agentId,
+          ...(metadata?.allowedAgents ? { allowedAgents: metadata.allowedAgents } : {}),
+        },
+        ...(metadata?.source ? { source: metadata.source } : {}),
       },
     };
 
     this.entries.set(key, entry);
-    logger.debug(`Learned: ${memoryType}/${key}`);
+    logger.debug(`Learned: ${memoryType}/${key} by ${agentId}`);
 
     // Persist to file
     await this.saveToFile();
@@ -167,28 +192,65 @@ export class ContextEngine {
   }
 
   /**
-   * Recall specific knowledge by key
+   * Check if an agent has access to a knowledge entry
    */
-  async recall(key: string): Promise<ContextEntry | null> {
+  private canAccess(entry: ContextEntry, agentId?: string): boolean {
+    const ac = entry.metadata.accessControl;
+
+    if (ac.scope === 'public') {
+      return true;
+    }
+
+    if (!agentId) {
+      return false;
+    }
+
+    if (ac.scope === 'private') {
+      return ac.ownerAgentId === agentId;
+    }
+
+    if (ac.scope === 'shared') {
+      return ac.ownerAgentId === agentId || (ac.allowedAgents?.includes(agentId) ?? false);
+    }
+
+    return false;
+  }
+
+  /**
+   * Recall specific knowledge by key with optional access control
+   */
+  async recall(key: string, agentId?: string): Promise<ContextEntry | null> {
     const entry = this.entries.get(key);
 
     if (entry) {
+      if (!this.canAccess(entry, agentId)) {
+        logger.warn(`Access denied: agent ${agentId} cannot recall ${key}`);
+        return null;
+      }
+
       entry.metadata.accessCount++;
       entry.metadata.lastAccessed = new Date().toISOString();
-      logger.debug(`Recalled: ${entry.memoryType}/${key}`);
+      logger.debug(`Recalled: ${entry.memoryType}/${key} by ${agentId ?? 'system'}`);
     }
 
     return entry ?? null;
   }
 
   /**
-   * List all context entries with optional filtering
+   * List all context entries with optional filtering and access control
    */
   async list(filter?: ContextFilter): Promise<ContextEntry[]> {
     let results = Array.from(this.entries.values());
 
+    // Apply access control
+    results = results.filter((e) => this.canAccess(e, filter?.agentId));
+
     if (filter?.memoryType) {
       results = results.filter((e) => e.memoryType === filter.memoryType);
+    }
+
+    if (filter?.createdBy) {
+      results = results.filter((e) => e.metadata.createdBy === filter.createdBy);
     }
 
     if (filter?.tags && filter.tags.length > 0) {
@@ -207,7 +269,7 @@ export class ContextEngine {
       results = results.filter((e) => e.metadata.confidence >= filter.minConfidence!);
     }
 
-    logger.debug(`Listed ${results.length} context entries`);
+    logger.debug(`Listed ${results.length} context entries (${filter?.agentId ?? 'system'})`);
 
     return results;
   }
@@ -262,17 +324,104 @@ export class ContextEngine {
   }
 
   /**
+   * Share knowledge with specific agents
+   */
+  async share(
+    key: string,
+    agentIds: string[],
+    options?: { replace?: boolean }
+  ): Promise<ContextEntry | null> {
+    const entry = this.entries.get(key);
+
+    if (!entry) {
+      logger.warn(`Cannot share: knowledge entry not found: ${key}`);
+      return null;
+    }
+
+    if (entry.metadata.accessControl.scope !== 'shared') {
+      if (!options?.replace) {
+        logger.warn(`Cannot share: entry is not in 'shared' scope`);
+        return null;
+      }
+      entry.metadata.accessControl.scope = 'shared';
+    }
+
+    entry.metadata.accessControl.allowedAgents = agentIds;
+    entry.metadata.updatedAt = new Date().toISOString();
+
+    logger.debug(`Shared ${key} with agents: ${agentIds.join(', ')}`);
+    await this.saveToFile();
+
+    return entry;
+  }
+
+  /**
+   * Make knowledge public (accessible to all agents)
+   */
+  async makePublic(key: string): Promise<ContextEntry | null> {
+    const entry = this.entries.get(key);
+
+    if (!entry) {
+      return null;
+    }
+
+    entry.metadata.accessControl.scope = 'public';
+    entry.metadata.updatedAt = new Date().toISOString();
+
+    logger.debug(`Made public: ${key}`);
+    await this.saveToFile();
+
+    return entry;
+  }
+
+  /**
+   * Make knowledge private (only accessible to owner)
+   */
+  async makePrivate(key: string): Promise<ContextEntry | null> {
+    const entry = this.entries.get(key);
+
+    if (!entry) {
+      return null;
+    }
+
+    entry.metadata.accessControl.scope = 'private';
+    entry.metadata.updatedAt = new Date().toISOString();
+
+    logger.debug(`Made private: ${key}`);
+    await this.saveToFile();
+
+    return entry;
+  }
+
+  /**
+   * Get all knowledge created by specific agent
+   */
+  async getAgentKnowledge(agentId: string): Promise<ContextEntry[]> {
+    return Array.from(this.entries.values()).filter((e) => e.metadata.createdBy === agentId);
+  }
+
+  /**
    * Search for context entries (Phase 2: semantic search with embeddings)
    * Currently returns entries matching tags/keys
    */
   async search(
     query: string,
-    _options?: { memoryType?: MemoryType; limit?: number }
+    _options?: { memoryType?: MemoryType; limit?: number; agentId?: string }
   ): Promise<ContextEntry[]> {
     // Phase 1: Simple substring matching in keys and tags
-    const results = Array.from(this.entries.values()).filter(
+    let results = Array.from(this.entries.values()).filter(
       (e) => e.key.includes(query) || e.metadata.tags.some((t) => t.includes(query))
     );
+
+    // Apply access control if agentId provided
+    if (_options?.agentId) {
+      results = results.filter((e) => this.canAccess(e, _options.agentId));
+    }
+
+    // Apply limit if provided
+    if (_options?.limit) {
+      results = results.slice(0, _options.limit);
+    }
 
     logger.debug(`Search for "${query}" found ${results.length} results`);
 

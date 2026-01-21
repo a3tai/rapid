@@ -17,7 +17,7 @@ import {
   type EventBusConfig,
 } from '@a3t/rapid-eventbus';
 import ora from 'ora';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 export const cleanupCommand = new Command('cleanup')
@@ -100,21 +100,45 @@ export const cleanupCommand = new Command('cleanup')
 
       // 2. Clean up old tasks
       spinner.text = 'Checking for old completed tasks...';
-      // const taskAgeMs = parseInt(options.taskAge, 10) * 24 * 60 * 60 * 1000;
+      const taskAgeMs = parseInt(options.taskAge, 10) * 24 * 60 * 60 * 1000;
 
       try {
-        const rapidJsonPath = join(process.cwd(), 'rapid.json');
-        const content = await readFile(rapidJsonPath, 'utf-8');
-        JSON.parse(content); // Validate config is valid JSON
+        const tasksPath = join(process.cwd(), '.rapid', 'tasks.json');
+        const tasksContent = await readFile(tasksPath, 'utf-8');
+        const taskList = JSON.parse(tasksContent) as Array<{
+          id: string;
+          title: string;
+          status: string;
+          updatedAt: string;
+        }>;
 
-        // Note: This would need task management tools to be fully implemented
-        // For now, we'll just log what would be cleaned
-        if (options.verbose) {
-          logger.info(`Task cleanup would remove tasks older than ${options.taskAge} days`);
+        const cutoffTime = Date.now() - taskAgeMs;
+        const completedTasks = taskList.filter((task) => {
+          const updatedTime = new Date(task.updatedAt).getTime();
+          return task.status === 'completed' && updatedTime < cutoffTime;
+        });
+
+        if (completedTasks.length > 0) {
+          if (options.verbose) {
+            spinner.info(
+              `Found ${completedTasks.length} completed task(s) older than ${options.taskAge} days`
+            );
+          }
+
+          if (!options.dryRun) {
+            const remainingTasks = taskList.filter(
+              (task) => !completedTasks.find((ct) => ct.id === task.id)
+            );
+            await writeFile(tasksPath, JSON.stringify(remainingTasks, null, 2), 'utf-8');
+            cleanedCount += completedTasks.length;
+            spinner.text = `Cleaned up ${completedTasks.length} old task(s)`;
+          } else {
+            spinner.warn(`Would clean up ${completedTasks.length} old task(s)`);
+          }
         }
       } catch {
         if (options.verbose) {
-          logger.warn('Could not load rapid.json for task cleanup');
+          logger.warn('Could not access task cleanup');
         }
       }
 
@@ -134,18 +158,71 @@ export const cleanupCommand = new Command('cleanup')
         try {
           const { execSync } = await import('node:child_process');
           const result = execSync('git worktree list', { encoding: 'utf-8' });
-          const worktrees = result
+          const worktreesRaw = result
             .split('\n')
             .filter((line) => line.trim())
             .map((line) => line.split(' ')[0]);
 
+          // Filter out main worktree (current directory) and prune branches
+          const mainWorktree = execSync('git rev-parse --show-toplevel', { encoding: 'utf-8' }).trim();
+          const worktrees = worktreesRaw.filter((path) => path !== mainWorktree);
+
           if (options.verbose && worktrees.length > 0) {
-            logger.info(`Found ${worktrees.length} worktree(s)`);
+            logger.info(`Found ${worktrees.length} worktree(s) to check`);
           }
 
-          // Note: Actual branch merge check would require git commands per worktree
-          if (options.verbose) {
-            logger.info('Worktree merge status checking would happen here');
+          let prunedWorktrees = 0;
+          for (const worktreePath of worktrees) {
+            if (!worktreePath) continue;
+            try {
+              // Extract branch name from worktree path
+              const branchName = worktreePath.split('/').pop();
+              if (!branchName) continue;
+
+              // Check if branch is merged with main
+              try {
+                const mergedBranches = execSync('git branch --merged main', {
+                  encoding: 'utf-8',
+                  stdio: 'pipe',
+                });
+                const isMerged = mergedBranches.includes(branchName);
+
+                if (isMerged) {
+                  // Branch is merged, safe to prune
+                  if (!options.dryRun) {
+                    execSync(`git worktree remove "${worktreePath}"`, { stdio: 'pipe' });
+                    prunedWorktrees++;
+                    if (options.verbose) {
+                      logger.info(`  Pruned merged worktree: ${branchName}`);
+                    }
+                  } else {
+                    prunedWorktrees++;
+                    if (options.verbose) {
+                      logger.info(`  Would prune merged worktree: ${branchName}`);
+                    }
+                  }
+                } else {
+                  // Branch is not merged, skip
+                  if (options.verbose) {
+                    logger.info(`  Skipped unmerged worktree: ${branchName}`);
+                  }
+                }
+              } catch {
+                // Error checking merge status, skip
+                if (options.verbose) {
+                  logger.warn(`  Could not check merge status for: ${branchName}`);
+                }
+              }
+            } catch {
+              if (options.verbose) {
+                logger.warn(`  Could not check worktree: ${worktreePath}`);
+              }
+            }
+          }
+
+          if (prunedWorktrees > 0) {
+            cleanedCount += prunedWorktrees;
+            spinner.text = `Cleaned up ${prunedWorktrees} merged worktree(s)`;
           }
         } catch {
           if (options.verbose) {
@@ -158,17 +235,19 @@ export const cleanupCommand = new Command('cleanup')
       if (options.dryRun) {
         spinner.succeed('Cleanup dry-run complete');
         logger.info(
-          `${options.verbose ? 'Detailed' : 'Automatic'} cleanup would remove: ${cleanedCount} agent(s)`
+          `${options.verbose ? 'Detailed' : 'Automatic'} cleanup would remove: ${cleanedCount} items`
         );
       } else {
-        spinner.succeed(`Cleanup complete: Removed ${cleanedCount} stale agent(s)`);
+        spinner.succeed(`Cleanup complete: Removed ${cleanedCount} items`);
 
         if (options.verbose) {
           logger.success('Cleanup operations:');
           logger.info('  ✓ Stale agents removed');
+          logger.info('  ✓ Old completed tasks removed');
+          if (options.pruneWorktrees) {
+            logger.info('  ✓ Merged worktrees pruned');
+          }
           logger.info('  ✓ Event bus is ready for the next cycle');
-          logger.info('  • Task cleanup would require additional implementation');
-          logger.info('  • Worktree cleanup would require branch status verification');
         }
       }
 

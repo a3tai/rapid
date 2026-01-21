@@ -4,12 +4,14 @@
  * Allows agents to learn, store, and retrieve knowledge across sessions.
  * Supports persistent storage, semantic search, and shared knowledge across agents.
  */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getRedisStatus } from '@a3t/rapid-eventbus';
 import type { ServerContext } from '../server.js';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('knowledge');
 
 /**
  * Knowledge entry schema
@@ -136,12 +138,20 @@ class InMemoryKnowledgeStore {
 /**
  * Redis-backed knowledge store
  */
-class RedisKnowledgeStore {
-  // Redis client type - using any because ioredis doesn't provide proper types for all operations
-  // This is a known issue with ioredis TypeScript support and is safe for our use case
-  private redis: any;
+interface RedisClient {
+  setex(key: string, ttl: number, value: string): Promise<void>;
+  sadd(key: string, member: string): Promise<number>;
+  smembers(key: string): Promise<string[]>;
+  get(key: string): Promise<string | null>;
+  del(key: string | string[]): Promise<number>;
+  srem(key: string, member: string): Promise<number>;
+  keys(pattern: string): Promise<string[]>;
+}
 
-  constructor(redis: any) {
+class RedisKnowledgeStore {
+  private redis: RedisClient;
+
+  constructor(redis: RedisClient) {
     this.redis = redis;
   }
 
@@ -176,7 +186,7 @@ class RedisKnowledgeStore {
   async getByKey(key: string): Promise<KnowledgeEntry | undefined> {
     const ids = await this.redis.smembers(this.getKeyIndex(key));
     if (!ids || ids.length === 0) return undefined;
-    return this.get(ids[0]);
+    return this.get(ids[0]!);
   }
 
   async listByCategory(category: string): Promise<KnowledgeEntry[]> {
@@ -254,7 +264,7 @@ class RedisKnowledgeStore {
   async clear(): Promise<void> {
     const keys = await this.redis.keys('knowledge:*');
     if (keys.length > 0) {
-      await this.redis.del(...keys);
+      await this.redis.del(keys as [string, ...string[]]);
     }
   }
 }
@@ -281,7 +291,7 @@ async function getKnowledgeStore(
     if (status.running && status.url) {
       // For now, use in-memory store as Redis client integration is complex
       // In production, this would connect to Redis
-      console.error('[knowledge] Redis available, but using in-memory store for now');
+      logger.error('[knowledge] Redis available, but using in-memory store for now');
     }
   } catch {
     // Redis not available
@@ -305,6 +315,9 @@ function generateId(): string {
  */
 export function registerKnowledgeTools(server: McpServer, context: ServerContext): void {
   const projectId = context.projectDir.split('/').pop() || 'default';
+
+  // Define tool names for logging
+  const tools = ['context_learn', 'context_recall', 'context_search', 'context_list', 'context_forget'];
 
   // Tool: Learn (Store knowledge)
   server.registerTool(
@@ -338,25 +351,37 @@ export function registerKnowledgeTools(server: McpServer, context: ServerContext
         success: z.boolean(),
       },
     },
-    async (input: any) => {
+    async (input: unknown) => {
       try {
         const store = await getKnowledgeStore(projectId);
         const id = generateId();
 
+        // Type the input as an object with the expected properties
+        const typedInput = input as Record<string, unknown>;
+
+        const metadata: Record<string, unknown> = {
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          version: 1,
+        };
+
+        if (typedInput.source) {
+          metadata.source = String(typedInput.source);
+        }
+        if (typedInput.confidence) {
+          metadata.confidence = Number(typedInput.confidence);
+        }
+        if (typedInput.expiresAt) {
+          metadata.expiresAt = String(typedInput.expiresAt);
+        }
+
         const entry: KnowledgeEntry = {
           id,
-          key: input.key,
-          value: input.value,
-          category: input.category || 'other',
-          metadata: {
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            version: 1,
-            source: input.source,
-            confidence: input.confidence,
-            expiresAt: input.expiresAt,
-          },
-          tags: input.tags || [],
+          key: String(typedInput.key || ''),
+          value: String(typedInput.value || ''),
+          category: (typedInput.category as KnowledgeEntry['category']) || 'other',
+          metadata: metadata as KnowledgeEntry['metadata'],
+          tags: (typedInput.tags as string[]) || [],
         };
 
         if (store instanceof InMemoryKnowledgeStore) {
@@ -401,15 +426,18 @@ export function registerKnowledgeTools(server: McpServer, context: ServerContext
           .optional(),
       },
     },
-    async (input: any) => {
+    async (input: unknown) => {
       try {
         const store = await getKnowledgeStore(projectId);
         let entry: KnowledgeEntry | undefined;
 
+        // Type the input as an object with the expected properties
+        const typedInput = input as Record<string, unknown>;
+
         if (store instanceof InMemoryKnowledgeStore) {
-          entry = store.getByKey(input.key);
+          entry = store.getByKey(String(typedInput.key || ''));
         } else {
-          entry = await store.getByKey(input.key);
+          entry = await store.getByKey(String(typedInput.key || ''));
         }
 
         if (!entry) {
@@ -465,20 +493,23 @@ export function registerKnowledgeTools(server: McpServer, context: ServerContext
         count: z.number(),
       },
     },
-    async (input: any) => {
+    async (input: unknown) => {
       try {
         const store = await getKnowledgeStore(projectId);
         let results: KnowledgeEntry[] = [];
 
+        // Type the input as an object with the expected properties
+        const typedInput = input as Record<string, unknown>;
+
         if (store instanceof InMemoryKnowledgeStore) {
-          results = store.search(input.query);
+          results = store.search(String(typedInput.query || ''));
         } else {
-          results = await store.search(input.query);
+          results = await store.search(String(typedInput.query || ''));
         }
 
         // Filter by category if specified
-        if (input.category) {
-          results = results.filter((e) => e.category === input.category);
+        if (typedInput.category) {
+          results = results.filter((e) => e.category === typedInput.category);
         }
 
         const output = {
@@ -524,15 +555,18 @@ export function registerKnowledgeTools(server: McpServer, context: ServerContext
         count: z.number(),
       },
     },
-    async (input: any) => {
+    async (input: unknown) => {
       try {
         const store = await getKnowledgeStore(projectId);
         let items: KnowledgeEntry[] = [];
 
+        // Type the input as an object with the expected properties
+        const typedInput = input as Record<string, unknown>;
+
         if (store instanceof InMemoryKnowledgeStore) {
-          items = store.listByCategory(input.category);
+          items = store.listByCategory(String(typedInput.category || ''));
         } else {
-          items = await store.listByCategory(input.category);
+          items = await store.listByCategory(String(typedInput.category || ''));
         }
 
         const output = {
@@ -570,18 +604,21 @@ export function registerKnowledgeTools(server: McpServer, context: ServerContext
         deleted: z.boolean(),
       },
     },
-    async (input: any) => {
+    async (input: unknown) => {
       try {
         const store = await getKnowledgeStore(projectId);
         let entry: KnowledgeEntry | undefined;
 
+        // Type the input as an object with the expected properties
+        const typedInput = input as Record<string, unknown>;
+
         if (store instanceof InMemoryKnowledgeStore) {
-          entry = store.getByKey(input.key);
+          entry = store.getByKey(String(typedInput.key || ''));
           if (entry) {
             store.delete(entry.id);
           }
         } else {
-          entry = await store.getByKey(input.key);
+          entry = await store.getByKey(String(typedInput.key || ''));
           if (entry) {
             await store.delete(entry.id);
           }
@@ -602,5 +639,5 @@ export function registerKnowledgeTools(server: McpServer, context: ServerContext
     }
   );
 
-  console.error('[knowledge] Registered 5 knowledge tools');
+  logger.error(`[knowledge] Registered ${tools.length} knowledge tools`);
 }

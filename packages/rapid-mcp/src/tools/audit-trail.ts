@@ -12,6 +12,10 @@ import { join } from 'node:path';
 import { existsSync } from 'node:fs';
 import type { ServerContext } from '../server.js';
 import type { AuditEventType } from '@a3t/rapid-schema';
+import { AUDIT_FLUSH_INTERVAL } from '../constants.js';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('audit');
 
 export interface AuditLogEntry {
   timestamp: string;
@@ -48,13 +52,13 @@ async function initAuditTrail(projectDir: string): Promise<void> {
     await mkdir(rapidDir, { recursive: true });
   }
 
-  // Start periodic flush (every 5 seconds)
+  // Start periodic flush
   if (!flushInterval) {
     flushInterval = setInterval(() => {
       flushAuditBuffer().catch((err) => {
-        console.error('Failed to flush audit buffer:', err);
+        logger.error('Failed to flush audit buffer:', err);
       });
-    }, 5000);
+    }, AUDIT_FLUSH_INTERVAL);
   }
 }
 
@@ -96,7 +100,7 @@ function logAuditEvent(event: AuditLogEntry): void {
 export function registerAuditTrailTools(server: McpServer, context: ServerContext): void {
   // Initialize on first registration
   initAuditTrail(context.projectDir).catch((err) => {
-    console.error('Failed to initialize audit trail:', err);
+    logger.error('Failed to initialize audit trail:', err);
   });
 
   /**
@@ -278,7 +282,7 @@ export function registerAuditTrailTools(server: McpServer, context: ServerContex
             .filter(Boolean)
             .map((line) => JSON.parse(line) as AuditLogEntry);
         } catch (error) {
-          console.error('Failed to read audit log:', error);
+          logger.error('Failed to read audit log:', error);
         }
       }
 
@@ -391,7 +395,7 @@ export function registerAuditTrailTools(server: McpServer, context: ServerContex
             .filter(Boolean)
             .map((line) => JSON.parse(line) as AuditLogEntry);
         } catch (error) {
-          console.error('Failed to read audit log:', error);
+          logger.error('Failed to read audit log:', error);
         }
       }
 

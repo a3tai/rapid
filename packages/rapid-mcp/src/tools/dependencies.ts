@@ -174,6 +174,89 @@ function getReadyTasks(tasks: Task[]): Task[] {
 }
 
 /**
+ * Auto-detect implicit dependencies from task descriptions
+ * Looks for keywords and cross-references to other tasks
+ */
+function autoDetectDependencies(
+  taskId: string,
+  description: string | undefined,
+  allTasks: Task[]
+): string[] {
+  if (!description) return [];
+
+  const detectedDeps = new Set<string>();
+  const taskMap = new Map(allTasks.map((t) => [t.id, t]));
+
+  // Keywords that indicate dependencies
+  const dependencyKeywords = [
+    'after',
+    'before',
+    'depends on',
+    'blocked by',
+    'requires',
+    'needs',
+    'wait for',
+    'following',
+    'once',
+  ];
+
+  const descLower = description.toLowerCase();
+
+  // Check for explicit task references (task IDs or titles)
+  for (const otherTask of allTasks) {
+    if (otherTask.id === taskId) continue;
+
+    // Check if description mentions the task ID
+    if (description.includes(otherTask.id)) {
+      // Check if mentioned in dependency context
+      for (const keyword of dependencyKeywords) {
+        const regex = new RegExp(`${keyword}[^.]*${otherTask.id.substring(0, 8)}`, 'i');
+        if (regex.test(description)) {
+          detectedDeps.add(otherTask.id);
+          break;
+        }
+      }
+    }
+
+    // Check if description mentions the task title
+    if (
+      otherTask.title &&
+      description.includes(otherTask.title) &&
+      otherTask.title.length > 3
+    ) {
+      for (const keyword of dependencyKeywords) {
+        const regex = new RegExp(
+          `${keyword}[^.]*${otherTask.title.substring(0, Math.min(10, otherTask.title.length))}`,
+          'i'
+        );
+        if (regex.test(description)) {
+          detectedDeps.add(otherTask.id);
+          break;
+        }
+      }
+    }
+  }
+
+  // Pattern-based detection: check for common phrases
+  // "fix ... bug in ..." could depend on issue/bug tasks
+  const fixMatch = descLower.match(/fix.+(?:bug|issue|error).+in\s+(\w+)/i);
+  if (fixMatch) {
+    for (const task of allTasks) {
+      if (task.id === taskId) continue;
+      const titleLower = (task.title || '').toLowerCase();
+      if (titleLower.includes('bug') || titleLower.includes('issue')) {
+        detectedDeps.add(task.id);
+      }
+    }
+  }
+
+  // Remove any self-references
+  detectedDeps.delete(taskId);
+
+  return Array.from(detectedDeps);
+}
+
+/**
  * Get tasks that are blocked (have unmet dependencies)
  */
 function getBlockedTasks(tasks: Task[]): Array<{ task: Task; unmetDependencies: string[] }> {
@@ -793,6 +876,122 @@ export function registerDependencyTools(server: McpServer, context: ServerContex
       if (context.verbose) {
         console.error(
           `[task_check_unblock] Completion of ${completedTaskId} unblocked ${unblocked.length} tasks`
+        );
+      }
+
+      return {
+        content: [{ type: 'text', text: JSON.stringify(output, null, 2) }],
+        structuredContent: output,
+      };
+    }
+  );
+
+  // Tool: Auto-detect implicit dependencies
+  server.registerTool(
+    'task_detect_dependencies',
+    {
+      title: 'Detect Implicit Dependencies',
+      description:
+        'Auto-detect implicit dependencies from a task description. ' +
+        'Scans for keywords and cross-references to suggest which other tasks this task may depend on.',
+      inputSchema: {
+        taskId: z.string().describe('Task ID to analyze'),
+        autoApply: z
+          .boolean()
+          .default(false)
+          .describe('Automatically apply detected dependencies to the task'),
+      },
+      outputSchema: {
+        taskId: z.string(),
+        detectedDependencies: z.array(
+          z.object({
+            id: z.string(),
+            title: z.string(),
+            status: z.string(),
+          })
+        ),
+        confidence: z.enum(['high', 'medium', 'low']),
+        message: z.string(),
+        applied: z.boolean().optional(),
+      },
+    },
+    async (args) => {
+      const { taskId, autoApply } = args as {
+        taskId: string;
+        autoApply?: boolean;
+      };
+
+      const tasks = await loadTasks();
+      const task = tasks.find((t) => t.id === taskId);
+
+      if (!task) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  taskId,
+                  detectedDependencies: [],
+                  confidence: 'low',
+                  message: 'Task not found',
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      }
+
+      const detectedIds = autoDetectDependencies(taskId, task.description, tasks);
+      const detected = detectedIds
+        .map((id) => tasks.find((t) => t.id === id))
+        .filter((t): t is Task => t !== undefined)
+        .map((t) => ({
+          id: t.id,
+          title: t.title,
+          status: t.status,
+        }));
+
+      // Estimate confidence based on number and clarity of matches
+      let confidence: 'high' | 'medium' | 'low' = 'low';
+      if (detectedIds.length >= 2) {
+        confidence = 'high';
+      } else if (detectedIds.length === 1) {
+        confidence = 'medium';
+      }
+
+      let applied = false;
+      if (autoApply && detectedIds.length > 0) {
+        // Apply detected dependencies
+        if (!task.dependencies) {
+          task.dependencies = [];
+        }
+        for (const depId of detectedIds) {
+          if (!task.dependencies.includes(depId)) {
+            task.dependencies.push(depId);
+          }
+        }
+        task.updatedAt = new Date().toISOString();
+        await saveTasks(tasks);
+        applied = true;
+      }
+
+      const output = {
+        taskId,
+        detectedDependencies: detected,
+        confidence,
+        message:
+          detected.length > 0
+            ? `Detected ${detected.length} implicit dependencies (${confidence} confidence)`
+            : 'No implicit dependencies detected',
+        ...(applied && { applied }),
+      };
+
+      if (context.verbose) {
+        console.error(
+          `[task_detect_dependencies] Found ${detected.length} dependencies for task ${taskId}`
         );
       }
 

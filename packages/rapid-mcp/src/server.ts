@@ -4,7 +4,6 @@
  * Exposes RAPID sandbox and governance capabilities via Model Context Protocol.
  * Supports both stdio (for local spawned processes) and HTTP transports.
  */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
@@ -23,14 +22,15 @@ import { registerTaskTools } from './tools/tasks.js';
 import { registerTaskWatchTools } from './tools/task-watch.js';
 import { registerDependencyTools } from './tools/dependencies.js';
 import { registerMetricsTools } from './tools/metrics.js';
-// NOTE: knowledge.ts tools are superseded by context-engine.ts which provides
-// the same tools plus additional ones (context_stats, context_inject, context_consolidate)
+// registerKnowledgeTools disabled - context-engine.ts provides these tools
 // import { registerKnowledgeTools } from './tools/knowledge.js';
 import { registerSuggestionTools } from './tools/suggestions.js';
 import { registerContextEngineTools } from './tools/context-engine.js';
 import { registerBudgetTrackingTools } from './tools/budget-tracking.js';
 import { registerAuditTrailTools } from './tools/audit-trail.js';
-import { registerApprovalTools } from './tools/approval.js';
+import { registerGitWorkflowTools } from './tools/git-workflow.js';
+import { registerWorktreeMergeTools } from './tools/worktree-merge.js';
+import { registerCapabilityTools } from './tools/capability-tools.js';
 
 // Import resource implementations
 import { registerConfigResource } from './resources/config.js';
@@ -76,12 +76,16 @@ export function createRapidMcpServer(config: RapidMcpServerConfig): McpServer {
   registerTaskWatchTools(server, context);
   registerDependencyTools(server, context);
   registerMetricsTools(server, context);
-  // registerKnowledgeTools superseded by registerContextEngineTools
+  // NOTE: registerKnowledgeTools disabled - context-engine.ts provides the same tools
+  // with more features (memory types, scopes, relations). Keep for type exports only.
+  // registerKnowledgeTools(server, context);
   registerSuggestionTools(server, context);
   registerContextEngineTools(server, context);
   registerBudgetTrackingTools(server, context);
   registerAuditTrailTools(server, context);
-  registerApprovalTools(server, context);
+  registerGitWorkflowTools(server, context);
+  registerWorktreeMergeTools(server, context);
+  registerCapabilityTools(server, context);
 
   // Register resources
   registerConfigResource(server, context);
@@ -136,12 +140,16 @@ export async function runHttp(server: McpServer, port: number = 3100): Promise<v
   // Create HTTP transport for MCP
   // StreamableHTTPServerTransport is from MCP SDK and implements Transport interface,
   // but doesn't have proper TypeScript exports. Using type assertion here is safe.
+  interface StreamableTransport extends Transport {
+    handleRequest(req: unknown, res: unknown, body: unknown): Promise<void>;
+  }
+
   const httpTransport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => randomUUID(),
-  }) as any;
+  }) as unknown as StreamableTransport;
 
   // Connect the server to the transport
-  await server.connect(httpTransport as Transport);
+  await server.connect(httpTransport);
 
   // Mount at /mcp - handle both GET (SSE) and POST (JSON-RPC)
   app.all('/mcp', async (req, res) => {

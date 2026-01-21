@@ -421,6 +421,12 @@ export class DaemonServer {
       return;
     }
 
+    // Handle task dependency graph endpoint: /api/dependencies
+    if (url.pathname === '/api/dependencies' && req.method === 'GET') {
+      await this.handleDependencyGraph(req, res);
+      return;
+    }
+
     // Handle CORS preflight
     if (req.method === 'OPTIONS') {
       res.writeHead(200, {
@@ -617,6 +623,88 @@ export class DaemonServer {
 
     if (this.config.verbose) {
       console.log(`[LogStream] Client connected for agent ${agentName}, watching ${logFile}`);
+    }
+  }
+
+  /**
+   * Handle task dependency graph visualization endpoint
+   * Returns nodes and edges for visualizing task dependencies
+   */
+  private async handleDependencyGraph(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    try {
+      const url = new URL(req.url || '/', `http://localhost`);
+      const status = url.searchParams.get('status') || 'all';
+
+      // Call task_execution_order tool to get dependency data
+      const isDocker = process.env.DOCKER_ENV === 'true' || process.env.HOSTNAME?.includes('rapid');
+      const mcpUrl = process.env.MCP_URL || (isDocker ? 'http://rapid-mcp:3100/mcp' : 'http://localhost:3100/mcp');
+
+      const response = await fetch(mcpUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: Date.now(),
+          method: 'tools/call',
+          params: {
+            name: 'task_execution_order',
+            arguments: { includeCompleted: false },
+          },
+        }),
+      });
+
+      const result = await response.json() as {
+        result?: { structuredContent?: { order?: Array<{ taskId: string; title: string; status: string; dependsOn: string[] }> } };
+      };
+
+      const tasks = result.result?.structuredContent?.order || [];
+
+      // Build nodes and edges for visualization
+      const nodes = tasks.map((task) => ({
+        id: task.taskId,
+        label: task.title,
+        status: task.status,
+      }));
+
+      const edges: Array<{ source: string; target: string }> = [];
+      for (const task of tasks) {
+        for (const dep of task.dependsOn || []) {
+          edges.push({ source: dep, target: task.taskId });
+        }
+      }
+
+      // Filter by status if needed
+      let filteredNodes = nodes;
+      let filteredEdges = edges;
+
+      if (status !== 'all') {
+        const validIds = new Set(nodes.filter((n) => n.status === status).map((n) => n.id));
+        filteredNodes = nodes.filter((n) => validIds.has(n.id));
+        filteredEdges = edges.filter((e) => validIds.has(e.source) && validIds.has(e.target));
+      }
+
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      });
+
+      const graph = {
+        nodes: filteredNodes,
+        edges: filteredEdges,
+        stats: {
+          totalTasks: tasks.length,
+          nodeCount: filteredNodes.length,
+          edgeCount: filteredEdges.length,
+        },
+      };
+
+      res.end(JSON.stringify(graph));
+    } catch (err) {
+      res.writeHead(500, {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      });
+      res.end(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }));
     }
   }
 

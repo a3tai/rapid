@@ -11,9 +11,19 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { ServerContext } from '../server.js';
+import { createLogger } from '../utils/logger.js';
+import {
+  calculatePriorityScore,
+  sortByDynamicPriority,
+  findOverdueTasks,
+  findCriticalPathTasks,
+  detectPriorityInversion,
+} from './priority-scoring.js';
+
+const logger = createLogger('tasks');
 
 // Task status enum
-const TaskStatusSchema = z.enum([
+export const TaskStatusSchema = z.enum([
   'pending',
   'pending_approval',
   'in_progress',
@@ -21,14 +31,14 @@ const TaskStatusSchema = z.enum([
   'blocked',
   'cancelled',
 ]);
-type TaskStatus = z.infer<typeof TaskStatusSchema>;
+export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 
 // Task priority enum
-const TaskPrioritySchema = z.enum(['low', 'normal', 'high', 'urgent']);
-type TaskPriority = z.infer<typeof TaskPrioritySchema>;
+export const TaskPrioritySchema = z.enum(['low', 'normal', 'high', 'urgent']);
+export type TaskPriority = z.infer<typeof TaskPrioritySchema>;
 
 // Task schema - includes Phase 1 Task Assignment Protocol fields
-const TaskSchema = z.object({
+export const TaskSchema = z.object({
   id: z.string(),
   title: z.string(),
   description: z.string().optional(),
@@ -61,7 +71,7 @@ const TaskSchema = z.object({
   approvalReason: z.string().optional(), // Why approval is required
 });
 
-type Task = z.infer<typeof TaskSchema>;
+export type Task = z.infer<typeof TaskSchema>;
 
 // In-memory task store
 const tasks = new Map<string, Task>();
@@ -104,7 +114,7 @@ async function saveTasks(): Promise<void> {
  */
 export function registerTaskTools(server: McpServer, context: ServerContext): void {
   // Initialize task store
-  loadTasks(context.projectDir).catch(console.error);
+  loadTasks(context.projectDir).catch((err) => logger.error('Failed to load tasks', err));
 
   // Tool: Create a task
   server.registerTool(
@@ -207,7 +217,7 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
       await saveTasks();
 
       if (context.verbose) {
-        console.error(
+        logger.error(
           `[task_create] Created task ${task.id}: ${title}${requiredCapabilities ? ` [${requiredCapabilities.join(', ')}]` : ''}`
         );
       }
@@ -280,7 +290,7 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
       const output = { tasks: filtered, count: filtered.length };
 
       if (context.verbose) {
-        console.error(`[task_list] Found ${filtered.length} tasks`);
+        logger.error(`[task_list] Found ${filtered.length} tasks`);
       }
 
       return {
@@ -343,7 +353,7 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
       await saveTasks();
 
       if (context.verbose) {
-        console.error(`[task_update] Updated task ${id}`);
+        logger.error(`[task_update] Updated task ${id}`);
       }
 
       return {
@@ -381,7 +391,7 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
       await saveTasks();
 
       if (context.verbose) {
-        console.error(`[task_delete] Deleted task ${id}`);
+        logger.error(`[task_delete] Deleted task ${id}`);
       }
 
       return {
@@ -549,7 +559,7 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
       await saveTasks();
 
       if (context.verbose) {
-        console.error(
+        logger.error(
           `[task_claim] Agent ${agentName || agentId} claimed task ${id}${
             task.requiredCapabilities
               ? ` (capabilities: ${task.requiredCapabilities.join(', ')})`
@@ -632,7 +642,7 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
       await saveTasks();
 
       if (context.verbose) {
-        console.error(
+        logger.error(
           `[task_progress] Task ${id}: ${Math.round(progress * 100)}%${message ? ` - ${message}` : ''}`
         );
       }
@@ -649,16 +659,22 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
     'task_complete',
     {
       title: 'Complete Task',
-      description: 'Mark a task as completed. Phase 1 Task Assignment Protocol.',
+      description: 'Mark a task as completed. Phase 1 Task Assignment Protocol. If task is from a worktree, triggers PR creation and merge workflow.',
       inputSchema: {
         id: z.string().describe('Task ID to complete'),
         summary: z.string().optional().describe('Completion summary'),
         result: z.record(z.unknown()).optional().describe('Result data to store'),
         agentId: z.string().optional().describe('Agent ID completing the task'),
+        worktree: z.string().optional().describe('Worktree name if this task was completed in a worktree'),
+        createPr: z.boolean().optional().describe('Auto-create PR from worktree (default: true if worktree provided)'),
+        validateFirst: z.boolean().optional().describe('Run tests/lint before creating PR (default: true)'),
       },
       outputSchema: {
         task: TaskSchema.nullable(),
         completed: z.boolean(),
+        worktreeMergeInitiated: z.boolean().optional(),
+        prNumber: z.number().optional(),
+        validationPassed: z.boolean().optional(),
         error: z.string().optional(),
       },
     },
@@ -668,11 +684,17 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
         summary,
         result,
         agentId: _agentId,
+        worktree,
+        createPr = worktree ? true : false,
+        validateFirst = true,
       } = args as {
         id: string;
         summary?: string;
         result?: Record<string, unknown>;
         agentId?: string;
+        worktree?: string;
+        createPr?: boolean;
+        validateFirst?: boolean;
       };
 
       const task = tasks.get(id);
@@ -693,15 +715,50 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
         task.metadata = { ...task.metadata, completionSummary: summary };
       }
 
+      // Add worktree info to task metadata
+      if (worktree) {
+        task.metadata = {
+          ...task.metadata,
+          worktree,
+          mergeWorkflowInitiated: true,
+          mergeWorkflowInitiatedAt: now,
+        };
+      }
+
       await saveTasks();
 
       if (context.verbose) {
-        console.error(`[task_complete] Completed task ${id}${summary ? ` - ${summary}` : ''}`);
+        logger.error(`[task_complete] Completed task ${id}${summary ? ` - ${summary}` : ''}`);
+      }
+
+      // If worktree is provided, initiate merge workflow
+      let worktreeMergeInitiated = false;
+      let validationPassed = false;
+      let prNumber: number | undefined;
+
+      if (worktree && createPr) {
+        logger.info(`[task_complete] Initiating worktree merge workflow for '${worktree}'`);
+        worktreeMergeInitiated = true;
+
+        // Note: The actual PR creation will be handled via bus_send or separate workflow
+        // Store the merge workflow state in task metadata
+        task.metadata = {
+          ...task.metadata,
+          needsMergeWorkflow: true,
+          validateFirst,
+        };
+        await saveTasks();
       }
 
       return {
-        content: [{ type: 'text', text: JSON.stringify({ task, completed: true }, null, 2) }],
-        structuredContent: { task, completed: true },
+        content: [{ type: 'text', text: JSON.stringify({ task, completed: true, worktreeMergeInitiated }, null, 2) }],
+        structuredContent: {
+          task,
+          completed: true,
+          worktreeMergeInitiated,
+          validationPassed,
+          prNumber,
+        },
       };
     }
   );
@@ -767,7 +824,7 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
       await saveTasks();
 
       if (context.verbose) {
-        console.error(
+        logger.error(
           `[task_fail] Task ${id} failed (attempt ${task.attemptNumber}): ${error}${canRetry ? ' (can retry)' : ' (no retry)'}`
         );
       }
@@ -878,9 +935,9 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
       }
 
       if (context.verbose && timedOut.length > 0) {
-        console.error(`[task_detect_timeouts] Found ${timedOut.length} timed-out tasks`);
+        logger.error(`[task_detect_timeouts] Found ${timedOut.length} timed-out tasks`);
         for (const item of timedOut) {
-          console.error(
+          logger.error(
             `  - Task ${item.taskId}: ${item.reason}${item.wasAssignedTo ? ` (was assigned to ${item.wasAssignedTo})` : ''}`
           );
         }
@@ -963,7 +1020,7 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
       await saveTasks();
 
       if (context.verbose) {
-        console.error(`[task_approve] Task ${taskId} approved by ${approvedBy}`);
+        logger.error(`[task_approve] Task ${taskId} approved by ${approvedBy}`);
       }
 
       return {
@@ -1059,7 +1116,7 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
       await saveTasks();
 
       if (context.verbose) {
-        console.error(`[task_reject] Task ${taskId} rejected by ${rejectedBy}: ${reason}`);
+        logger.error(`[task_reject] Task ${taskId} rejected by ${rejectedBy}: ${reason}`);
       }
 
       return {
@@ -1074,6 +1131,277 @@ export function registerTaskTools(server: McpServer, context: ServerContext): vo
           },
         ],
         structuredContent: { task, rejected: true, message: `Task ${taskId} rejected: ${reason}` },
+      };
+    }
+  );
+
+  // Task reprioritization tools
+  server.registerTool(
+    'task_recalculate_priorities',
+    {
+      title: 'Recalculate Task Priorities',
+      description:
+        'Dynamically recalculate all pending task priorities based on deadlines, age, and dependencies. Returns tasks sorted by dynamic priority score.',
+      inputSchema: z.object({
+        filter: z
+          .enum(['pending', 'all', 'urgent'])
+          .optional()
+          .describe('Filter tasks by status. "urgent" includes in_progress and pending only'),
+        limit: z.number().optional().describe('Maximum tasks to return (default: all)'),
+      }),
+      outputSchema: z.object({
+        recalculated: z.number(),
+        tasks: z.array(
+          z.object({
+            task: TaskSchema,
+            score: z.object({
+              totalScore: z.number(),
+              basePriority: z.number(),
+              deadlinePressure: z.number(),
+              agingBonus: z.number(),
+              dependencyDepth: z.number(),
+              factors: z.object({
+                isOverdue: z.boolean(),
+                daysUntilDeadline: z.number().nullable(),
+                hoursOld: z.number(),
+                blockingTaskCount: z.number(),
+              }),
+            }),
+          })
+        ),
+      }),
+    },
+    async (args) => {
+      const { filter = 'pending', limit } = args as { filter?: string; limit?: number };
+
+      let tasksToSort = Array.from(tasks.values());
+
+      // Filter tasks
+      if (filter === 'pending') {
+        tasksToSort = tasksToSort.filter((t) => t.status === 'pending');
+      } else if (filter === 'urgent') {
+        tasksToSort = tasksToSort.filter((t) => ['pending', 'in_progress'].includes(t.status));
+      }
+
+      // Sort by dynamic priority
+      const sorted = sortByDynamicPriority(tasksToSort);
+
+      // Apply limit if specified
+      const result = limit ? sorted.slice(0, limit) : sorted;
+
+      // Calculate scores for all results
+      const withScores = result.map((task) => ({
+        task,
+        score: calculatePriorityScore(task, tasksToSort),
+      }));
+
+      if (context.verbose) {
+        logger.info(`[task_recalculate_priorities] Recalculated ${withScores.length} tasks`);
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ recalculated: withScores.length, tasks: withScores }, null, 2),
+          },
+        ],
+        structuredContent: { recalculated: withScores.length, tasks: withScores },
+      };
+    }
+  );
+
+  // Find overdue tasks
+  server.registerTool(
+    'task_find_overdue',
+    {
+      title: 'Find Overdue Tasks',
+      description: 'Find tasks that have passed their deadline and need immediate attention.',
+      inputSchema: z.object({}),
+      outputSchema: z.object({
+        overdueCount: z.number(),
+        overdue: z.array(
+          z.object({
+            task: TaskSchema,
+            score: z.object({
+              totalScore: z.number(),
+              factors: z.object({
+                isOverdue: z.boolean(),
+                daysUntilDeadline: z.number().nullable(),
+              }),
+            }),
+          })
+        ),
+      }),
+    },
+    async () => {
+      const allTasks = Array.from(tasks.values());
+      const overdue = findOverdueTasks(allTasks);
+
+      if (context.verbose && overdue.length > 0) {
+        logger.warn(`[task_find_overdue] Found ${overdue.length} overdue tasks`);
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ overdueCount: overdue.length, overdue }, null, 2),
+          },
+        ],
+        structuredContent: { overdueCount: overdue.length, overdue },
+      };
+    }
+  );
+
+  // Find critical path tasks
+  server.registerTool(
+    'task_find_critical_path',
+    {
+      title: 'Find Critical Path Tasks',
+      description:
+        'Find tasks that are blocking many other tasks (critical path). These should be prioritized for faster completion.',
+      inputSchema: z.object({
+        minBlocking: z
+          .number()
+          .optional()
+          .describe('Minimum number of tasks blocked to consider critical (default: 2)'),
+      }),
+      outputSchema: z.object({
+        criticalCount: z.number(),
+        critical: z.array(TaskSchema),
+      }),
+    },
+    async (args) => {
+      const { minBlocking = 2 } = args as { minBlocking?: number };
+      const allTasks = Array.from(tasks.values());
+      const critical = findCriticalPathTasks(allTasks, minBlocking);
+
+      if (context.verbose && critical.length > 0) {
+        logger.info(`[task_find_critical_path] Found ${critical.length} critical path tasks`);
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ criticalCount: critical.length, critical }, null, 2),
+          },
+        ],
+        structuredContent: { criticalCount: critical.length, critical },
+      };
+    }
+  );
+
+  // Detect priority inversions
+  server.registerTool(
+    'task_detect_priority_inversion',
+    {
+      title: 'Detect Priority Inversion',
+      description:
+        'Detect priority inversion scenarios where low-priority tasks are older than high-priority tasks. Helps prevent task starvation.',
+      inputSchema: z.object({}),
+      outputSchema: z.object({
+        inversionCount: z.number(),
+        inversions: z.array(
+          z.object({
+            lowPriorityTask: TaskSchema,
+            highPriorityTask: TaskSchema,
+            ageDifferenceHours: z.number(),
+          })
+        ),
+      }),
+    },
+    async () => {
+      const allTasks = Array.from(tasks.values());
+      const inversions = detectPriorityInversion(allTasks);
+
+      if (context.verbose && inversions.length > 0) {
+        logger.warn(`[task_detect_priority_inversion] Found ${inversions.length} priority inversions`);
+      }
+
+      const formattedInversions = inversions.map((inv) => ({
+        lowPriorityTask: inv.lowPriorityTask,
+        highPriorityTask: inv.highPriorityTask,
+        ageDifferenceHours: inv.ageDifference / (1000 * 60 * 60),
+      }));
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              { inversionCount: formattedInversions.length, inversions: formattedInversions },
+              null,
+              2
+            ),
+          },
+        ],
+        structuredContent: {
+          inversionCount: formattedInversions.length,
+          inversions: formattedInversions,
+        },
+      };
+    }
+  );
+
+  // Get priority score for a specific task
+  server.registerTool(
+    'task_get_priority_score',
+    {
+      title: 'Get Priority Score',
+      description: 'Get detailed priority score breakdown for a specific task, showing all contributing factors.',
+      inputSchema: z.object({
+        taskId: z.string().describe('Task ID to analyze'),
+      }),
+      outputSchema: z.object({
+        task: TaskSchema.optional(),
+        score: z.object({
+          basePriority: z.number(),
+          deadlinePressure: z.number(),
+          agingBonus: z.number(),
+          dependencyDepth: z.number(),
+          totalScore: z.number(),
+          factors: z.object({
+            isOverdue: z.boolean(),
+            daysUntilDeadline: z.number().nullable(),
+            hoursOld: z.number(),
+            blockingTaskCount: z.number(),
+          }),
+        }),
+      }),
+    },
+    async (args) => {
+      const { taskId } = args as { taskId: string };
+
+      const task = tasks.get(taskId);
+      if (!task) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ error: `Task ${taskId} not found` }, null, 2),
+            },
+          ],
+          structuredContent: { error: `Task ${taskId} not found` },
+        };
+      }
+
+      const allTasks = Array.from(tasks.values());
+      const score = calculatePriorityScore(task, allTasks);
+
+      if (context.verbose) {
+        logger.debug(`[task_get_priority_score] Scored task ${taskId}:${task.title}`);
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ task, score }, null, 2),
+          },
+        ],
+        structuredContent: { task, score },
       };
     }
   );

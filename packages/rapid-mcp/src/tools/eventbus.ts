@@ -18,56 +18,13 @@ import {
 } from '@a3t/rapid-eventbus';
 import type { ServerContext } from '../server.js';
 import { getProjectId } from '../utils/projectId.js';
+import { MAX_EVENT_BUS_TIMEOUT } from '../constants.js';
+import { createLogger } from '../utils/logger.js';
 
-/**
- * Parse @mentions from message content
- * Supports: @all (broadcast), @agentname (direct), @role (e.g., @orchestrator, @worker)
- *
- * Returns array of target agent IDs/names, or undefined for broadcast
- */
-function parseMentions(
-  content: string,
-  registeredAgents: Array<{ id: string; name: string }>
-): { targets: string[] | undefined; mentionedAll: boolean } {
-  // Match @mentions at word boundaries
-  const mentionPattern = /@(\w+)/g;
-  const mentions = new Set<string>();
-  let mentionedAll = false;
+const logger = createLogger('eventbus');
 
-  let match;
-  while ((match = mentionPattern.exec(content)) !== null) {
-    const mention = match[1]!.toLowerCase();
-
-    if (mention === 'all' || mention === 'everyone' || mention === 'broadcast') {
-      mentionedAll = true;
-      break; // @all means broadcast to everyone, no need to parse further
-    }
-
-    // Check if it matches a registered agent name or ID
-    const agent = registeredAgents.find(
-      (a) => a.name.toLowerCase() === mention || a.id.toLowerCase() === mention
-    );
-    if (agent) {
-      mentions.add(agent.id);
-    } else {
-      // Also allow role-based mentions (orchestrator, worker, etc.)
-      // These match by agent name prefix
-      const roleAgents = registeredAgents.filter(
-        (a) => a.name.toLowerCase().startsWith(mention)
-      );
-      for (const ra of roleAgents) {
-        mentions.add(ra.id);
-      }
-    }
-  }
-
-  // If @all was mentioned or no specific mentions, broadcast to all
-  if (mentionedAll || mentions.size === 0) {
-    return { targets: undefined, mentionedAll: mentionedAll || mentions.size === 0 };
-  }
-
-  return { targets: Array.from(mentions), mentionedAll: false };
-}
+// Export MessageType schema for testing
+export { MessageType };
 
 // Singleton event bus instance per project
 const busInstances = new Map<string, EventBus | InMemoryEventBus>();
@@ -93,10 +50,10 @@ async function getEventBus(projectId: string): Promise<EventBus | InMemoryEventB
       bus = new EventBus(config);
       await bus.connect();
       busInstances.set(projectId, bus);
-      console.error(`[eventbus] Connected to Redis at ${redisUrl}`);
+      logger.info(`Connected to Redis at ${redisUrl}`);
       return bus;
     } catch (err) {
-      console.error(`[eventbus] Failed to connect to Redis at ${redisUrl}:`, err);
+      logger.error(`Failed to connect to Redis at ${redisUrl}`, err);
     }
   }
 
@@ -113,7 +70,7 @@ async function getEventBus(projectId: string): Promise<EventBus | InMemoryEventB
       bus = new EventBus(config);
       await bus.connect();
       busInstances.set(projectId, bus);
-      console.error(`[eventbus] Connected to Redis at ${status.url}`);
+      logger.info(`Connected to Redis at ${status.url}`);
       return bus;
     }
   } catch {
@@ -121,7 +78,7 @@ async function getEventBus(projectId: string): Promise<EventBus | InMemoryEventB
   }
 
   // Fall back to in-memory
-  console.error('[eventbus] Using in-memory event bus (no Redis available)');
+  logger.info('Using in-memory event bus (no Redis available)');
   bus = new InMemoryEventBus();
   busInstances.set(projectId, bus);
   return bus;
@@ -187,7 +144,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
       };
 
       if (context.verbose) {
-        console.error(`[bus_register] Registered agent: ${agentName} (${agentId}) [${mode}]`);
+        logger.debug(`Registered agent: ${agentName} (${agentId}) [${mode}]`);
       }
 
       return {
@@ -350,7 +307,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
       };
 
       if (context.verbose) {
-        console.error(`[bus_whoami] Agent ${agentId}: ${identity.name} (${currentRole})`);
+        logger.debug(` Agent ${agentId}: ${identity.name} (${currentRole})`);
       }
 
       return {
@@ -434,22 +391,9 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
       const fromAgent: AgentInfo = { id: agentId, name: agentName, worktree };
 
       const sendOptions: { toAgents?: string[]; priority?: z.infer<typeof MessagePriority> } = {};
-
-      // If toAgents not explicitly provided, parse @mentions from content
       if (toAgents !== undefined) {
         sendOptions.toAgents = toAgents;
-      } else {
-        // Get registered agents to resolve @mentions
-        const registeredAgents = await bus.getActiveAgents(300); // 5 minute staleness
-        const { targets } = parseMentions(content, registeredAgents);
-        if (targets) {
-          sendOptions.toAgents = targets;
-          if (context.verbose) {
-            console.error(`[bus_send] Parsed @mentions: ${targets.join(', ')}`);
-          }
-        }
       }
-
       if (priority !== undefined) {
         sendOptions.priority = priority;
       }
@@ -473,7 +417,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
       };
 
       if (context.verbose) {
-        console.error(`[bus_send] Sent ${type} message: ${title}`);
+        logger.debug(` Sent ${type} message: ${title}`);
       }
 
       return {
@@ -625,7 +569,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
       };
 
       if (context.verbose) {
-        console.error(`[bus_messages] Retrieved ${limited.length} messages (brief=${brief})`);
+        logger.debug(` Retrieved ${limited.length} messages (brief=${brief})`);
       }
 
       return {
@@ -773,7 +717,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
       };
 
       if (context.verbose) {
-        console.error(`[bus_agents] Found ${agents.length} active agents`);
+        logger.debug(` Found ${agents.length} active agents`);
       }
 
       return {
@@ -812,8 +756,8 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
       };
 
       if (context.verbose) {
-        console.error(
-          `[bus_status] Bus status: ${stats.messageCount} messages, ${stats.activeAgents} agents [${mode}]`
+        logger.debug(
+          `Bus status: ${stats.messageCount} messages, ${stats.activeAgents} agents [${mode}]`
         );
       }
 
@@ -858,7 +802,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
       };
 
       if (context.verbose) {
-        console.error(`[bus_heartbeat] Heartbeat from agent: ${agentId}`);
+        logger.debug(` Heartbeat from agent: ${agentId}`);
       }
 
       return {
@@ -985,8 +929,8 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
       }
 
       if (context.verbose) {
-        console.error(
-          `[bus_health] Health check: ${activeAgents.length} active, ${staleAgents.length} stale`
+        logger.debug(
+          `Health check: ${activeAgents.length} active, ${staleAgents.length} stale`
         );
       }
 
@@ -1111,7 +1055,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
           const { writeFile } = await import('node:fs/promises');
           await writeFile(tasksFilePath, JSON.stringify(tasks, null, 2), 'utf-8');
         } catch (err) {
-          console.error('[bus_recover_tasks] Failed to save tasks:', err);
+          logger.error('Failed to save tasks', err);
         }
       } else if (isDryRun) {
         // Just report what would be recovered
@@ -1157,7 +1101,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
       };
 
       if (context.verbose) {
-        console.error(
+        logger.debug(
           `[bus_recover_tasks] Recovered ${recoveredTasks.length} tasks from ${staleAgentIds.length} stale agents`
         );
       }
@@ -1249,8 +1193,8 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
         };
       }
 
-      // Cap timeout at 60 seconds to prevent very long waits
-      const effectiveTimeout = Math.min(Math.max((timeoutSeconds ?? 30) * 1000, 1000), 60000);
+      // Cap timeout to prevent very long waits
+      const effectiveTimeout = Math.min(Math.max((timeoutSeconds ?? 30) * 1000, 1000), MAX_EVENT_BUS_TIMEOUT);
 
       // Build options object, only including defined values
       const waitOptions: {
@@ -1265,7 +1209,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
       const result = await bus.waitForMessage(cursor || '$', effectiveTimeout, waitOptions);
 
       if (context.verbose) {
-        console.error(
+        logger.debug(
           `[bus_wait] ${result.timedOut ? 'Timed out' : 'Got message'} (cursor: ${result.cursor})`
         );
       }
@@ -1445,7 +1389,7 @@ export function registerEventBusTools(server: McpServer, context: ServerContext)
       };
 
       if (context.verbose) {
-        console.error(
+        logger.debug(
           `[bus_health_report] Report: ${healthyAgents.length} healthy, ${degradedCount} degraded, ${staleCount} stale`
         );
       }

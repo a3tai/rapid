@@ -11,6 +11,9 @@ import { execa } from 'execa';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { ServerContext } from '../server.js';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('security');
 
 /**
  * Security issue severity
@@ -315,11 +318,11 @@ async function performStaticAnalysis(
     }
 
     if (verbose && issues.length > 0) {
-      console.error(`[check_security] SAST found ${issues.length} potential issue(s)`);
+      logger.error(`[check_security] SAST found ${issues.length} potential issue(s)`);
     }
   } catch (error) {
     if (verbose) {
-      console.error(`[check_security] SAST analysis failed: ${error}`);
+      logger.error(`[check_security] SAST analysis failed: ${error}`);
     }
   }
 
@@ -426,7 +429,7 @@ export function registerSecurityTools(server: McpServer, context: ServerContext)
       if (checks.includes('secrets')) {
         checksRun.push('secrets');
         if (context.verbose) {
-          console.error('[check_security] Running secret scan...');
+          logger.error('[check_security] Running secret scan...');
         }
         await scanDirectoryForSecrets(context.projectDir, context.projectDir, issues);
       }
@@ -435,7 +438,7 @@ export function registerSecurityTools(server: McpServer, context: ServerContext)
       if (checks.includes('dependencies')) {
         checksRun.push('dependencies');
         if (context.verbose) {
-          console.error('[check_security] Running dependency audit...');
+          logger.error('[check_security] Running dependency audit...');
         }
         const depIssues = await runNpmAudit(context.projectDir);
         issues.push(...depIssues);
@@ -467,7 +470,7 @@ export function registerSecurityTools(server: McpServer, context: ServerContext)
       };
 
       if (context.verbose) {
-        console.error(
+        logger.error(
           `[check_security] Complete: ${summary.total} issues (${summary.critical} critical, ${summary.high} high)`
         );
       }
