@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { clsx } from 'clsx';
+import { Window } from '@wailsio/runtime';
 import { useActiveView, useAppStore, useAgents, useTasks, useSidebarCollapsed } from '../stores/app';
 import { ConnectionStatusBadge } from './ConnectionStatus';
 import { useToast } from './Toast';
@@ -76,8 +77,16 @@ export function Header() {
   const collapsed = useSidebarCollapsed();
   const toggleSidebar = useAppStore((s) => s.toggleSidebar);
 
+  // Handle double-click to toggle maximize/restore
+  const handleDoubleClick = useCallback(() => {
+    Window.ToggleMaximise();
+  }, []);
+
   return (
-    <header className="h-14 bg-rapid-surface border-b border-rapid-border flex items-center justify-between wails-drag">
+    <header
+      className="h-14 bg-rapid-surface border-b border-rapid-border flex items-center justify-between wails-drag"
+      onDoubleClick={handleDoubleClick}
+    >
       {/* Left: Toggle + Logo + Title */}
       <div className="flex items-center wails-no-drag">
         {/* Space for macOS traffic lights + Toggle + Logo */}
