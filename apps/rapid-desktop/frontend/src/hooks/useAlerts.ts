@@ -57,7 +57,7 @@ export function useAlerts(refreshIntervalMs = 30000) {
   });
 
   const { callTool } = useMcp();
-  const agents = useAppStore((s) => s.agents);
+  // const agents = useAppStore((s) => s.agents); // Reserved for future agent alerts
   const tasks = useAppStore((s) => s.tasks);
   const messages = useAppStore((s) => s.messages);
 

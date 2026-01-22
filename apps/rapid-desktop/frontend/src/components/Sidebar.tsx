@@ -1,17 +1,5 @@
 import { clsx } from 'clsx';
-<<<<<<< HEAD
 import { useAppStore, useActiveView, useDaemonStatus, useSidebarCollapsed } from '../stores/app';
-=======
-import { useState, useEffect } from 'react';
-import { useAppStore, useActiveView, useDaemonStatus } from '../stores/app';
->>>>>>> 20a78b8 (feat(desktop): add AgentFleetStatus, tests, and UI improvements)
-
-export interface SidebarProps {
-  /** Control sidebar open/closed state from parent (for mobile) */
-  isOpen?: boolean;
-  /** Callback when sidebar should close (mobile) */
-  onClose?: () => void;
-}
 
 const navItems = [
   {
@@ -148,11 +136,10 @@ const navItems = [
   },
 ];
 
-export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
+export function Sidebar() {
   const activeView = useActiveView();
   const setActiveView = useAppStore((s) => s.setActiveView);
   const daemonStatus = useDaemonStatus();
-<<<<<<< HEAD
   const collapsed = useSidebarCollapsed();
 
   return (
@@ -174,73 +161,9 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
             className={clsx(
               'w-full flex items-center rounded-lg text-sm font-medium transition-colors',
               collapsed ? 'justify-center p-2.5' : 'gap-3 px-3 py-2',
-=======
-  const [isMobile, setIsMobile] = useState(false);
-
-  // Detect mobile screen size
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768); // md breakpoint
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  // Handle navigation click on mobile - close sidebar after selection
-  const handleNavClick = (viewId: typeof navItems[number]['id']) => {
-    setActiveView(viewId);
-    if (isMobile && onClose) {
-      onClose();
-    }
-  };
-
-  return (
-    <>
-      {/* Mobile overlay backdrop */}
-      {isMobile && isOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
-          onClick={onClose}
-          aria-hidden="true"
-        />
-      )}
-
-      <aside
-        className={clsx(
-          'bg-rapid-surface border-r border-rapid-border flex flex-col transition-transform duration-300 ease-in-out z-50',
-          // Mobile: fixed position, slides in from left
-          'fixed md:relative',
-          'h-full md:h-auto',
-          'w-64',
-          // Mobile: translate off-screen when closed
-          isMobile && !isOpen ? '-translate-x-full' : 'translate-x-0'
-        )}
-      >
-      {/* Logo - macOS traffic lights need ~52px clearance from top */}
-      <div className="pt-14 pb-4 px-4 border-b border-rapid-border wails-drag">
-        <div className="wails-no-drag flex items-center">
-          <span className="font-mono text-xl font-normal tracking-[0.1em] bg-gradient-to-br from-rapid-text to-rapid-accent bg-clip-text text-transparent">
-            RAPID
-          </span>
-          <span className="font-mono text-xl text-rapid-accent animate-cursor-blink">_</span>
-        </div>
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {navItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => handleNavClick(item.id)}
-            className={clsx(
-              'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-              // Touch-friendly: minimum 44px touch target
-              'min-h-[44px]',
->>>>>>> 20a78b8 (feat(desktop): add AgentFleetStatus, tests, and UI improvements)
               activeView === item.id
                 ? 'bg-rapid-accent text-white'
-                : 'text-rapid-muted hover:text-rapid-text hover:bg-rapid-elevated active:bg-rapid-elevated'
+                : 'text-rapid-muted hover:text-rapid-text hover:bg-rapid-elevated'
             )}
           >
             {item.icon}
@@ -269,55 +192,6 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
           <div className="mt-1 text-xs text-rapid-muted">v{daemonStatus.version}</div>
         )}
       </div>
-      </aside>
-    </>
-  );
-}
-
-/**
- * Mobile menu toggle button component
- */
-export function MobileMenuButton({
-  isOpen,
-  onClick,
-}: {
-  isOpen: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={clsx(
-        'md:hidden p-2 rounded-lg transition-colors',
-        'text-rapid-muted hover:text-rapid-text hover:bg-rapid-elevated',
-        // Touch-friendly minimum size
-        'min-w-[44px] min-h-[44px]',
-        'flex items-center justify-center'
-      )}
-      aria-label={isOpen ? 'Close menu' : 'Open menu'}
-      aria-expanded={isOpen}
-    >
-      {isOpen ? (
-        // X icon
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M6 18L18 6M6 6l12 12"
-          />
-        </svg>
-      ) : (
-        // Hamburger icon
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M4 6h16M4 12h16M4 18h16"
-          />
-        </svg>
-      )}
-    </button>
+    </aside>
   );
 }

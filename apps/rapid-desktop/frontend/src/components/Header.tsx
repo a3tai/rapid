@@ -15,14 +15,7 @@ const viewTitles: Record<string, { title: string; subtitle?: string }> = {
   config: { title: 'Configuration', subtitle: 'Project settings' },
 };
 
-export interface HeaderProps {
-  /** Callback to toggle mobile menu */
-  onMenuToggle?: () => void;
-  /** Whether mobile menu is open */
-  mobileMenuOpen?: boolean;
-}
-
-export function Header({ onMenuToggle, mobileMenuOpen }: HeaderProps) {
+export function Header() {
   const activeView = useActiveView();
   const setActiveView = useAppStore((s) => s.setActiveView);
   const agents = useAgents();
@@ -84,7 +77,6 @@ export function Header({ onMenuToggle, mobileMenuOpen }: HeaderProps) {
   const toggleSidebar = useAppStore((s) => s.toggleSidebar);
 
   return (
-<<<<<<< HEAD
     <header className="h-14 bg-rapid-surface border-b border-rapid-border flex items-center justify-between wails-drag">
       {/* Left: Toggle + Logo + Title */}
       <div className="flex items-center wails-no-drag">
@@ -119,45 +111,16 @@ export function Header({ onMenuToggle, mobileMenuOpen }: HeaderProps) {
         {/* Page title */}
         <div>
           <h1 className="text-base font-medium leading-tight">{viewInfo.title}</h1>
-=======
-    <header className="h-14 bg-rapid-surface border-b border-rapid-border flex items-center justify-between px-4 md:px-6 wails-drag">
-      {/* Left: Mobile menu button + Title and subtitle */}
-      <div className="flex items-center gap-3 wails-no-drag">
-        {/* Mobile menu toggle */}
-        {onMenuToggle && (
-          <button
-            onClick={onMenuToggle}
-            className="md:hidden p-2 -ml-2 rounded-lg text-rapid-muted hover:text-rapid-text hover:bg-rapid-elevated transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-            aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
-            aria-expanded={mobileMenuOpen}
-          >
-            {mobileMenuOpen ? (
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            ) : (
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            )}
-          </button>
-        )}
-        <div>
-          <h1 className="text-lg font-semibold leading-tight">{viewInfo.title}</h1>
-          {viewInfo.subtitle && <p className="text-xs text-rapid-muted hidden sm:block">{viewInfo.subtitle}</p>}
->>>>>>> 20a78b8 (feat(desktop): add AgentFleetStatus, tests, and UI improvements)
         </div>
       </div>
 
       {/* Right: Stats and actions */}
-      <div className="flex items-center gap-2 md:gap-4 wails-no-drag">
-        {/* Connection status - hidden on small mobile */}
-        <div className="hidden sm:block">
-          <ConnectionStatusBadge />
-        </div>
+      <div className="flex items-center gap-4 wails-no-drag">
+        {/* Connection status */}
+        <ConnectionStatusBadge />
 
-        {/* Quick stats - hidden on mobile, shown on tablet+ */}
-        <div className="hidden md:flex items-center gap-3 text-sm">
+        {/* Quick stats */}
+        <div className="flex items-center gap-3 text-sm">
           <button
             onClick={() => setActiveView('agents')}
             className="flex items-center gap-2 px-2 py-1 rounded hover:bg-rapid-elevated transition-colors"
@@ -203,28 +166,19 @@ export function Header({ onMenuToggle, mobileMenuOpen }: HeaderProps) {
           {pendingTasks > 0 && <span className="badge badge-neutral" aria-label={`${pendingTasks} pending tasks`}>{pendingTasks} pending</span>}
         </div>
 
-<<<<<<< HEAD
         {/* Divider */}
         <div className="h-6 w-px bg-rapid-border" aria-hidden="true" />
-=======
-        {/* Divider - hidden on mobile */}
-        <div className="hidden md:block h-6 w-px bg-rapid-border" />
->>>>>>> 20a78b8 (feat(desktop): add AgentFleetStatus, tests, and UI improvements)
 
         {/* Quick actions dropdown */}
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setShowQuickActions(!showQuickActions)}
             className={clsx(
-              'btn btn-primary text-sm flex items-center gap-1.5 min-h-[44px] min-w-[44px] md:min-w-0',
+              'btn btn-primary text-sm flex items-center gap-1.5',
               showQuickActions && 'bg-blue-600'
             )}
-<<<<<<< HEAD
             aria-label="Quick actions"
             aria-haspopup="menu"
-=======
-            aria-label="Quick Actions"
->>>>>>> 20a78b8 (feat(desktop): add AgentFleetStatus, tests, and UI improvements)
             aria-expanded={showQuickActions}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
@@ -235,9 +189,9 @@ export function Header({ onMenuToggle, mobileMenuOpen }: HeaderProps) {
                 d="M12 6v6m0 0v6m0-6h6m-6 0H6"
               />
             </svg>
-            <span className="hidden sm:inline">Quick Actions</span>
+            Quick Actions
             <svg
-              className={clsx('w-3 h-3 transition-transform hidden sm:block', showQuickActions && 'rotate-180')}
+              className={clsx('w-3 h-3 transition-transform', showQuickActions && 'rotate-180')}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
