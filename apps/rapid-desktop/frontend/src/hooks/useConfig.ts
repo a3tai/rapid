@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useAsyncOperation } from './useAsyncOperation';
 import { AppError } from '../utils/errorHandling';
-import * as AppService from '@wails/go/main/AppService';
+import * as AppService from '@bindings/rapid-desktop/appservice';
 
 export interface RapidConfig {
   $schema?: string;

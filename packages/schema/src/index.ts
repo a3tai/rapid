@@ -531,7 +531,21 @@ export const SCHEMA_VERSION = '1.0';
 /**
  * Supported AI models for personas
  */
-export type PersonaModel = 'opus' | 'sonnet' | 'haiku' | 'gpt-4o' | 'gpt-4o-mini' | 'custom';
+export type PersonaModel =
+  | 'fast'
+  | 'smart'
+  | 'thinking'
+  | 'opus'
+  | 'sonnet'
+  | 'haiku'
+  | 'gpt-4o'
+  | 'gpt-4o-mini'
+  | 'custom';
+
+/**
+ * Supported runtimes for personas
+ */
+export type PersonaRuntime = 'claude' | 'codex' | 'opencode' | 'aider' | 'custom';
 
 /**
  * Personality traits that influence agent behavior
@@ -587,6 +601,9 @@ export interface PersonaConfig {
 
   /** AI model to use (affects cost/capability) */
   model?: PersonaModel;
+
+  /** Runtime/CLI to execute for this persona */
+  runtime?: PersonaRuntime;
 
   /** Custom model ID when model is 'custom' */
   customModel?: string;
@@ -907,6 +924,10 @@ export const DEFAULT_CONFIG: RapidConfig = {
       },
       opencode: {
         cli: 'opencode',
+        instructionFile: 'AGENTS.md',
+      },
+      codex: {
+        cli: 'codex',
         instructionFile: 'AGENTS.md',
       },
     },

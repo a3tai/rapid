@@ -1,111 +1,101 @@
 /**
- * Hook for streaming agent logs via SSE from the MCP server
+ * Hook for streaming agent logs via Wails Go backend
  *
- * Connects to http://localhost:3200/logs/:agentName for real-time log streaming
+ * Uses polling via GetAgentLogs instead of direct SSE (which fails in Wails WebView)
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import * as AppService from '@bindings/rapid-desktop/appservice';
 
 export interface LogLine {
   line: string;
   timestamp?: string;
 }
 
-const LOG_STREAM_BASE_URL = 'http://localhost:3200';
-
 /**
- * Hook to stream agent logs in real-time via SSE
+ * Hook to stream agent logs via Wails polling
  */
 export function useLogStream(agentName: string | null, enabled: boolean = true, maxLines: number = 500) {
   const [logs, setLogs] = useState<LogLine[]>([]);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const eventSourceRef = useRef<EventSource | null>(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const lastLogCountRef = useRef(0);
 
   const clearLogs = useCallback(() => {
     setLogs([]);
+    lastLogCountRef.current = 0;
   }, []);
+
+  const fetchLogs = useCallback(async () => {
+    if (!agentName) return;
+
+    try {
+      const entries = await AppService.GetAgentLogs(agentName, maxLines);
+
+      if (entries && entries.length > 0) {
+        // Only add new logs (compare with last count to detect new entries)
+        if (entries.length > lastLogCountRef.current) {
+          const newEntries = entries.slice(lastLogCountRef.current);
+          setLogs(prev => {
+            const newLogs = [
+              ...prev,
+              // Go backend returns LogEntry with 'message' field, not 'content' or 'line'
+              ...newEntries.map((e: { message?: string; content?: string; line?: string; timestamp?: string }) => ({
+                line: e.message || e.content || e.line || '',
+                timestamp: e.timestamp || new Date().toISOString(),
+              })),
+            ];
+            return newLogs.slice(-maxLines);
+          });
+          lastLogCountRef.current = entries.length;
+        }
+        setConnected(true);
+        setError(null);
+      }
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to fetch logs';
+      console.error(`[useLogStream] Error fetching logs for ${agentName}:`, err);
+      setError(errorMsg);
+      // Don't disconnect on error - keep polling
+    }
+  }, [agentName, maxLines]);
 
   useEffect(() => {
     if (!enabled || !agentName) {
       setConnected(false);
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
       return;
     }
 
-    // Close existing connection
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
-    }
-
+    console.log(`[useLogStream] Starting polling for ${agentName}`);
     setError(null);
-    setConnected(false);
+    lastLogCountRef.current = 0;
 
-    const url = `${LOG_STREAM_BASE_URL}/logs/${encodeURIComponent(agentName)}`;
-    console.log(`[useLogStream] Connecting to: ${url}`);
+    // Initial fetch
+    fetchLogs();
 
-    try {
-      const eventSource = new EventSource(url);
-      eventSourceRef.current = eventSource;
+    // Start polling every 1 second for near-real-time updates
+    pollingRef.current = setInterval(fetchLogs, 1000);
 
-      eventSource.onopen = () => {
-        console.log(`[useLogStream] Connected to ${agentName}`);
-        setConnected(true);
-        setError(null);
-      };
-
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.line) {
-            setLogs(prev => {
-              const newLogs = [...prev, { line: data.line, timestamp: new Date().toISOString() }];
-              // Keep only the last maxLines
-              return newLogs.slice(-maxLines);
-            });
-          }
-        } catch (e) {
-          // If it's not JSON, treat as plain text
-          if (event.data) {
-            setLogs(prev => {
-              const newLogs = [...prev, { line: event.data, timestamp: new Date().toISOString() }];
-              return newLogs.slice(-maxLines);
-            });
-          }
-        }
-      };
-
-      eventSource.onerror = (e) => {
-        console.error(`[useLogStream] Error for ${agentName}:`, e);
-        setConnected(false);
-
-        // Only set error if we're still trying to connect
-        if (eventSource.readyState === EventSource.CONNECTING) {
-          setError('Connecting...');
-        } else if (eventSource.readyState === EventSource.CLOSED) {
-          setError('Connection closed');
-        }
-      };
-
-      return () => {
-        console.log(`[useLogStream] Closing connection to ${agentName}`);
-        eventSource.close();
-        eventSourceRef.current = null;
-      };
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Failed to connect';
-      console.error(`[useLogStream] Failed to create EventSource:`, err);
-      setError(errorMsg);
-      setConnected(false);
-    }
-  }, [agentName, enabled, maxLines]);
+    return () => {
+      console.log(`[useLogStream] Stopping polling for ${agentName}`);
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [agentName, enabled, fetchLogs]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
       }
     };
   }, []);

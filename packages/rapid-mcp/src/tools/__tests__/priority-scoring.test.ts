@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import type { Task } from '../tasks.js';
+import type { Task } from '../tasks/types.js';
 import {
   calculateDeadlinePressure,
   calculateAgingBonus,

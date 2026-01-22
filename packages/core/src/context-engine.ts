@@ -105,6 +105,13 @@ export class ContextEngine {
         const data: ContextEntry[] = JSON.parse(content);
 
         for (const entry of data) {
+          // Migrate old entries without accessControl
+          if (!entry.metadata.accessControl) {
+            entry.metadata.accessControl = {
+              scope: 'public',
+              ownerAgentId: entry.metadata.createdBy ?? 'system',
+            };
+          }
           this.entries.set(entry.key, entry);
         }
 
@@ -195,7 +202,11 @@ export class ContextEngine {
    * Check if an agent has access to a knowledge entry
    */
   private canAccess(entry: ContextEntry, agentId?: string): boolean {
-    const ac = entry.metadata.accessControl;
+    // Handle legacy entries without accessControl
+    const ac = entry.metadata.accessControl ?? {
+      scope: 'public' as const,
+      ownerAgentId: entry.metadata.createdBy ?? 'system',
+    };
 
     if (ac.scope === 'public') {
       return true;

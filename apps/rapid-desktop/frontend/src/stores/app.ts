@@ -77,6 +77,8 @@ export interface DaemonStatus {
   sessions?: number;
 }
 
+export type AgentDetailTab = 'overview' | 'logs' | 'metrics';
+
 interface AppState {
   // Connection state
   daemonStatus: DaemonStatus | null;
@@ -93,6 +95,7 @@ interface AppState {
   activeView:
     | 'dashboard'
     | 'agents'
+    | 'agent-detail'
     | 'tasks'
     | 'events'
     | 'chat'
@@ -102,6 +105,7 @@ interface AppState {
     | 'config';
   selectedAgent: string | null;
   selectedTask: string | null;
+  agentDetailTab: AgentDetailTab;
 
   // Actions
   setDaemonStatus: (status: DaemonStatus | null) => void;
@@ -117,6 +121,7 @@ interface AppState {
   setActiveView: (view: AppState['activeView']) => void;
   setSelectedAgent: (id: string | null) => void;
   setSelectedTask: (id: string | null) => void;
+  setAgentDetailTab: (tab: AgentDetailTab) => void;
   setError: (error: string | null) => void;
   setConnecting: (connecting: boolean) => void;
 }
@@ -133,6 +138,7 @@ export const useAppStore = create<AppState>((set) => ({
   activeView: 'dashboard',
   selectedAgent: null,
   selectedTask: null,
+  agentDetailTab: 'overview',
 
   // Actions
   setDaemonStatus: (status) => set({ daemonStatus: status }),
@@ -191,6 +197,7 @@ export const useAppStore = create<AppState>((set) => ({
   setActiveView: (activeView) => set({ activeView }),
   setSelectedAgent: (selectedAgent) => set({ selectedAgent }),
   setSelectedTask: (selectedTask) => set({ selectedTask }),
+  setAgentDetailTab: (agentDetailTab) => set({ agentDetailTab }),
   setError: (lastError) => set({ lastError }),
   setConnecting: (isConnecting) => set({ isConnecting }),
 }));

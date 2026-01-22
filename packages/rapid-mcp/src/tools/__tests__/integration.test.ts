@@ -7,8 +7,8 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { z } from 'zod';
-import { TaskStatusSchema, TaskPrioritySchema } from '../tasks.js';
-import { MessageType as MessageTypeSchema } from '../eventbus.js';
+import { TaskStatusSchema, TaskPrioritySchema } from '../tasks/index.js';
+import { MessageType as MessageTypeSchema } from '../eventbus/index.js';
 
 interface Agent {
   id: string;

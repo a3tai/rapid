@@ -5,6 +5,14 @@ FROM node:22-slim
 
 WORKDIR /app
 
+# Install build dependencies for native modules (better-sqlite3) and git for worktree creation
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
@@ -17,8 +25,10 @@ COPY packages/core/package.json packages/core/
 COPY packages/runtime/package.json packages/runtime/
 COPY packages/daemon/package.json packages/daemon/
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile --prod=false
+# Install dependencies and rebuild better-sqlite3 native module
+RUN pnpm install --frozen-lockfile --prod=false && \
+    cd node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3 && \
+    npm run build-release
 
 # Copy source and build dependencies first
 COPY packages/schema packages/schema

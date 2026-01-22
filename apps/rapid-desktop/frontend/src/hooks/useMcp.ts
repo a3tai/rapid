@@ -438,26 +438,53 @@ export function useMcp() {
   );
 
   /**
+   * Fetch suggestions from suggestion system
+   */
+  const fetchSuggestions = useCallback(async () => {
+    try {
+      const result = await callTool('suggestion_list', {});
+      const data = result.structuredContent as { suggestions?: any[] };
+      if (data?.suggestions) {
+        // Update store with suggestions
+        const { setSuggestions } = useAppStore.getState();
+        setSuggestions(data.suggestions);
+      }
+    } catch (err) {
+      console.error('Failed to fetch suggestions:', err);
+    }
+  }, [callTool]);
+
+  /**
    * Submit a vote on a suggestion
    */
   const submitVote = useCallback(
     async (suggestionId: string, vote: 'approve' | 'reject' | 'abstain') => {
       try {
-        await callTool('bus_send', {
-          type: 'vote',
-          agentId: sessionId.current || 'desktop-ui',
+        // Register if needed
+        if (!sessionId.current) {
+          const regResult = await callTool('bus_register', {
+            agentName: 'desktop-ui',
+            session: 'desktop',
+          });
+          const regData = regResult.structuredContent as { agentId?: string };
+          sessionId.current = regData?.agentId || 'desktop-ui';
+        }
+
+        await callTool('suggestion_vote', {
+          suggestionId,
+          vote,
+          agentId: sessionId.current,
           agentName: 'desktop-ui',
-          title: `Vote: ${vote}`,
-          content: `Voted ${vote} on suggestion ${suggestionId}`,
-          targetSuggestion: suggestionId,
-          voteValue: vote,
         });
+
+        // Refresh suggestions after voting
+        await fetchSuggestions();
       } catch (err) {
         setError(`Failed to submit vote: ${err}`);
         throw err;
       }
     },
-    [callTool, setError]
+    [callTool, setError, fetchSuggestions]
   );
 
   /**
@@ -466,22 +493,20 @@ export function useMcp() {
   const overrideSuggestion = useCallback(
     async (suggestionId: string, decision: 'approved' | 'vetoed', reason: string) => {
       try {
-        await callTool('bus_send', {
-          type: 'coordination',
-          agentId: sessionId.current || 'desktop-ui',
-          agentName: 'orchestrator',
-          title: `Orchestrator ${decision}`,
-          content: `${decision}: ${reason}`,
-          targetSuggestion: suggestionId,
+        await callTool('suggestion_decide', {
+          suggestionId,
           decision,
           reason,
         });
+
+        // Refresh suggestions after decision
+        await fetchSuggestions();
       } catch (err) {
         setError(`Failed to override suggestion: ${err}`);
         throw err;
       }
     },
-    [callTool, setError]
+    [callTool, setError, fetchSuggestions]
   );
 
   /**
@@ -592,14 +617,28 @@ export function useMcp() {
       }
 
       // Now fetch all data
-      await Promise.all([fetchDaemonStatus(), fetchAgents(), fetchTasks(), fetchMessages()]);
+      await Promise.all([
+        fetchDaemonStatus(),
+        fetchAgents(),
+        fetchTasks(),
+        fetchMessages(),
+        fetchSuggestions(),
+      ]);
     } catch (err) {
       console.error('[MCP] Initialization failed:', err);
       setError(`MCP initialization failed: ${err}`);
     } finally {
       setConnecting(false);
     }
-  }, [fetchDaemonStatus, fetchAgents, fetchTasks, fetchMessages, setConnecting, setError]);
+  }, [
+    fetchDaemonStatus,
+    fetchAgents,
+    fetchTasks,
+    fetchMessages,
+    fetchSuggestions,
+    setConnecting,
+    setError,
+  ]);
 
   /**
    * Start unified polling for all data types
@@ -626,6 +665,12 @@ export function useMcp() {
         () => fetchMessages(50),
         intervalMs
       );
+      const unsubSuggestions = pollingManager.subscribe(
+        'suggestions',
+        () => {},
+        fetchSuggestions,
+        intervalMs
+      );
       const unsubStatus = pollingManager.subscribe(
         'status',
         () => {},
@@ -638,10 +683,11 @@ export function useMcp() {
         unsubAgents();
         unsubTasks();
         unsubMessages();
+        unsubSuggestions();
         unsubStatus();
       };
     },
-    [fetchAgents, fetchTasks, fetchMessages, fetchDaemonStatus]
+    [fetchAgents, fetchTasks, fetchMessages, fetchSuggestions, fetchDaemonStatus]
   );
 
   return {
@@ -650,6 +696,7 @@ export function useMcp() {
     fetchAgents,
     fetchTasks,
     fetchMessages,
+    fetchSuggestions,
     createTask,
     updateTaskStatus,
     completeTask,

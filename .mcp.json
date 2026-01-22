@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "rapid": { "type": "http", "url": "http://host.docker.internal:3100/mcp" },
+    "rapid": { "type": "http", "url": "http://localhost:3100/mcp" },
     "context7": {
       "type": "http",
       "url": "https://mcp.context7.com/mcp",

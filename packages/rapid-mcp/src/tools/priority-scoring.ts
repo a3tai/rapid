@@ -9,7 +9,7 @@
  */
 
 import { createLogger } from '../utils/logger.js';
-import type { Task, TaskPriority } from './tasks.js';
+import type { Task, TaskPriority } from './tasks/types.js';
 
 const logger = createLogger('priority-scoring');
 

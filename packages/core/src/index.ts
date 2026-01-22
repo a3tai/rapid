@@ -252,3 +252,67 @@ export {
   type VersionHistoryEntry,
   type TaxonomyConfig,
 } from './knowledge-base-schema.js';
+
+// Evaluation - Log tracking and prompt improvement
+export {
+  // Logger
+  EvaluationLogger,
+  createEvaluationLogger,
+  createLogBuilder,
+  calculateCost,
+  // Analyzer
+  EvaluationAnalyzer,
+  createEvaluationAnalyzer,
+  // Constants
+  DEFAULT_PRICING,
+  // Types
+  type EvaluationLog,
+  type EvaluationLoggerConfig,
+  type EvaluationStorageConfig,
+  type ToolCallRecord,
+  type TokenUsage,
+  type CostBreakdown,
+  type EvaluationOutcome,
+  type EvaluationLogBuilder,
+  type PricingConfig,
+  type UserFeedback,
+  type FeedbackIssue,
+  type ConversationMessage,
+  type EvaluationQueryOptions,
+  type EvaluationMetrics,
+  type ABTestComparison,
+  type TrainingExport,
+  type TrainingExample,
+} from './evaluation/index.js';
+
+// Storage - Durable task storage (MCP/Daemon only)
+export {
+  // Adapters
+  SQLiteStorageAdapter,
+  FileStorageAdapter,
+  // Factory
+  createStorageAdapter,
+  getDefaultStorageAdapter,
+  detectStorageBackend,
+  createAutoStorageAdapter,
+  // Types
+  type StorageBackend,
+  type StorageFactoryConfig,
+  type StorageAdapter,
+  type StorageAdapterConfig,
+  type StorageTransaction,
+  type StorageStats,
+  type Task,
+  type TaskStatus,
+  type TaskPriority,
+  type TaskFilter,
+  type TaskQueryOptions,
+  type TaskSortOptions,
+  type TaskHistoryEntry,
+  type TaskChangeType,
+  type PaginatedResult,
+  type PaginationOptions,
+  type LockOptions,
+  type MigrationResult,
+  type LegacyTask,
+} from './storage/index.js';

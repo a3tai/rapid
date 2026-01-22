@@ -38,7 +38,8 @@ function parseArgs(): {
   const args = process.argv.slice(2);
   let transport: 'stdio' | 'http' = 'stdio';
   let port = DEFAULT_HTTP_PORT;
-  let projectDir = process.cwd();
+  // Use RAPID_PROJECT_DIR env var if set, otherwise fall back to cwd
+  let projectDir = process.env.RAPID_PROJECT_DIR || process.cwd();
   let verbose = false;
   let help = false;
 
@@ -131,14 +132,58 @@ Prompts provided:
  */
 async function startHttpServer(config: RapidMcpServerConfig, port: number): Promise<void> {
   // Dynamic import to avoid loading express unless needed
-  const express = (await import('express')).default;
-  const cors = (await import('cors')).default;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const expressModule = (await import('express')) as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const corsModule = (await import('cors')) as any;
+  const express = expressModule.default ?? expressModule;
+  const cors = corsModule.default ?? corsModule;
   const { StreamableHTTPServerTransport } =
     await import('@modelcontextprotocol/sdk/server/streamableHttp.js');
 
   const app = express();
   app.use(cors());
   app.use(express.json());
+
+  // Middleware to ensure required Accept headers for MCP Streamable HTTP transport
+  // Some MCP clients (like OpenCode) may not send the required Accept headers,
+  // so we add them if missing to ensure compatibility.
+  // We need to modify rawHeaders because @hono/node-server reads from rawHeaders,
+  // not the headers object.
+  app.use('/mcp', (req: Request, _res: Response, next: () => void) => {
+    const accept = req.headers.accept || '';
+    const requiredTypes = ['application/json', 'text/event-stream'];
+    const missingTypes = requiredTypes.filter((type) => !accept.includes(type));
+
+    if (missingTypes.length > 0) {
+      // Add missing Accept types to the header
+      const newAccept = accept ? `${accept}, ${missingTypes.join(', ')}` : requiredTypes.join(', ');
+      req.headers.accept = newAccept;
+
+      // Also update rawHeaders since @hono/node-server uses rawHeaders
+      // to create the Web Standard Headers object
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rawHeaders = (req as any).rawHeaders as string[] | undefined;
+      if (rawHeaders) {
+        let acceptIndex = -1;
+        for (let i = 0; i < rawHeaders.length; i += 2) {
+          const headerName = rawHeaders[i];
+          if (headerName && headerName.toLowerCase() === 'accept') {
+            acceptIndex = i;
+            break;
+          }
+        }
+        if (acceptIndex >= 0) {
+          // Update existing Accept header value
+          rawHeaders[acceptIndex + 1] = newAccept;
+        } else {
+          // Add new Accept header
+          rawHeaders.push('Accept', newAccept);
+        }
+      }
+    }
+    next();
+  });
 
   // Store active sessions with last activity time and initialization state
   // StreamableHTTPServerTransport is from MCP SDK and has incomplete TypeScript exports,
@@ -181,7 +226,9 @@ async function startHttpServer(config: RapidMcpServerConfig, port: number): Prom
 
     if (!entry) {
       // Create new session
-      logger.info(`New session ${sessionId.slice(0, SESSION_ID_DISPLAY_LENGTH)} (method: ${method})`);
+      logger.info(
+        `New session ${sessionId.slice(0, SESSION_ID_DISPLAY_LENGTH)} (method: ${method})`
+      );
 
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => sessionId,
@@ -211,7 +258,9 @@ async function startHttpServer(config: RapidMcpServerConfig, port: number): Prom
 
     // If not initialized and this is a tool call, auto-initialize first
     if (!entry.initialized && (method === 'tools/call' || method === 'tools/list')) {
-      logger.info(`Auto-initializing session ${sessionId.slice(0, SESSION_ID_DISPLAY_LENGTH)} for ${method}`);
+      logger.info(
+        `Auto-initializing session ${sessionId.slice(0, SESSION_ID_DISPLAY_LENGTH)} for ${method}`
+      );
 
       // Synthesize initialize request
       const initRequest = {
@@ -235,6 +284,7 @@ async function startHttpServer(config: RapidMcpServerConfig, port: number): Prom
         send: () => initRes,
         end: () => {},
         write: () => true,
+        writeHead: () => initRes,
         on: () => initRes,
         once: () => initRes,
         emit: () => false,
@@ -246,7 +296,9 @@ async function startHttpServer(config: RapidMcpServerConfig, port: number): Prom
       try {
         await entry.transport.handleRequest(req, initRes, initRequest);
         entry.initialized = true;
-        logger.info(`Session ${sessionId.slice(0, SESSION_ID_DISPLAY_LENGTH)} auto-initialized successfully`);
+        logger.info(
+          `Session ${sessionId.slice(0, SESSION_ID_DISPLAY_LENGTH)} auto-initialized successfully`
+        );
       } catch (err) {
         logger.error(`Auto-init failed for ${sessionId.slice(0, SESSION_ID_DISPLAY_LENGTH)}`, err);
       }
@@ -274,12 +326,14 @@ async function startHttpServer(config: RapidMcpServerConfig, port: number): Prom
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
+      Connection: 'keep-alive',
       'Access-Control-Allow-Origin': '*',
     });
 
     // Send ready message immediately
-    res.write(`data: ${JSON.stringify({ type: 'ready', message: 'Connected to event stream' })}\n\n`);
+    res.write(
+      `data: ${JSON.stringify({ type: 'ready', message: 'Connected to event stream' })}\n\n`
+    );
 
     // Keep connection alive with periodic heartbeats
     const heartbeatInterval = setInterval(() => {
@@ -314,7 +368,7 @@ async function startHttpServer(config: RapidMcpServerConfig, port: number): Prom
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
+      Connection: 'keep-alive',
       'Access-Control-Allow-Origin': '*',
     });
 
@@ -454,9 +508,7 @@ async function validateSecurityStartup(config: RapidMcpServerConfig, port: numbe
   try {
     const domains = process.env.RAPID_ALLOWED_DOMAINS || '';
     if (domains && config.verbose) {
-      logger.debug(
-        `Domain whitelist configured: ${domains.split(',').length} domains`
-      );
+      logger.debug(`Domain whitelist configured: ${domains.split(',').length} domains`);
     }
   } catch (err) {
     warnings.push(`Cannot verify domain whitelist: ${String(err)}`);

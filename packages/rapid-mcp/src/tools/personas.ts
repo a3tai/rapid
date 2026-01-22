@@ -17,147 +17,156 @@ import { execa } from 'execa';
 import type { ExecaChildProcess } from 'execa';
 import type { ServerContext } from '../server.js';
 import { createLogger } from '../utils/logger.js';
+import { createLogBuffer, type LogBuffer } from '@a3t/rapid-eventbus';
+import { getProjectId } from '../utils/projectId.js';
+import YAML from 'yaml';
 
 const logger = createLogger('personas');
 
-// Simple YAML parser for persona configs (handles basic YAML structure)
-function parseYaml(content: string): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  const lines = content.split('\n');
-  let currentKey: string | null = null;
-  let currentValue: string[] = [];
-  let inMultiline = false;
-  let multilineIndent = 0;
+// Singleton LogBuffer instance for agent output
+let logBuffer: LogBuffer | null = null;
 
-  for (const line of lines) {
-    // Skip empty lines and comments at root level
-    if (!inMultiline && (line.trim() === '' || line.trim().startsWith('#'))) {
-      continue;
-    }
-
-    // Check for multiline indicator
-    if (line.includes(': |')) {
-      if (currentKey && currentValue.length > 0) {
-        result[currentKey] = currentValue.join('\n').trim();
-        currentValue = [];
-      }
-      currentKey = line.split(':')[0]?.trim() ?? '';
-      inMultiline = true;
-      multilineIndent = 0;
-      continue;
-    }
-
-    // Handle multiline content
-    if (inMultiline) {
-      const trimmed = line.trimStart();
-      const indent = line.length - trimmed.length;
-
-      if (multilineIndent === 0 && trimmed.length > 0) {
-        multilineIndent = indent;
-      }
-
-      // Check if we've exited the multiline block
-      if (indent < multilineIndent && trimmed.length > 0 && !line.startsWith(' ')) {
-        result[currentKey!] = currentValue.join('\n');
-        currentValue = [];
-        inMultiline = false;
-        currentKey = null;
-      } else {
-        currentValue.push(line.slice(multilineIndent) || '');
-        continue;
-      }
-    }
-
-    // Handle key: value pairs
-    if (line.includes(':') && !line.startsWith(' ') && !line.startsWith('-')) {
-      if (currentKey && currentValue.length > 0) {
-        result[currentKey] = currentValue.join('\n').trim();
-        currentValue = [];
-      }
-
-      const colonIdx = line.indexOf(':');
-      const key = line.slice(0, colonIdx).trim();
-      const value = line.slice(colonIdx + 1).trim();
-
-      if (value === '') {
-        currentKey = key;
-      } else if (value.startsWith('[') && value.endsWith(']')) {
-        // Simple array: [item1, item2]
-        result[key] = value
-          .slice(1, -1)
-          .split(',')
-          .map((s) => s.trim());
-      } else if (value === 'true') {
-        result[key] = true;
-      } else if (value === 'false') {
-        result[key] = false;
-      } else if (/^\d+$/.test(value)) {
-        result[key] = parseInt(value, 10);
-      } else {
-        result[key] = value;
-      }
-      currentKey = key;
-    } else if (line.trim().startsWith('- ')) {
-      // Array item
-      const item = line.trim().slice(2);
-      if (!Array.isArray(result[currentKey!])) {
-        result[currentKey!] = [];
-      }
-      (result[currentKey!] as string[]).push(item);
-    }
+/**
+ * Get or create the LogBuffer instance for agent output
+ */
+async function getLogBuffer(projectDir: string): Promise<LogBuffer> {
+  if (!logBuffer) {
+    const projectId = await getProjectId(projectDir);
+    // Check REDIS_URL first (Docker), then fall back to REDIS_HOST/PORT (local)
+    const redisUrl = process.env.REDIS_URL;
+    logBuffer = createLogBuffer({
+      redis: redisUrl
+        ? { url: redisUrl }
+        : {
+            host: process.env.REDIS_HOST ?? 'localhost',
+            port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
+          },
+      projectId,
+    });
+    await logBuffer.connect();
   }
-
-  // Handle final multiline block
-  if (inMultiline && currentKey && currentValue.length > 0) {
-    result[currentKey] = currentValue.join('\n');
-  }
-
-  return result;
+  return logBuffer;
 }
 
-// Persona schema matching @a3t/rapid-schema types
-const PersonaModelSchema = z.enum(['opus', 'sonnet', 'haiku', 'gpt-4o', 'gpt-4o-mini', 'custom']);
+/**
+ * Request approval to create a PR when an agent completes
+ *
+ * Uses RAPID's HITL (Human-in-the-Loop) system:
+ * - Sends approval_request to event bus
+ * - Orchestrator or human decides whether to create PR
+ * - If approved → create PR via worktree_merge_workflow
+ * - If rejected → optionally cleanup worktree
+ */
+async function requestMergeApproval(
+  projectDir: string,
+  worktree: string,
+  personaName: string,
+  task: string,
+  agentId: string
+): Promise<{ requestSent: boolean; error?: string }> {
+  const hostProjectDir = process.env.RAPID_HOST_PROJECT_DIR || projectDir;
+  const worktreeDir = join(hostProjectDir, '.worktrees', worktree);
 
-const PersonalityTraitSchema = z.enum([
-  'thorough',
-  'concise',
-  'cautious',
-  'bold',
-  'creative',
-  'analytical',
-  'friendly',
-  'formal',
-  'asks_clarifying_questions',
-  'autonomous',
-]);
+  logger.info(`[requestMergeApproval] Requesting approval for worktree '${worktree}'`);
 
-const PersonaTriggerSchema = z.enum([
-  'on_pr',
-  'on_commit',
-  'on_issue',
-  'on_error',
-  'on_request',
-  'manual',
-]);
+  try {
+    // Check if there are any commits
+    const { stdout: diffOutput } = await execa(
+      'git',
+      ['log', 'origin/main..HEAD', '--oneline'],
+      { cwd: worktreeDir, reject: false }
+    );
 
-const PersonaToolSchema = z.enum([
-  'read',
-  'write',
-  'edit',
-  'grep',
-  'glob',
-  'bash',
-  'bus_send',
-  'bus_messages',
-  'bus_agents',
-  'web_search',
-  'web_fetch',
-]);
+    if (!diffOutput.trim()) {
+      logger.info(`[requestMergeApproval] No commits in ${worktree}, skipping approval request`);
+      return { requestSent: false, error: 'No commits to merge' };
+    }
+
+    // Get commit count and summary
+    const commitLines = diffOutput.trim().split('\n').filter(l => l);
+    const commitSummary = commitLines.slice(0, 5).join('\n');
+    const hasMore = commitLines.length > 5;
+
+    // Get current branch
+    const { stdout: branch } = await execa(
+      'git',
+      ['rev-parse', '--abbrev-ref', 'HEAD'],
+      { cwd: worktreeDir }
+    );
+
+    // Push the branch so it's ready for PR
+    await execa('git', ['push', '-u', 'origin', branch.trim()], {
+      cwd: worktreeDir,
+      reject: false,
+    });
+
+    // Send approval request to event bus via Redis pub/sub
+    // This will be picked up by the HITL approval system
+    const Redis = (await import('ioredis')).default;
+    const redisUrl = process.env.REDIS_URL;
+    const redis = redisUrl
+      ? new Redis(redisUrl)
+      : new Redis({
+          host: process.env.REDIS_HOST ?? 'localhost',
+          port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
+        });
+
+    // Create a merge request that matches the MergeRequest interface in merge-approval.ts
+    const mergeRequest = {
+      id: `merge-${agentId.slice(0, 8)}-${Date.now()}`,
+      agentId,
+      agentName: personaName,
+      worktree,
+      branch: branch.trim(),
+      task,
+      commitCount: commitLines.length,
+      commitSummary: commitSummary + (hasMore ? `\n... and ${commitLines.length - 5} more` : ''),
+      projectDir: hostProjectDir,
+      status: 'pending' as const,
+      createdAt: new Date().toISOString(),
+    };
+
+    // Store in merge requests sorted set (used by merge_list and merge_decide tools)
+    await redis.zadd('rapid:merge_requests', Date.now(), JSON.stringify(mergeRequest));
+
+    // Publish event for UI notification
+    await redis.publish(
+      'rapid:events',
+      JSON.stringify({
+        type: 'merge_request',
+        ...mergeRequest,
+      })
+    );
+
+    await redis.quit();
+
+    logger.info(`[requestMergeApproval] Approval request sent for ${worktree}`);
+    return { requestSent: true };
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    logger.warn(`[requestMergeApproval] Failed to send approval request: ${errorMsg}`);
+    return { requestSent: false, error: errorMsg };
+  }
+}
+
+// Persona schema - flexible to allow any model names (they change regularly)
+const PersonaModelSchema = z.string();
+const PersonaRuntimeSchema = z.string();
+
+// Allow any string for personality traits - personas can define custom traits
+const PersonalityTraitSchema = z.string();
+
+// Allow any string for triggers - extensible
+const PersonaTriggerSchema = z.string();
+
+// Allow any string for tools - personas may use various tools
+const PersonaToolSchema = z.string();
 
 const PersonaConfigSchema = z.object({
   name: z.string(),
   description: z.string().optional(),
   model: PersonaModelSchema.optional(),
+  runtime: PersonaRuntimeSchema.optional(),
   customModel: z.string().optional(),
   systemPrompt: z.string(),
   personality: z.array(PersonalityTraitSchema).optional(),
@@ -173,6 +182,70 @@ const PersonaConfigSchema = z.object({
 
 type PersonaConfig = z.infer<typeof PersonaConfigSchema>;
 
+const DEFAULT_PERSONA_RUNTIME = process.env.RAPID_DEFAULT_PERSONA_RUNTIME ?? 'claude';
+const DEFAULT_PERSONA_MODEL = process.env.RAPID_DEFAULT_PERSONA_MODEL ?? 'smart';
+
+const CLAUDE_MODEL_FAST =
+  process.env.RAPID_CLAUDE_FAST_MODEL ?? 'claude-haiku-4-5-20251001';
+const CLAUDE_MODEL_SMART =
+  process.env.RAPID_CLAUDE_SMART_MODEL ?? 'claude-opus-4-5-20251101';
+const CLAUDE_MODEL_THINKING =
+  process.env.RAPID_CLAUDE_THINKING_MODEL ?? 'claude-sonnet-4-5-20250929';
+
+const CODEX_MODEL_FAST = process.env.RAPID_CODEX_FAST_MODEL ?? 'gpt-4o-mini';
+const CODEX_MODEL_SMART = process.env.RAPID_CODEX_SMART_MODEL ?? 'gpt-4o';
+const CODEX_MODEL_THINKING = process.env.RAPID_CODEX_THINKING_MODEL ?? 'o3';
+
+function resolvePersonaRuntime(persona: PersonaConfig): string {
+  return persona.runtime ?? DEFAULT_PERSONA_RUNTIME;
+}
+
+function normalizeModelAlias(model?: string): string {
+  if (!model) return DEFAULT_PERSONA_MODEL;
+
+  // Normalize to lowercase for matching
+  const normalized = model.toLowerCase().trim();
+
+  // Handle natural language model names
+  if (normalized.includes('haiku') || normalized === 'fast') {
+    return 'fast';
+  }
+  if (normalized.includes('opus') || normalized === 'smart') {
+    return 'smart';
+  }
+  if (normalized.includes('sonnet') || normalized === 'thinking') {
+    return 'thinking';
+  }
+  // Handle GPT model names for codex runtime
+  if (normalized.includes('gpt-4o-mini') || normalized.includes('4o-mini')) {
+    return 'fast';
+  }
+  if (normalized.includes('gpt-4o') || normalized.includes('4o')) {
+    return 'smart';
+  }
+  if (normalized.includes('o3') || normalized.includes('o1')) {
+    return 'thinking';
+  }
+
+  return model;
+}
+
+function resolvePersonaModel(model: string | undefined, runtime: string): string {
+  const alias = normalizeModelAlias(model);
+
+  if (alias === 'fast') {
+    return runtime === 'codex' ? CODEX_MODEL_FAST : CLAUDE_MODEL_FAST;
+  }
+  if (alias === 'smart') {
+    return runtime === 'codex' ? CODEX_MODEL_SMART : CLAUDE_MODEL_SMART;
+  }
+  if (alias === 'thinking') {
+    return runtime === 'codex' ? CODEX_MODEL_THINKING : CLAUDE_MODEL_THINKING;
+  }
+
+  return alias;
+}
+
 // Cache for loaded personas
 const personaCache = new Map<string, PersonaConfig>();
 
@@ -186,6 +259,7 @@ interface SpawnedAgent {
   status: 'running' | 'completed' | 'failed' | 'stopped';
   exitCode?: number;
   outputFile?: string;
+  sessionId?: string;
 }
 
 const spawnedAgents = new Map<string, SpawnedAgent>();
@@ -204,7 +278,7 @@ async function loadPersonas(projectDir: string): Promise<PersonaConfig[]> {
     for (const file of yamlFiles) {
       try {
         const content = await readFile(join(personasDir, file), 'utf-8');
-        const parsed = parseYaml(content);
+        const parsed = YAML.parse(content);
         const validated = PersonaConfigSchema.parse(parsed);
         personas.push(validated);
         personaCache.set(validated.name, validated);
@@ -235,7 +309,7 @@ async function getPersona(projectDir: string, name: string): Promise<PersonaConf
   for (const file of possibleFiles) {
     try {
       const content = await readFile(join(personasDir, file), 'utf-8');
-      const parsed = parseYaml(content);
+      const parsed = YAML.parse(content);
       const validated = PersonaConfigSchema.parse(parsed);
       personaCache.set(validated.name, validated);
       return validated;
@@ -300,6 +374,7 @@ const logger = createLogger('personas');
             name: z.string(),
             description: z.string().optional(),
             model: z.string().optional(),
+            runtime: z.string().optional(),
             personality: z.array(z.string()).optional(),
             tools: z.array(z.string()).optional(),
             triggers: z.array(z.string()).optional(),
@@ -318,6 +393,7 @@ const logger = createLogger('personas');
           name: p.name,
           description: p.description,
           model: p.model,
+          runtime: p.runtime,
           personality: p.personality,
           tools: p.tools,
           triggers: p.triggers,
@@ -417,16 +493,8 @@ const logger = createLogger('personas');
         };
       }
 
-      // Map persona model to Claude model ID
-      const modelMap: Record<string, string> = {
-        opus: 'claude-opus-4-5-20251101',
-        sonnet: 'claude-sonnet-4-20250514',
-        haiku: 'claude-haiku-4-20250514',
-      };
-
-      const modelId = persona.model
-        ? modelMap[persona.model] || persona.customModel
-        : modelMap.sonnet;
+      const runtime = resolvePersonaRuntime(persona);
+      const modelId = resolvePersonaModel(persona.model, runtime);
 
       // Generate system prompt with task
       let systemPrompt = generateSystemPrompt(persona);
@@ -434,12 +502,15 @@ const logger = createLogger('personas');
         systemPrompt += `\n\n## Current Task\n${task}`;
       }
 
-      // Build the spawn command (for Claude Code Task agent)
-      const command = `claude --model ${modelId} --system-prompt "${systemPrompt.replace(/"/g, '\\"')}"`;
+      const escapedPrompt = systemPrompt.replace(/"/g, '\\"');
+      const command =
+        runtime === 'codex'
+          ? `codex exec --model ${modelId} -C ${context.projectDir} -`
+          : `claude --model ${modelId} --system-prompt "${escapedPrompt}"`;
 
       const output = {
         command,
-        model: modelId || 'claude-sonnet-4-20250514',
+        model: modelId,
         systemPrompt,
         envVars: persona.envVars || [],
         ready: true,
@@ -469,6 +540,14 @@ const logger = createLogger('personas');
       inputSchema: {
         name: z.string().describe('Persona name to spawn'),
         task: z.string().describe('Task description for the agent'),
+        runtime: z
+          .string()
+          .optional()
+          .describe('Runtime to use: "claude" or "codex" (overrides persona default)'),
+        model: z
+          .string()
+          .optional()
+          .describe('Model to use: "fast", "smart", "thinking", or specific model ID (overrides persona default)'),
         background: z.boolean().default(true).describe('Run in background (default true)'),
         connectToBus: z.boolean().default(true).describe('Register agent with event bus'),
         worktree: z
@@ -490,12 +569,16 @@ const logger = createLogger('personas');
       const {
         name,
         task,
+        runtime: runtimeOverride,
+        model: modelOverride,
         background = true,
         connectToBus = true,
         worktree: _worktree,
       } = args as {
         name: string;
         task: string;
+        runtime?: string;
+        model?: string;
         background?: boolean;
         connectToBus?: boolean;
         worktree?: string;
@@ -534,22 +617,26 @@ const logger = createLogger('personas');
 
       // Create worktree for the agent
       try {
-        // Resolve the actual host project directory (important for Docker environments)
-        // In Docker: RAPID_HOST_PROJECT_DIR = /Users/.../project (host), context.projectDir = /project (container)
-        // In native: RAPID_HOST_PROJECT_DIR is unset, use context.projectDir
+        // Git commands run inside the container, so use context.projectDir (container mount point)
+        // The worktree is created relative to this, which will appear on the host via the volume mount
+        const gitWorkDir = context.projectDir;
+        const worktreeDir = join(gitWorkDir, '.worktrees', worktree);
+
+        // For logging, also note the host path where this will appear
         const hostProjectDir = process.env.RAPID_HOST_PROJECT_DIR || context.projectDir;
-        const worktreeDir = join(hostProjectDir, '.worktrees', worktree);
+        const hostWorktreeDir = join(hostProjectDir, '.worktrees', worktree);
 
         logger.info(`[persona_spawn] Creating worktree '${worktree}'`, {
-          hostProjectDir,
+          gitWorkDir,
           worktreeDir,
+          hostWorktreeDir,
           contextProjectDir: context.projectDir,
           envHostDir: process.env.RAPID_HOST_PROJECT_DIR,
         });
 
-        // Create git worktree using the host project directory
+        // Create git worktree using container's project directory
         const worktreeResult = await execa('git', ['worktree', 'add', '-b', worktree, worktreeDir], {
-          cwd: hostProjectDir,
+          cwd: gitWorkDir,
           reject: false,
         });
 
@@ -568,14 +655,9 @@ const logger = createLogger('personas');
         // Don't fail the whole spawn, just log the warning
       }
 
-      // Map persona model to Claude model ID
-      const modelMap: Record<string, string> = {
-        opus: 'opus',
-        sonnet: 'sonnet',
-        haiku: 'haiku',
-      };
-
-      const model = persona.model ? modelMap[persona.model] || 'sonnet' : 'sonnet';
+      // Use runtime/model overrides if provided, otherwise fall back to persona defaults
+      const runtime = runtimeOverride ?? resolvePersonaRuntime(persona);
+      const model = resolvePersonaModel(modelOverride ?? persona.model, runtime);
 
       // Generate system prompt with task
       let systemPrompt = generateSystemPrompt(persona);
@@ -612,92 +694,76 @@ Check bus_messages periodically for coordination messages from other agents.`;
         outputFile,
       };
 
+      // Initialize Redis log buffer for this agent
+      let buffer: LogBuffer | null = null;
       try {
-        // Build the claude command with proper arguments
-        const claudeArgs = [
-          '--model',
-          model,
-          '--print',
-          '--output-format',
-          'text',
-          '--append-system-prompt',
-          systemPrompt,
+        buffer = await getLogBuffer(context.projectDir);
+        await buffer.initAgent({
+          agentId,
+          personaName: name,
           task,
-        ];
+          startedAt: agent.startedAt.toISOString(),
+          status: 'running',
+        });
+      } catch (err) {
+        logger.warn('Failed to initialize Redis log buffer, falling back to file-only logging:', err);
+      }
 
-        if (background) {
-          // Spawn in background, capture output to file
-          const hostProjectDir = process.env.RAPID_HOST_PROJECT_DIR || context.projectDir;
-          const worktreeDir = join(hostProjectDir, '.worktrees', worktree);
-          const proc = execa('claude', claudeArgs, {
-            cwd: worktreeDir,
-            detached: true,
-            stdio: ['ignore', 'pipe', 'pipe'],
-            reject: false,
+      try {
+        // Call daemon to spawn agent in Docker container
+        const daemonUrl = process.env.DAEMON_URL || 'http://localhost:3200';
+        const hostProjectDir = process.env.RAPID_HOST_PROJECT_DIR || context.projectDir;
+
+        logger.info(`[persona_spawn] Calling daemon at ${daemonUrl} to spawn ${name}`);
+
+        const spawnRequest = {
+          jsonrpc: '2.0',
+          id: agentId,
+          method: 'agent.spawn',
+          params: {
+            projectDir: hostProjectDir,
+            persona: name,
+            task,
+            model,
+            systemPrompt,
+            worktree,
             env: {
-              ...process.env,
               RAPID_AGENT_ID: agentId,
               RAPID_PERSONA: name,
-              RAPID_PROJECT_DIR: context.projectDir,
-              RAPID_HOST_PROJECT_DIR: hostProjectDir,
               RAPID_WORKTREE: worktree,
-              RAPID_WORKTREE_DIR: worktreeDir,
+              RAPID_AGENT_RUNTIME: runtime,
             },
-          });
+          },
+        };
 
-          agent.process = proc;
-          spawnedAgents.set(agentId, agent);
+        const response = await fetch(daemonUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(spawnRequest),
+        });
 
-          // Stream output to file
-          const outputStream = createWriteStream(outputFile, { flags: 'a' });
+        if (!response.ok) {
+          throw new Error(`Daemon returned ${response.status}: ${await response.text()}`);
+        }
 
-          proc.stdout?.pipe(outputStream);
-          proc.stderr?.pipe(outputStream);
+        const result = await response.json() as { result?: { sessionId: string }; error?: { message: string } };
 
-          // Handle completion
-          proc
-            .then((result) => {
-              const a = spawnedAgents.get(agentId);
-              if (a) {
-                a.status = result.exitCode === 0 ? 'completed' : 'failed';
-                a.exitCode = result.exitCode ?? 1;
-              }
-            })
-            .catch(() => {
-              const a = spawnedAgents.get(agentId);
-              if (a) {
-                a.status = 'failed';
-              }
-            });
+        if (result.error) {
+          throw new Error(result.error.message);
+        }
 
-          if (context.verbose) {
-            logger.error(`[persona_spawn] Spawned ${name} as ${agentId} in background`);
-          }
-        } else {
-          // Run synchronously and wait for completion
-          spawnedAgents.set(agentId, agent);
+        // Update agent record with daemon session ID
+        if (result.result?.sessionId) {
+          agent.sessionId = result.result.sessionId;
+        }
+        spawnedAgents.set(agentId, agent);
 
-          const hostProjectDir = process.env.RAPID_HOST_PROJECT_DIR || context.projectDir;
-          const worktreeDir = join(hostProjectDir, '.worktrees', worktree);
-          const result = await execa('claude', claudeArgs, {
-            cwd: worktreeDir,
-            reject: false,
-            env: {
-              ...process.env,
-              RAPID_AGENT_ID: agentId,
-              RAPID_PERSONA: name,
-              RAPID_PROJECT_DIR: context.projectDir,
-              RAPID_HOST_PROJECT_DIR: hostProjectDir,
-              RAPID_WORKTREE: worktree,
-              RAPID_WORKTREE_DIR: worktreeDir,
-            },
-          });
+        logger.info(`[persona_spawn] Daemon spawned ${name} with session ${result.result?.sessionId}`);
 
-          // Write output to file
-          await writeFile(outputFile, result.stdout + '\n' + result.stderr, 'utf-8');
-
-          agent.status = result.exitCode === 0 ? 'completed' : 'failed';
-          agent.exitCode = result.exitCode ?? 1;
+        // Daemon always runs agents in background
+        // Output is streamed to Redis and can be retrieved via agent_logs tool
+        if (context.verbose) {
+          logger.info(`[persona_spawn] Spawned ${name} as ${agentId} via daemon`);
         }
 
         const output = {

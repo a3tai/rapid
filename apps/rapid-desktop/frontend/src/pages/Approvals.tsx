@@ -1,8 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
-import { clsx } from 'clsx';
 import { formatDistanceToNow } from 'date-fns';
-import { useMcp } from '../hooks/useMcp';
+import { useData } from '../hooks/useData';
 import { useToast } from '../components/Toast';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  AlertTriangle,
+  Shield,
+  ShieldAlert,
+  ShieldCheck,
+  X,
+  Check,
+  Loader2,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ApprovalRequest {
   id: string;
@@ -18,15 +32,35 @@ interface ApprovalRequest {
   status: 'pending' | 'approved' | 'rejected' | 'expired';
 }
 
-const RISK_COLORS = {
-  low: { bg: 'bg-green-500/10', text: 'text-green-400', border: 'border-green-500/30' },
-  medium: { bg: 'bg-yellow-500/10', text: 'text-yellow-400', border: 'border-yellow-500/30' },
-  high: { bg: 'bg-orange-500/10', text: 'text-orange-400', border: 'border-orange-500/30' },
-  critical: { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/30' },
+const RISK_CONFIG = {
+  low: {
+    icon: ShieldCheck,
+    bgClass: 'bg-success/10',
+    textClass: 'text-success',
+    borderClass: 'border-success/30',
+  },
+  medium: {
+    icon: Shield,
+    bgClass: 'bg-warning/10',
+    textClass: 'text-warning',
+    borderClass: 'border-warning/30',
+  },
+  high: {
+    icon: ShieldAlert,
+    bgClass: 'bg-orange-500/10',
+    textClass: 'text-orange-400',
+    borderClass: 'border-orange-500/30',
+  },
+  critical: {
+    icon: AlertTriangle,
+    bgClass: 'bg-destructive/10',
+    textClass: 'text-destructive',
+    borderClass: 'border-destructive/30',
+  },
 };
 
 export function ApprovalsPage() {
-  const { fetchApprovals } = useMcp();
+  const { fetchApprovals } = useData();
   const toast = useToast();
   const [requests, setRequests] = useState<ApprovalRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,8 +72,22 @@ export function ApprovalsPage() {
     setLoading(true);
     try {
       // Fetch real approvals from backend via MCP (no mock fallback - real data only)
-      const approvals = await fetchApprovals();
-      setRequests(approvals);
+      const approvals = (await fetchApprovals()) as Record<string, unknown>[];
+      // Map to ApprovalRequest type
+      const mapped: ApprovalRequest[] = approvals.map((a) => ({
+        id: String(a.id || ''),
+        toolName: String(a.toolName || ''),
+        agentId: String(a.agentId || ''),
+        agentName: String(a.agentName || ''),
+        action: String(a.action || ''),
+        args: (a.args as Record<string, unknown>) || {},
+        reason: a.reason as string | undefined,
+        riskLevel: (a.riskLevel as ApprovalRequest['riskLevel']) || 'low',
+        createdAt: String(a.createdAt || new Date().toISOString()),
+        expiresAt: a.expiresAt as string | undefined,
+        status: (a.status as ApprovalRequest['status']) || 'pending',
+      }));
+      setRequests(mapped);
     } catch (err) {
       console.error('Failed to fetch approval requests:', err);
       setRequests([]);
@@ -56,7 +104,7 @@ export function ApprovalsPage() {
     return () => clearInterval(interval);
   }, [fetchRequests]);
 
-  const { approveRequest, rejectRequest } = useMcp();
+  const { approveRequest, rejectRequest } = useData();
 
   const handleApprove = async (id: string) => {
     setProcessingId(id);
@@ -122,14 +170,14 @@ export function ApprovalsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold">Approval Queue</h2>
-          <p className="text-rapid-muted text-sm mt-1">
+          <p className="text-muted-foreground text-sm mt-1">
             Review and approve agent actions requiring human authorization
           </p>
         </div>
         {pendingCount > 0 && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-            <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
-            <span className="text-yellow-400 font-medium">
+          <div className="flex items-center gap-2 px-4 py-2 bg-warning/10 border border-warning/30 rounded-lg">
+            <div className="w-2 h-2 rounded-full bg-warning animate-pulse" />
+            <span className="text-warning font-medium">
               {pendingCount} pending approval{pendingCount !== 1 ? 's' : ''}
             </span>
           </div>
@@ -139,47 +187,34 @@ export function ApprovalsPage() {
       {/* Filters */}
       <div className="flex gap-2">
         {(['pending', 'resolved', 'all'] as const).map((f) => (
-          <button
+          <Badge
             key={f}
+            variant={filter === f ? 'default' : 'secondary'}
+            className="cursor-pointer capitalize"
             onClick={() => setFilter(f)}
-            className={clsx(
-              'badge cursor-pointer transition-colors capitalize',
-              filter === f ? 'bg-rapid-accent text-white' : 'badge-neutral hover:bg-rapid-border'
-            )}
           >
             {f}
             {f === 'pending' && pendingCount > 0 && (
               <span className="ml-1.5 opacity-70">{pendingCount}</span>
             )}
-          </button>
+          </Badge>
         ))}
       </div>
 
       {/* Content */}
       <div className="flex-1 flex gap-6 overflow-hidden">
         {/* Request list */}
-        <div className="flex-1 card overflow-hidden flex flex-col">
-          <div className="flex-1 overflow-auto">
+        <Card className="flex-1 overflow-hidden flex flex-col">
+          <ScrollArea className="flex-1">
             {loading ? (
-              <div className="flex items-center justify-center h-full text-rapid-muted">
+              <div className="flex items-center justify-center h-full text-muted-foreground p-8">
+                <Loader2 className="w-6 h-6 animate-spin mr-2" />
                 Loading approval requests...
               </div>
             ) : filteredRequests.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-rapid-muted">
+              <div className="flex items-center justify-center h-full text-muted-foreground p-8">
                 <div className="text-center">
-                  <svg
-                    className="w-16 h-16 mx-auto mb-4 opacity-30"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1}
-                      d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                    />
-                  </svg>
+                  <ShieldCheck className="w-16 h-16 mx-auto mb-4 opacity-30" />
                   <p className="text-lg font-medium">
                     {filter === 'pending' ? 'No pending approvals' : 'No approval requests'}
                   </p>
@@ -191,7 +226,7 @@ export function ApprovalsPage() {
                 </div>
               </div>
             ) : (
-              <div className="divide-y divide-rapid-border">
+              <div className="divide-y divide-border">
                 {filteredRequests.map((request) => (
                   <ApprovalRow
                     key={request.id}
@@ -205,8 +240,8 @@ export function ApprovalsPage() {
                 ))}
               </div>
             )}
-          </div>
-        </div>
+          </ScrollArea>
+        </Card>
 
         {/* Detail panel */}
         {selectedRequest && (
@@ -240,54 +275,55 @@ function ApprovalRow({
   onApprove,
   onReject,
 }: ApprovalRowProps) {
-  const riskColors = RISK_COLORS[request.riskLevel];
+  const riskConfig = RISK_CONFIG[request.riskLevel];
+  const RiskIcon = riskConfig.icon;
   const isPending = request.status === 'pending';
 
   return (
     <div
-      className={clsx(
-        'p-4 hover:bg-rapid-elevated cursor-pointer transition-colors',
-        isSelected && 'bg-rapid-elevated',
+      className={cn(
+        'p-4 hover:bg-muted cursor-pointer transition-colors',
+        isSelected && 'bg-muted',
         isPending && 'border-l-4',
-        isPending && riskColors.border
+        isPending && riskConfig.borderClass
       )}
       onClick={onClick}
     >
       <div className="flex items-start gap-4">
         {/* Risk indicator */}
         <div
-          className={clsx(
+          className={cn(
             'w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0',
-            riskColors.bg
+            riskConfig.bgClass
           )}
         >
-          <RiskIcon level={request.riskLevel} />
+          <RiskIcon className={cn('w-5 h-5', riskConfig.textClass)} />
         </div>
 
         {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-medium">{request.action}</span>
-            <span className={clsx('badge text-xs', riskColors.bg, riskColors.text)}>
+            <Badge variant="outline" className={cn('text-xs', riskConfig.textClass)}>
               {request.riskLevel}
-            </span>
+            </Badge>
             {request.status !== 'pending' && (
-              <span
-                className={clsx(
-                  'badge text-xs',
+              <Badge
+                variant={
                   request.status === 'approved'
-                    ? 'badge-success'
+                    ? 'success'
                     : request.status === 'rejected'
-                      ? 'badge-error'
-                      : 'badge-neutral'
-                )}
+                      ? 'destructive'
+                      : 'secondary'
+                }
+                className="text-xs"
               >
                 {request.status}
-              </span>
+              </Badge>
             )}
           </div>
 
-          <div className="flex items-center gap-2 mt-1 text-sm text-rapid-muted">
+          <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
             <span className="font-mono">{request.toolName}</span>
             <span>•</span>
             <span>{request.agentName}</span>
@@ -296,43 +332,31 @@ function ApprovalRow({
           </div>
 
           {request.reason && (
-            <p className="text-sm text-rapid-muted mt-2 line-clamp-1">{request.reason}</p>
+            <p className="text-sm text-muted-foreground mt-2 line-clamp-1">{request.reason}</p>
           )}
         </div>
 
         {/* Quick actions */}
         {isPending && (
           <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={onReject}
               disabled={isProcessing}
-              className="p-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
-              title="Reject"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10"
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-            <button
+              <X className="w-5 h-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={onApprove}
               disabled={isProcessing}
-              className="p-2 rounded-lg text-green-400 hover:bg-green-500/10 transition-colors disabled:opacity-50"
-              title="Approve"
+              className="text-success hover:text-success hover:bg-success/10"
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-            </button>
+              <Check className="w-5 h-5" />
+            </Button>
           </div>
         )}
       </div>
@@ -355,166 +379,105 @@ function ApprovalDetail({
   onApprove,
   onReject,
 }: ApprovalDetailProps) {
-  const riskColors = RISK_COLORS[request.riskLevel];
+  const riskConfig = RISK_CONFIG[request.riskLevel];
   const isPending = request.status === 'pending';
 
   return (
-    <div className="w-96 card p-4 overflow-auto flex flex-col">
+    <Card className="w-96 overflow-auto flex flex-col">
       {/* Header */}
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <h3 className="font-semibold">{request.action}</h3>
-          <div className="flex items-center gap-2 mt-1">
-            <span className={clsx('badge', riskColors.bg, riskColors.text)}>
-              {request.riskLevel} risk
-            </span>
-            {request.status !== 'pending' && (
-              <span
-                className={clsx(
-                  'badge',
-                  request.status === 'approved' ? 'badge-success' : 'badge-error'
-                )}
-              >
-                {request.status}
-              </span>
-            )}
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between">
+          <div>
+            <CardTitle className="text-base">{request.action}</CardTitle>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge variant="outline" className={riskConfig.textClass}>
+                {request.riskLevel} risk
+              </Badge>
+              {request.status !== 'pending' && (
+                <Badge variant={request.status === 'approved' ? 'success' : 'destructive'}>
+                  {request.status}
+                </Badge>
+              )}
+            </div>
           </div>
+          <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
+            <X className="h-4 w-4" />
+          </Button>
         </div>
-        <button onClick={onClose} className="text-rapid-muted hover:text-rapid-text">
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
-      </div>
+      </CardHeader>
 
       {/* Details */}
-      <div className="space-y-4 flex-1">
+      <CardContent className="space-y-4 flex-1">
         <div>
-          <label className="block text-sm font-medium text-rapid-muted mb-1">Tool</label>
-          <span className="font-mono text-sm">{request.toolName}</span>
+          <Label className="text-muted-foreground">Tool</Label>
+          <span className="font-mono text-sm block mt-1">{request.toolName}</span>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-rapid-muted mb-1">Agent</label>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-rapid-accent/20 flex items-center justify-center">
-              <span className="text-xs text-rapid-accent font-medium">
+          <Label className="text-muted-foreground">Agent</Label>
+          <div className="flex items-center gap-2 mt-1">
+            <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
+              <span className="text-xs text-primary font-medium">
                 {request.agentName[0].toUpperCase()}
               </span>
             </div>
             <span className="text-sm">{request.agentName}</span>
-            <span className="text-xs text-rapid-muted font-mono">{request.agentId}</span>
+            <span className="text-xs text-muted-foreground font-mono">{request.agentId}</span>
           </div>
         </div>
 
         {request.reason && (
           <div>
-            <label className="block text-sm font-medium text-rapid-muted mb-1">Reason</label>
-            <p className="text-sm">{request.reason}</p>
+            <Label className="text-muted-foreground">Reason</Label>
+            <p className="text-sm mt-1">{request.reason}</p>
           </div>
         )}
 
         <div>
-          <label className="block text-sm font-medium text-rapid-muted mb-1">Arguments</label>
-          <pre className="p-3 bg-rapid-bg rounded-lg text-xs font-mono overflow-auto max-h-40">
+          <Label className="text-muted-foreground">Arguments</Label>
+          <pre className="mt-1 p-3 bg-muted rounded-lg text-xs font-mono overflow-auto max-h-40">
             {JSON.stringify(request.args, null, 2)}
           </pre>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-rapid-muted mb-1">Requested</label>
-          <span className="text-sm">
+          <Label className="text-muted-foreground">Requested</Label>
+          <span className="text-sm block mt-1">
             {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}
           </span>
         </div>
 
         {request.expiresAt && isPending && (
           <div>
-            <label className="block text-sm font-medium text-rapid-muted mb-1">Expires</label>
-            <span className="text-sm text-yellow-400">
+            <Label className="text-muted-foreground">Expires</Label>
+            <span className="text-sm text-warning block mt-1">
               {formatDistanceToNow(new Date(request.expiresAt), { addSuffix: true })}
             </span>
           </div>
         )}
-      </div>
+      </CardContent>
 
       {/* Actions */}
       {isPending && (
-        <div className="pt-4 mt-4 border-t border-rapid-border flex gap-2">
-          <button
+        <div className="p-4 border-t flex gap-2">
+          <Button
+            variant="outline"
             onClick={onReject}
             disabled={isProcessing}
-            className="flex-1 btn bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30 disabled:opacity-50"
+            className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10"
           >
-            {isProcessing ? 'Processing...' : 'Reject'}
-          </button>
-          <button
+            {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Reject'}
+          </Button>
+          <Button
+            variant="outline"
             onClick={onApprove}
             disabled={isProcessing}
-            className="flex-1 btn bg-green-500/10 text-green-400 hover:bg-green-500/20 border border-green-500/30 disabled:opacity-50"
+            className="flex-1 text-success border-success/30 hover:bg-success/10"
           >
-            {isProcessing ? 'Processing...' : 'Approve'}
-          </button>
+            {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Approve'}
+          </Button>
         </div>
       )}
-    </div>
-  );
-}
-
-function RiskIcon({ level }: { level: ApprovalRequest['riskLevel'] }) {
-  const color = RISK_COLORS[level].text;
-
-  if (level === 'critical') {
-    return (
-      <svg className={clsx('w-5 h-5', color)} fill="currentColor" viewBox="0 0 20 20">
-        <path
-          fillRule="evenodd"
-          d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-          clipRule="evenodd"
-        />
-      </svg>
-    );
-  }
-
-  if (level === 'high') {
-    return (
-      <svg className={clsx('w-5 h-5', color)} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-        />
-      </svg>
-    );
-  }
-
-  if (level === 'medium') {
-    return (
-      <svg className={clsx('w-5 h-5', color)} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-        />
-      </svg>
-    );
-  }
-
-  return (
-    <svg className={clsx('w-5 h-5', color)} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-      />
-    </svg>
+    </Card>
   );
 }

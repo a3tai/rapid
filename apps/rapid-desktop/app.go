@@ -2,16 +2,17 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // WebSocketSubscription represents a subscription to real-time updates
@@ -21,34 +22,23 @@ type WebSocketSubscription struct {
 	Channel   chan interface{}
 }
 
-// AppService is the main service for the RAPID desktop app (Wails v2)
+// AppService is the main service for the RAPID desktop app (Wails v3)
 type AppService struct {
-	ctx           context.Context
 	daemonURL     string
-	socketPath    string
 	subscriptions map[string]*WebSocketSubscription
 	subMutex      sync.RWMutex
 }
 
 // NewAppService creates a new AppService instance
 func NewAppService() *AppService {
-	homeDir, _ := os.UserHomeDir()
-	// Use RAPID_DAEMON_URL env var, default to localhost:3200
 	daemonURL := os.Getenv("RAPID_DAEMON_URL")
 	if daemonURL == "" {
-		daemonURL = "http://localhost:3200/rpc"
+		daemonURL = "http://localhost:3200"
 	}
 	return &AppService{
 		daemonURL:     daemonURL,
-		socketPath:    filepath.Join(homeDir, ".rapid", "rapid.sock"),
 		subscriptions: make(map[string]*WebSocketSubscription),
 	}
-}
-
-// startup is called when the app starts. The context is saved
-// so we can call the runtime methods
-func (a *AppService) startup(ctx context.Context) {
-	a.ctx = ctx
 }
 
 // Agent represents an agent on the event bus
@@ -91,8 +81,17 @@ type DaemonStatus struct {
 	Sessions   int    `json:"sessions,omitempty"`
 }
 
+// rpcResult holds the result of an async RPC call
+type rpcResult struct {
+	data interface{}
+	err  error
+}
+
 // rpcCall makes a JSON-RPC call to the daemon via HTTP
+// Uses goroutine to avoid blocking Wails event loop
 func (a *AppService) rpcCall(method string, params interface{}) (interface{}, error) {
+	log.Printf("[RPC] Starting call to %s at %s", method, a.daemonURL)
+
 	// Build request
 	request := map[string]interface{}{
 		"jsonrpc": "2.0",
@@ -103,40 +102,73 @@ func (a *AppService) rpcCall(method string, params interface{}) (interface{}, er
 		request["params"] = params
 	}
 
-	// Encode request body
 	body, err := json.Marshal(request)
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode request: %w", err)
+		log.Printf("[RPC] Marshal error: %v", err)
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	// Make HTTP request
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Post(a.daemonURL, "application/json", bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to daemon: %w", err)
-	}
-	defer resp.Body.Close()
+	log.Printf("[RPC] Sending request: %s", string(body))
 
-	// Read response
-	var response struct {
-		Result interface{}            `json:"result"`
-		Error  map[string]interface{} `json:"error"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
+	// Use channel to receive result from goroutine
+	resultChan := make(chan rpcResult, 1)
 
-	if response.Error != nil {
-		return nil, fmt.Errorf("RPC error: %v", response.Error["message"])
-	}
+	go func() {
+		log.Printf("[RPC] Goroutine started, making HTTP call...")
+		client := &http.Client{Timeout: 5 * time.Second}
+		resp, err := client.Post(a.daemonURL+"/rpc", "application/json", bytes.NewReader(body))
+		if err != nil {
+			log.Printf("[RPC] HTTP error: %v", err)
+			resultChan <- rpcResult{nil, fmt.Errorf("failed to connect to daemon: %w", err)}
+			return
+		}
+		defer resp.Body.Close()
 
-	return response.Result, nil
+		log.Printf("[RPC] Got response status: %d", resp.StatusCode)
+
+		if resp.StatusCode != http.StatusOK {
+			resultChan <- rpcResult{nil, fmt.Errorf("daemon returned status %d", resp.StatusCode)}
+			return
+		}
+
+		// Read response
+		var response struct {
+			Result interface{}            `json:"result"`
+			Error  map[string]interface{} `json:"error"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+			log.Printf("[RPC] Decode error: %v", err)
+			resultChan <- rpcResult{nil, fmt.Errorf("failed to read response: %w", err)}
+			return
+		}
+
+		if response.Error != nil {
+			log.Printf("[RPC] RPC error: %v", response.Error["message"])
+			resultChan <- rpcResult{nil, fmt.Errorf("RPC error: %v", response.Error["message"])}
+			return
+		}
+
+		log.Printf("[RPC] Success, sending result to channel")
+		resultChan <- rpcResult{response.Result, nil}
+	}()
+
+	log.Printf("[RPC] Waiting on select...")
+	// Wait for result with timeout
+	select {
+	case result := <-resultChan:
+		log.Printf("[RPC] Got result from channel, err=%v", result.err)
+		return result.data, result.err
+	case <-time.After(10 * time.Second):
+		log.Printf("[RPC] Timeout!")
+		return nil, fmt.Errorf("RPC call timed out")
+	}
 }
 
 // GetDaemonStatus returns the daemon's current status
 func (a *AppService) GetDaemonStatus() (*DaemonStatus, error) {
 	result, err := a.rpcCall("daemon.status", nil)
 	if err != nil {
+		// Daemon not running or not reachable
 		return &DaemonStatus{
 			Running:    false,
 			SocketPath: a.daemonURL,
@@ -146,6 +178,7 @@ func (a *AppService) GetDaemonStatus() (*DaemonStatus, error) {
 	data, _ := json.Marshal(result)
 	var status DaemonStatus
 	json.Unmarshal(data, &status)
+	status.Running = true
 	status.SocketPath = a.daemonURL
 	return &status, nil
 }
@@ -153,13 +186,9 @@ func (a *AppService) GetDaemonStatus() (*DaemonStatus, error) {
 // GetAgents returns list of active agents
 func (a *AppService) GetAgents() ([]Agent, error) {
 	// Try to get agents from daemon
-	// Use 0 to get all agents (no time filter)
-	params := map[string]interface{}{
-		"maxAgeSeconds": 0,
-	}
-	result, err := a.rpcCall("agents.list", params)
+	result, err := a.rpcCall("agents.list", nil)
 	if err != nil {
-		// Return empty list if daemon is not running (no mock data)
+		// Return empty array when daemon is not running (no fake data)
 		return []Agent{}, nil
 	}
 
@@ -190,7 +219,7 @@ func (a *AppService) GetTasks(status string) ([]Task, error) {
 
 	result, err := a.rpcCall("tasks.list", params)
 	if err != nil {
-		// Return empty list if daemon is not running (no mock data)
+		// Return empty array when daemon is not running (no fake data)
 		return []Task{}, nil
 	}
 
@@ -224,7 +253,7 @@ func (a *AppService) GetMessages(limit int) ([]Message, error) {
 
 	result, err := a.rpcCall("messages.list", params)
 	if err != nil {
-		// Return empty list if daemon is not running (no mock data)
+		// Return empty array when daemon is not running (no fake data)
 		return []Message{}, nil
 	}
 
@@ -260,51 +289,39 @@ func (a *AppService) CreateTask(title, description, priority string, tags []stri
 	return task, nil
 }
 
-// SpawnAgent spawns a new agent with a persona
+// SpawnAgent spawns a new agent with a persona using the daemon's agent.spawn RPC
 func (a *AppService) SpawnAgent(persona, worktree string) error {
-	// Call MCP server HTTP endpoint to spawn agent
-	mcpURL := os.Getenv("RAPID_MCP_URL")
-	if mcpURL == "" {
-		mcpURL = "http://localhost:3100"
+	log.Printf("[SpawnAgent] Spawning %s agent on worktree %s", persona, worktree)
+
+	// Get project directory from environment or use current directory
+	projectDir := os.Getenv("RAPID_PROJECT_DIR")
+	if projectDir == "" {
+		var err error
+		projectDir, err = os.Getwd()
+		if err != nil {
+			return fmt.Errorf("failed to get project directory: %w", err)
+		}
 	}
 
-	// Build MCP tool call request
-	toolCall := map[string]interface{}{
-		"jsonrpc": "2.0",
-		"method":  "tools/call",
-		"id":      time.Now().UnixNano(),
-		"params": map[string]interface{}{
-			"name": "persona_spawn",
-			"arguments": map[string]interface{}{
-				"name": persona,
-				"task": fmt.Sprintf("Work on %s branch as %s agent", worktree, persona),
-			},
-		},
+	// Use daemon's agent.spawn RPC method instead of calling MCP directly
+	params := map[string]interface{}{
+		"projectDir": projectDir,
+		"persona":    persona,
+		"task":       fmt.Sprintf("Work on %s branch as %s agent", worktree, persona),
 	}
 
-	body, err := json.Marshal(toolCall)
+	result, err := a.rpcCall("agent.spawn", params)
 	if err != nil {
-		return fmt.Errorf("failed to marshal request: %w", err)
+		log.Printf("[SpawnAgent] RPC error: %v", err)
+		return fmt.Errorf("failed to spawn agent: %w", err)
 	}
 
-	resp, err := http.Post(mcpURL+"/mcp", "application/json", bytes.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("failed to call MCP server: %w", err)
-	}
-	defer resp.Body.Close()
+	log.Printf("[SpawnAgent] Agent spawned: %v", result)
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("MCP server returned status %d", resp.StatusCode)
-	}
-
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	// Emit event via Wails v2 runtime
-	if a.ctx != nil {
-		runtime.EventsEmit(a.ctx, "rapid:agent:spawned", map[string]interface{}{
+	// Emit event via Wails v3 application
+	app := application.Get()
+	if app != nil {
+		app.Event.Emit("rapid:agent:spawned", map[string]interface{}{
 			"persona":  persona,
 			"worktree": worktree,
 			"result":   result,
@@ -314,21 +331,27 @@ func (a *AppService) SpawnAgent(persona, worktree string) error {
 	return nil
 }
 
-// StopAgent stops a running agent
+// StopAgent stops a running agent using the daemon's agent.stop RPC
 func (a *AppService) StopAgent(agentID string) error {
-	// Call the daemon to stop the agent
+	log.Printf("[StopAgent] Stopping agent %s", agentID)
+
+	// Use daemon's agent.stop RPC method
 	params := map[string]interface{}{
 		"agentId": agentID,
 	}
 
-	result, err := a.rpcCall("persona.stop", params)
+	result, err := a.rpcCall("agent.stop", params)
 	if err != nil {
+		log.Printf("[StopAgent] RPC error: %v", err)
 		return fmt.Errorf("failed to stop agent: %w", err)
 	}
 
-	// Emit event via Wails v2 runtime
-	if a.ctx != nil {
-		runtime.EventsEmit(a.ctx, "rapid:agent:stopped", map[string]interface{}{
+	log.Printf("[StopAgent] Agent stopped: %v", result)
+
+	// Emit event via Wails v3 application
+	app := application.Get()
+	if app != nil {
+		app.Event.Emit("rapid:agent:stopped", map[string]interface{}{
 			"agentId": agentID,
 			"result":  result,
 		})
@@ -443,13 +466,14 @@ func (a *AppService) pollAndBroadcast(sub *WebSocketSubscription) {
 				if string(dataJSON) != string(lastDataJSON) {
 					lastData = data
 
-					// Emit Wails v2 event
-					if a.ctx != nil {
+					// Emit Wails v3 event
+					app := application.Get()
+					if app != nil {
 						eventData := map[string]interface{}{
 							"type": sub.EventType,
 							"data": data,
 						}
-						runtime.EventsEmit(a.ctx, "rapid:"+sub.EventType, eventData)
+						app.Event.Emit("rapid:"+sub.EventType, eventData)
 					}
 
 					// Also try to send on channel for compatibility
@@ -488,11 +512,12 @@ func (a *AppService) SendMessage(targetAgent string, messageType string, content
 	}
 
 	// Send via RPC to daemon (if available)
+	app := application.Get()
 	_, err := a.rpcCall("message.send", messagePayload)
 	if err != nil {
 		// Fall back to local event emission
-		if a.ctx != nil {
-			runtime.EventsEmit(a.ctx, "rapid:message:sent", map[string]interface{}{
+		if app != nil {
+			app.Event.Emit("rapid:message:sent", map[string]interface{}{
 				"type": messageType,
 				"data": messagePayload,
 			})
@@ -500,8 +525,8 @@ func (a *AppService) SendMessage(targetAgent string, messageType string, content
 	}
 
 	// Also emit locally for immediate UI update
-	if a.ctx != nil {
-		runtime.EventsEmit(a.ctx, "rapid:messages", map[string]interface{}{
+	if app != nil {
+		app.Event.Emit("rapid:messages", map[string]interface{}{
 			"type": "message",
 			"data": messagePayload,
 		})
@@ -533,4 +558,299 @@ func (a *AppService) GetChatHistory(agentID string, limit int) ([]Message, error
 	}
 
 	return messages, nil
+}
+
+// LogEntry represents a single log entry from an agent
+type LogEntry struct {
+	Timestamp string `json:"timestamp"`
+	Level     string `json:"level"`
+	Message   string `json:"message"`
+	AgentID   string `json:"agentId,omitempty"`
+}
+
+// GetAgentLogs retrieves logs for a specific agent
+// First tries to get logs from daemon (which has access to Docker volumes)
+// Falls back to local file search if daemon is unavailable
+func (a *AppService) GetAgentLogs(agentID string, limit int) ([]LogEntry, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+
+	// First, try to get logs from daemon via RPC (daemon has access to Docker volumes)
+	result, err := a.rpcCall("agent.logs", map[string]interface{}{
+		"sessionId": agentID,
+		"tail":      limit,
+	})
+	if err == nil && result != nil {
+		// Parse daemon response
+		data, _ := json.Marshal(result)
+		var response struct {
+			SessionID string `json:"sessionId"`
+			Logs      string `json:"logs"`
+			Error     string `json:"error,omitempty"`
+		}
+		if json.Unmarshal(data, &response) == nil && response.Logs != "" {
+			// Parse the logs string into entries
+			lines := bytes.Split(bytes.TrimSpace([]byte(response.Logs)), []byte("\n"))
+			entries := make([]LogEntry, 0, len(lines))
+			for _, line := range lines {
+				if len(line) == 0 {
+					continue
+				}
+				entries = append(entries, LogEntry{
+					Message: string(line),
+					Level:   "info",
+					AgentID: agentID,
+				})
+			}
+			if len(entries) > limit {
+				entries = entries[len(entries)-limit:]
+			}
+			return entries, nil
+		}
+	}
+
+	// Fall back to local file search
+	return a.getAgentLogsFromFiles(agentID, limit)
+}
+
+// getAgentLogsFromFiles searches local filesystem for agent logs
+// Agents now use a consistent "agent.log" filename in their worktree
+func (a *AppService) getAgentLogsFromFiles(agentID string, limit int) ([]LogEntry, error) {
+	// Try multiple locations for log files
+	var logFile string
+	var content []byte
+	var err error
+
+	cwd, _ := os.Getwd()
+
+	// 1. Check worktrees first - agents write to worktree/.rapid/logs/agent.log
+	worktreesDir := filepath.Join(cwd, ".worktrees")
+	if entries, err := os.ReadDir(worktreesDir); err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() {
+				// New simple naming: agent.log
+				worktreeLogFile := filepath.Join(worktreesDir, entry.Name(), ".rapid", "logs", "agent.log")
+				if content, err = os.ReadFile(worktreeLogFile); err == nil {
+					// Prioritize worktree matching agent name
+					if strings.Contains(entry.Name(), agentID) || strings.Contains(agentID, entry.Name()) {
+						logFile = worktreeLogFile
+						break
+					}
+					// Keep as fallback if no better match found
+					if logFile == "" {
+						logFile = worktreeLogFile
+					}
+				}
+			}
+		}
+	}
+
+	// 2. Try project root for simple agent.log
+	if logFile == "" {
+		projectLogFile := filepath.Join(cwd, ".rapid", "logs", "agent.log")
+		if content, err = os.ReadFile(projectLogFile); err == nil {
+			logFile = projectLogFile
+		}
+	}
+
+	// 3. Legacy: Try old naming patterns for backwards compatibility
+	if logFile == "" {
+		legacyLogFile := filepath.Join(cwd, ".rapid", "logs", fmt.Sprintf("agent-%s.log", agentID))
+		if content, err = os.ReadFile(legacyLogFile); err == nil {
+			logFile = legacyLogFile
+		}
+	}
+
+	// 4. Try RAPID_PROJECT_DIR env var
+	if logFile == "" {
+		if projectDir := os.Getenv("RAPID_PROJECT_DIR"); projectDir != "" {
+			envLogFile := filepath.Join(projectDir, ".rapid", "logs", "agent.log")
+			if content, err = os.ReadFile(envLogFile); err == nil {
+				logFile = envLogFile
+			}
+		}
+	}
+
+	// No log file found
+	if logFile == "" {
+		log.Printf("[GetAgentLogs] No logs found for agent: %s", agentID)
+		// Return empty list if no log file exists
+		return []LogEntry{}, nil
+	}
+
+	log.Printf("[GetAgentLogs] Found logs at: %s", logFile)
+
+	// Parse log file (expecting line-delimited text or JSON)
+	lines := bytes.Split(bytes.TrimSpace(content), []byte("\n"))
+	entries := make([]LogEntry, 0)
+
+	// Read from end to get most recent entries first
+	for i := len(lines) - 1; i >= 0 && len(entries) < limit; i-- {
+		if len(lines[i]) == 0 {
+			continue
+		}
+
+		var entry LogEntry
+		if err := json.Unmarshal(lines[i], &entry); err != nil {
+			// If not JSON, treat as raw log message
+			entry = LogEntry{
+				Message: string(lines[i]),
+				Level:   "info",
+			}
+		}
+		entry.AgentID = agentID
+		entries = append(entries, entry)
+	}
+
+	// Reverse to get chronological order
+	for i, j := 0, len(entries)-1; i < j; i, j = i+1, j-1 {
+		entries[i], entries[j] = entries[j], entries[i]
+	}
+
+	return entries, nil
+}
+
+// GetLogsDirectory retrieves list of available log files
+func (a *AppService) GetLogsDirectory() ([]string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	logsDir := filepath.Join(homeDir, ".rapid", "logs")
+
+	entries, err := os.ReadDir(logsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []string{}, nil
+		}
+		return nil, fmt.Errorf("failed to read logs directory: %w", err)
+	}
+
+	var logFiles []string
+	for _, entry := range entries {
+		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".log" {
+			logFiles = append(logFiles, entry.Name())
+		}
+	}
+
+	return logFiles, nil
+}
+
+// CallTool is a generic method to call any MCP tool through the daemon
+// Routes all tool calls through the daemon's tools.call RPC method
+// This avoids direct MCP calls and CORS issues
+func (a *AppService) CallTool(toolName string, arguments map[string]interface{}) (map[string]interface{}, error) {
+	log.Printf("[CallTool] Calling tool %s with args: %v", toolName, arguments)
+
+	// Route through daemon RPC instead of calling MCP directly
+	params := map[string]interface{}{
+		"name":      toolName,
+		"arguments": arguments,
+	}
+
+	result, err := a.rpcCall("tools.call", params)
+	if err != nil {
+		log.Printf("[CallTool] RPC error: %v", err)
+		return nil, fmt.Errorf("failed to call tool %s: %w", toolName, err)
+	}
+
+	log.Printf("[CallTool] Got result: %v", result)
+
+	// Convert result to map
+	if resultMap, ok := result.(map[string]interface{}); ok {
+		return resultMap, nil
+	}
+
+	// Wrap in map if needed
+	return map[string]interface{}{"result": result}, nil
+}
+
+// UpdateTaskStatus updates a task's status via MCP
+func (a *AppService) UpdateTaskStatus(taskID string, status string) error {
+	_, err := a.CallTool("task_update", map[string]interface{}{
+		"taskId": taskID,
+		"status": status,
+	})
+	return err
+}
+
+// FetchApprovals retrieves pending approvals
+func (a *AppService) FetchApprovals(status string, agentID string, limit int) ([]map[string]interface{}, error) {
+	args := map[string]interface{}{}
+	if status != "" {
+		args["status"] = status
+	}
+	if agentID != "" {
+		args["agentId"] = agentID
+	}
+	if limit > 0 {
+		args["limit"] = limit
+	}
+
+	result, err := a.CallTool("approval_list", args)
+	if err != nil {
+		return nil, err
+	}
+
+	// Extract approvals from result
+	if resultData, ok := result["result"].(map[string]interface{}); ok {
+		if content, ok := resultData["content"].([]interface{}); ok {
+			approvals := make([]map[string]interface{}, 0)
+			for _, item := range content {
+				if approval, ok := item.(map[string]interface{}); ok {
+					approvals = append(approvals, approval)
+				}
+			}
+			return approvals, nil
+		}
+	}
+
+	return []map[string]interface{}{}, nil
+}
+
+// ApproveRequest approves a pending approval request
+func (a *AppService) ApproveRequest(requestID string, reason string) error {
+	args := map[string]interface{}{
+		"requestId": requestID,
+		"approved":  true,
+	}
+	if reason != "" {
+		args["reason"] = reason
+	}
+	_, err := a.CallTool("approval_respond", args)
+	return err
+}
+
+// RejectRequest rejects a pending approval request
+func (a *AppService) RejectRequest(requestID string, reason string) error {
+	args := map[string]interface{}{
+		"requestId": requestID,
+		"approved":  false,
+	}
+	if reason != "" {
+		args["reason"] = reason
+	}
+	_, err := a.CallTool("approval_respond", args)
+	return err
+}
+
+// SubmitVote submits a vote on a suggestion
+func (a *AppService) SubmitVote(suggestionID string, vote string) error {
+	_, err := a.CallTool("suggestion_vote", map[string]interface{}{
+		"suggestionId": suggestionID,
+		"vote":         vote,
+	})
+	return err
+}
+
+// OverrideSuggestion allows orchestrator to override a suggestion decision
+func (a *AppService) OverrideSuggestion(suggestionID string, decision string, reason string) error {
+	_, err := a.CallTool("suggestion_override", map[string]interface{}{
+		"suggestionId": suggestionID,
+		"decision":     decision,
+		"reason":       reason,
+	})
+	return err
 }

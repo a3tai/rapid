@@ -2,61 +2,78 @@ package main
 
 import (
 	"embed"
+	"fmt"
+	"log"
 	"os"
 
-	"github.com/wailsapp/wails/v2"
-	"github.com/wailsapp/wails/v2/pkg/options"
-	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
-	"github.com/wailsapp/wails/v2/pkg/options/mac"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 //go:embed all:frontend/dist
 var assets embed.FS
 
 func main() {
-	// Create an instance of the app structure
-	app := NewAppService()
+	// Create an instance of the app service
+	appService := NewAppService()
 
-	// Enable debug mode in dev or when DEBUG env is set
-	isDebug := os.Getenv("DEBUG") != "" || os.Getenv("WAILS_DEBUG") != ""
+	// Check if running in dev mode (WAILS_VITE_PORT env var is set by wails3 dev)
+	vitePort := os.Getenv("WAILS_VITE_PORT")
+	isDev := vitePort != ""
 
-	// Create application with options
-	err := wails.Run(&options.App{
+	// Create the application
+	appOptions := application.Options{
+		Name:        "RAPID Dashboard",
+		Description: "Multi-agent AI development orchestration",
+		Services: []application.Service{
+			application.NewService(appService),
+		},
+	}
+
+	// Configure assets
+	// In dev mode: Set FRONTEND_DEVSERVER_URL and use AssetFileServerFS which will
+	//              create a reverse proxy to Vite when that env var is set
+	// In production: Serve embedded assets directly
+	if isDev {
+		if vitePort == "" {
+			vitePort = "9245"
+		}
+		devURL := fmt.Sprintf("http://localhost:%s", vitePort)
+		os.Setenv("FRONTEND_DEVSERVER_URL", devURL)
+		log.Printf("Dev mode: FRONTEND_DEVSERVER_URL=%s", devURL)
+	}
+
+	// Always set up the asset handler - in dev mode with FRONTEND_DEVSERVER_URL set,
+	// AssetFileServerFS returns a reverse proxy to the Vite dev server
+	appOptions.Assets = application.AssetOptions{
+		Handler: application.AssetFileServerFS(assets),
+	}
+
+	app := application.New(appOptions)
+
+	// Use "/" as the window URL - Wails internally calls GetStartURL() which converts it to
+	// the proper wails://localhost:PORT/ URL when FRONTEND_DEVSERVER_URL is set
+	windowURL := "/"
+	log.Printf("Window URL: %s (Wails will convert to wails:// scheme in dev mode)", windowURL)
+
+	// Create the main window
+	app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:     "RAPID Dashboard",
 		Width:     1280,
 		Height:    800,
 		MinWidth:  800,
 		MinHeight: 600,
-		AssetServer: &assetserver.Options{
-			Assets: assets,
+		Mac: application.MacWindow{
+			InvisibleTitleBarHeight: 50,
+			Backdrop:                application.MacBackdropTranslucent,
+			TitleBar:                application.MacTitleBarHiddenInset,
 		},
-		BackgroundColour: &options.RGBA{R: 18, G: 18, B: 18, A: 1},
-		OnStartup:        app.startup,
-		Debug: options.Debug{
-			OpenInspectorOnStartup: isDebug,
-		},
-		Bind: []interface{}{
-			app,
-		},
-		Mac: &mac.Options{
-			TitleBar: &mac.TitleBar{
-				TitlebarAppearsTransparent: true,
-				HideTitle:                  false,
-				HideTitleBar:               false,
-				FullSizeContent:            true,
-				UseToolbar:                 false,
-				HideToolbarSeparator:       true,
-			},
-			WebviewIsTransparent: false,
-			WindowIsTranslucent:  true,
-			About: &mac.AboutInfo{
-				Title:   "RAPID Dashboard",
-				Message: "Multi-agent AI development orchestration\n(c) 2025, RAPID",
-			},
-		},
+		BackgroundColour: application.NewRGB(18, 18, 18),
+		URL:              windowURL,
 	})
 
+	// Run the application
+	err := app.Run()
 	if err != nil {
-		println("Error:", err.Error())
+		log.Fatal(err)
 	}
 }

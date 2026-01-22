@@ -1,11 +1,22 @@
-import { clsx } from 'clsx';
+import { useMemo } from 'react';
 import { formatDistanceToNow } from 'date-fns';
+import {
+  AreaChart,
+  Area,
+  ResponsiveContainer,
+  Tooltip,
+} from 'recharts';
 import { useAgents, useTasks, useSuggestions, useDaemonStatus, useAppStore } from '../stores/app';
 import type { Task, Suggestion } from '../stores/app';
 import { SecurityPanel } from '../components/SecurityPanel';
 import { ActivityFeed } from '../components/ActivityFeed';
 import { PerformanceMonitor } from '../components/PerformanceMonitor';
 import { ConnectionStatus } from '../components/ConnectionStatus';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Monitor, Zap, CheckCircle, Clock, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export function Dashboard() {
   const agents = useAgents();
@@ -25,68 +36,53 @@ export function Dashboard() {
     voting: suggestions.filter((s) => s.status === 'proposed' || s.status === 'voting').length,
   };
 
+  // Generate mock sparkline data based on task counts
+  const taskSparklineData = useMemo(() => {
+    // Generate 12 data points representing last 12 time periods
+    const base = taskStats.completed;
+    return Array.from({ length: 12 }, (_, i) => ({
+      value: Math.max(0, base - Math.floor(Math.random() * 5) + (i * 0.5)),
+    }));
+  }, [taskStats.completed]);
+
+  const agentSparklineData = useMemo(() => {
+    return Array.from({ length: 12 }, (_, i) => ({
+      value: Math.max(0, agents.length - Math.floor(Math.random() * 2) + (i % 3 === 0 ? 1 : 0)),
+    }));
+  }, [agents.length]);
+
   return (
     <div className="space-y-6">
-      {/* Stats cards */}
+      {/* Stats cards with sparklines */}
       <div className="grid grid-cols-4 gap-4">
         <StatCard
           label="Active Agents"
           value={agents.length}
-          icon={
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-              />
-            </svg>
-          }
+          icon={<Monitor className="w-5 h-5" />}
           color="accent"
+          sparklineData={agentSparklineData}
+          sparklineColor="hsl(var(--primary))"
         />
         <StatCard
           label="Tasks In Progress"
           value={taskStats.inProgress}
-          icon={
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M13 10V3L4 14h7v7l9-11h-7z"
-              />
-            </svg>
-          }
+          icon={<Zap className="w-5 h-5" />}
           color="warning"
+          sparklineData={taskSparklineData}
+          sparklineColor="hsl(var(--warning))"
         />
         <StatCard
           label="Tasks Completed"
           value={taskStats.completed}
-          icon={
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          }
+          icon={<CheckCircle className="w-5 h-5" />}
           color="success"
+          sparklineData={taskSparklineData}
+          sparklineColor="hsl(var(--success))"
         />
         <StatCard
           label="Daemon Uptime"
           value={daemonStatus?.uptime ? formatUptime(daemonStatus.uptime) : '--'}
-          icon={
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          }
+          icon={<Clock className="w-5 h-5" />}
           color="info"
         />
       </div>
@@ -96,56 +92,74 @@ export function Dashboard() {
         {/* Left column - Agents and Tasks */}
         <div className="col-span-2 space-y-6">
           {/* Agents panel */}
-          <div
-            className="card p-4 cursor-pointer hover:border-rapid-accent/50 transition-colors"
+          <Card
+            className="cursor-pointer hover:border-primary/50 transition-colors"
             onClick={() => setActiveView('agents')}
           >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold">Active Agents</h2>
-              <span className="badge badge-neutral">{agents.length}</span>
-            </div>
-            <div className="space-y-2">
-              {agents.length === 0 ? (
-                <div className="text-center py-8 text-rapid-muted">No agents active</div>
-              ) : (
-                agents.map((agent) => (
-                  <div
-                    key={agent.id}
-                    className="flex items-center justify-between p-3 bg-rapid-elevated rounded-lg"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="status-dot status-dot-active" />
-                      <div>
-                        <div className="font-medium text-sm">{agent.name}</div>
-                        <div className="text-xs text-rapid-muted">{agent.id}</div>
-                      </div>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-semibold">Active Agents</h2>
+                <Badge variant="secondary">{agents.length}</Badge>
+              </div>
+              <ScrollArea className="h-[200px]">
+                <div className="space-y-2">
+                  {agents.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Monitor className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p>No agents active</p>
                     </div>
-                    {agent.worktree && (
-                      <span className="badge badge-info font-mono text-xs">{agent.worktree}</span>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
+                  ) : (
+                    agents.map((agent) => (
+                      <div
+                        key={agent.id}
+                        className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                          <div>
+                            <div className="font-medium text-sm">{agent.name}</div>
+                            <div className="text-xs text-muted-foreground font-mono">
+                              {agent.id.slice(0, 8)}...
+                            </div>
+                          </div>
+                        </div>
+                        {agent.worktree && (
+                          <Badge variant="info" className="font-mono text-xs">
+                            {agent.worktree}
+                          </Badge>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
 
           {/* Recent tasks panel */}
-          <div
-            className="card p-4 cursor-pointer hover:border-rapid-accent/50 transition-colors"
+          <Card
+            className="cursor-pointer hover:border-primary/50 transition-colors"
             onClick={() => setActiveView('tasks')}
           >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold">Recent Tasks</h2>
-              <span className="badge badge-neutral">{tasks.length}</span>
-            </div>
-            <div className="space-y-2">
-              {tasks.length === 0 ? (
-                <div className="text-center py-8 text-rapid-muted">No tasks yet</div>
-              ) : (
-                tasks.slice(0, 5).map((task) => <TaskRow key={task.id} task={task} />)
-              )}
-            </div>
-          </div>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-semibold">Recent Tasks</h2>
+                <Badge variant="secondary">{tasks.length}</Badge>
+              </div>
+              <ScrollArea className="h-[200px]">
+                <div className="space-y-2">
+                  {tasks.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <CheckCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p>No tasks yet</p>
+                    </div>
+                  ) : (
+                    tasks.slice(0, 5).map((task) => <TaskRow key={task.id} task={task} />)
+                  )}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Right column - Activity Feed and Suggestions */}
@@ -156,46 +170,57 @@ export function Dashboard() {
           </div>
 
           {/* Suggestions panel */}
-          <div
-            className="card p-4 cursor-pointer hover:border-rapid-accent/50 transition-colors"
+          <Card
+            className="cursor-pointer hover:border-primary/50 transition-colors"
             onClick={() => setActiveView('suggestions')}
           >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold">Active Suggestions</h2>
-              <span className="badge badge-warning">{suggestionStats.voting}</span>
-            </div>
-            <div className="space-y-2">
-              {suggestions.length === 0 ? (
-                <div className="text-center py-8 text-rapid-muted">No suggestions yet</div>
-              ) : (
-                suggestions
-                  .slice(0, 3)
-                  .map((suggestion) => (
-                    <SuggestionRow key={suggestion.id} suggestion={suggestion} />
-                  ))
-              )}
-            </div>
-          </div>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-semibold">Active Suggestions</h2>
+                <Badge variant="warning">{suggestionStats.voting}</Badge>
+              </div>
+              <div className="space-y-2">
+                {suggestions.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Zap className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <p>No suggestions yet</p>
+                  </div>
+                ) : (
+                  suggestions
+                    .slice(0, 3)
+                    .map((suggestion) => (
+                      <SuggestionRow key={suggestion.id} suggestion={suggestion} />
+                    ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
       {/* Security panel */}
-      <div className="card p-4">
-        <SecurityPanel />
-      </div>
+      <Card>
+        <CardContent className="p-4">
+          <SecurityPanel />
+        </CardContent>
+      </Card>
 
       {/* Bottom grid: Connection status and Performance monitor */}
       <div className="grid grid-cols-3 gap-6">
         {/* Connection status */}
-        <div>
-          <h2 className="font-semibold mb-4">Real-time Connection</h2>
-          <ConnectionStatus variant="full" showDataSource showLastUpdate />
-        </div>
+        <Card>
+          <CardContent className="p-4">
+            <h2 className="font-semibold mb-4">Real-time Connection</h2>
+            <ConnectionStatus variant="full" showDataSource showLastUpdate />
+          </CardContent>
+        </Card>
 
         {/* Performance monitor */}
-        <div className="col-span-2">
-          <PerformanceMonitor />
-        </div>
+        <Card className="col-span-2">
+          <CardContent className="p-4">
+            <PerformanceMonitor />
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
@@ -206,85 +231,105 @@ interface StatCardProps {
   value: string | number;
   icon: React.ReactNode;
   color: 'accent' | 'success' | 'warning' | 'error' | 'info';
+  sparklineData?: { value: number }[];
+  sparklineColor?: string;
 }
 
-function StatCard({ label, value, icon, color }: StatCardProps) {
+function StatCard({ label, value, icon, color, sparklineData, sparklineColor }: StatCardProps) {
   const colorClasses = {
-    accent: 'bg-rapid-accent/10 text-rapid-accent',
-    success: 'bg-green-500/10 text-green-400',
-    warning: 'bg-yellow-500/10 text-yellow-400',
-    error: 'bg-red-500/10 text-red-400',
-    info: 'bg-cyan-500/10 text-cyan-400',
+    accent: 'bg-primary/10 text-primary',
+    success: 'bg-success/10 text-success',
+    warning: 'bg-warning/10 text-warning',
+    error: 'bg-destructive/10 text-destructive',
+    info: 'bg-info/10 text-info',
   };
 
   return (
-    <div className="card p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-sm text-rapid-muted">{label}</div>
-          <div className="text-2xl font-semibold mt-1">{value}</div>
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="text-sm text-muted-foreground">{label}</div>
+            <div className="text-2xl font-semibold mt-1">{value}</div>
+          </div>
+          <div className={cn('p-3 rounded-lg', colorClasses[color])}>{icon}</div>
         </div>
-        <div className={clsx('p-3 rounded-lg', colorClasses[color])}>{icon}</div>
-      </div>
-    </div>
+        {sparklineData && sparklineData.length > 0 && (
+          <div className="h-8 mt-3 -mx-1">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={sparklineData}>
+                <defs>
+                  <linearGradient id={`gradient-${color}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={sparklineColor} stopOpacity={0.3} />
+                    <stop offset="100%" stopColor={sparklineColor} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <Tooltip
+                  content={() => null}
+                  cursor={false}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke={sparklineColor}
+                  strokeWidth={1.5}
+                  fill={`url(#gradient-${color})`}
+                  isAnimationActive={false}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
 function TaskRow({ task }: { task: Task }) {
-  const statusBadge = {
-    pending: 'badge-neutral',
-    in_progress: 'badge-warning',
-    completed: 'badge-success',
-    blocked: 'badge-error',
-    cancelled: 'badge-neutral',
+  const statusVariant = {
+    pending: 'secondary' as const,
+    in_progress: 'warning' as const,
+    completed: 'success' as const,
+    blocked: 'destructive' as const,
+    cancelled: 'secondary' as const,
   };
 
   const priorityIcon = {
-    urgent: '!!!',
-    high: '!!',
+    urgent: '⚡',
+    high: '↑',
     normal: '',
     low: '',
   };
 
   return (
-    <div className="p-3 bg-rapid-elevated rounded-lg">
+    <div className="p-3 bg-muted/50 rounded-lg">
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <div className="font-medium text-sm truncate">
             {priorityIcon[task.priority] && (
-              <span className="text-red-400 mr-1">{priorityIcon[task.priority]}</span>
+              <span className="text-warning mr-1">{priorityIcon[task.priority]}</span>
             )}
             {task.title}
           </div>
           {task.assignedTo && (
-            <div className="text-xs text-rapid-muted mt-0.5">Assigned to {task.assignedTo}</div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              Assigned to {task.assignedTo}
+            </div>
           )}
         </div>
-        <span className={clsx('badge', statusBadge[task.status])}>
-          {task.status.replace('_', ' ')}
-        </span>
+        <Badge variant={statusVariant[task.status]}>{task.status.replace('_', ' ')}</Badge>
       </div>
     </div>
   );
 }
 
 function SuggestionRow({ suggestion }: { suggestion: Suggestion }) {
-  const categoryBadge = {
-    feature: 'badge-primary',
-    fix: 'badge-error',
-    improvement: 'badge-info',
-    refactor: 'badge-warning',
-    docs: 'badge-secondary',
-  };
-
-  const statusIcon = {
-    proposed: '💭',
-    voting: '🗳️',
-    approved: '✅',
-    rejected: '❌',
-    orchestrator_approved: '✅',
-    orchestrator_vetoed: '❌',
-    implemented: '🚀',
+  const categoryVariant = {
+    feature: 'default' as const,
+    fix: 'destructive' as const,
+    improvement: 'info' as const,
+    refactor: 'warning' as const,
+    docs: 'secondary' as const,
   };
 
   const totalVotes = suggestion.approveCount + suggestion.rejectCount + suggestion.abstainCount;
@@ -292,23 +337,30 @@ function SuggestionRow({ suggestion }: { suggestion: Suggestion }) {
     totalVotes > 0 ? Math.round((suggestion.approveCount / totalVotes) * 100) : 0;
 
   return (
-    <div className="p-3 bg-rapid-elevated rounded-lg">
+    <div className="p-3 bg-muted/50 rounded-lg">
       <div className="flex items-start gap-2">
-        <span className="text-sm">{statusIcon[suggestion.status]}</span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <span className="font-medium text-sm truncate">{suggestion.title}</span>
-            <span className={clsx('badge text-xs', categoryBadge[suggestion.category])}>
+            <Badge variant={categoryVariant[suggestion.category]} className="text-xs">
               {suggestion.category}
-            </span>
+            </Badge>
           </div>
           {(suggestion.status === 'proposed' || suggestion.status === 'voting') &&
             totalVotes > 0 && (
-              <div className="text-xs text-rapid-muted">
-                {approvePercent}% ({suggestion.approveCount}✓ {suggestion.rejectCount}✗)
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <ThumbsUp className="w-3 h-3" />
+                  {suggestion.approveCount}
+                </span>
+                <span className="flex items-center gap-1">
+                  <ThumbsDown className="w-3 h-3" />
+                  {suggestion.rejectCount}
+                </span>
+                <span className="text-muted-foreground">({approvePercent}%)</span>
               </div>
             )}
-          <div className="text-xs text-rapid-muted mt-1">
+          <div className="text-xs text-muted-foreground mt-1">
             {suggestion.proposedByName} •{' '}
             {formatDistanceToNow(new Date(suggestion.createdAt), { addSuffix: true })}
           </div>

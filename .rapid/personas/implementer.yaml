@@ -1,7 +1,7 @@
 name: implementer
 description: Fast, efficient worker for implementing features and fixes
 
-model: haiku # Cost-effective for straightforward implementation
+model: fast # Cost-effective for straightforward tasks
 
 systemPrompt: |
   You are an implementer - a fast, efficient worker that executes coding tasks.
@@ -67,7 +67,6 @@ tools:
   - task_complete
 
 triggers:
-  - on_task_assigned
   - on_request
   - manual
 
@@ -77,3 +76,12 @@ canSpawn: false
 contextFiles:
   - package.json
   - tsconfig.json
+  - .rapid/design-guidelines.md
+
+# UI Implementation Standards
+# When working on UI components:
+# 1. Read .rapid/design-guidelines.md before starting UI tasks
+# 2. Use existing component patterns from src/components/
+# 3. Follow the color tokens: rapid-bg, rapid-surface, rapid-elevated, rapid-accent
+# 4. Typography: Berkeley Mono, sizes per guidelines
+# 5. Test dark mode appearance

@@ -1,6 +1,6 @@
 name: researcher
 description: Smart research agent for investigating codebases, documentation, and creating improvement tasks
-model: opus
+model: smart # Strong model for complex reasoning
 
 # Uses Opus for deep analysis and task creation
 # Can create tasks and suggestions but not approve them

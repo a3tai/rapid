@@ -11,6 +11,7 @@
         "yolo": true
       },
       "opencode": { "cli": "opencode", "instructionFile": "AGENTS.md" },
+      "codex": { "cli": "codex", "instructionFile": "AGENTS.md" },
       "aider": {
         "cli": "aider",
         "instructionFile": "AGENTS.md",

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { clsx } from 'clsx';
 import { useToast } from './Toast';
+import * as AppService from '@bindings/rapid-desktop/appservice';
 
 export interface McpServerConfig {
   command?: string;
@@ -58,46 +59,22 @@ export function McpServerManager({ servers, onRefresh }: McpServerManagerProps) 
       const startTime = performance.now();
 
       try {
-        // Try the default RAPID MCP endpoint for now
-        // In production, would extract server URL from config
-        const endpoint = import.meta.env.VITE_MCP_URL || 'http://localhost:3100/mcp';
-
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            id: `health-check-${name}`,
-            method: 'tools/list',
-            params: {},
-          }),
-          signal: AbortSignal.timeout(5000),
-        });
-
+        // Use Wails Go backend to call MCP tools (avoids CORS/WebView issues)
+        const result = await AppService.CallTool('bus_health', {});
         const responseTime = performance.now() - startTime;
 
-        if (response.ok) {
-          const data = await response.json();
-          newStatus[name] = {
-            name,
-            connected: true,
-            responseTime,
-            error: null,
-            lastChecked: new Date(),
-            toolCount: data.result?.tools?.length || 0,
-            uptime: null,
-          };
-        } else {
-          newStatus[name] = {
-            name,
-            connected: false,
-            responseTime,
-            error: `HTTP ${response.status}: ${response.statusText}`,
-            lastChecked: new Date(),
-            toolCount: 0,
-            uptime: null,
-          };
-        }
+        // Parse the result to check if healthy
+        const isHealthy = result && (result as { healthy?: boolean }).healthy !== false;
+
+        newStatus[name] = {
+          name,
+          connected: isHealthy,
+          responseTime,
+          error: null,
+          lastChecked: new Date(),
+          toolCount: 0, // We don't get tool count from bus_health
+          uptime: null,
+        };
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Unknown error';
         newStatus[name] = {

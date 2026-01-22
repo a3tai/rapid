@@ -1,6 +1,6 @@
 name: explorer
 description: Proactive codebase explorer that finds improvements and creates suggestions for HITL approval
-model: opus
+model: smart # Strong model for complex reasoning
 
 # Uses Opus for smart exploration
 # Creates suggestions that require human/orchestrator approval

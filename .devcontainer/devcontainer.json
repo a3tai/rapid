@@ -1,6 +1,9 @@
 {
-  "name": "RAPID Typescript (Pre-built)",
-  "image": "ghcr.io/a3tai/rapid-devcontainer-typescript:latest",
+  "name": "RAPID Typescript",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
   "customizations": {
     "vscode": {
       "extensions": [

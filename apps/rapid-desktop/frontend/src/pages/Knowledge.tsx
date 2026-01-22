@@ -1,8 +1,32 @@
 import { useState, useEffect, useCallback } from 'react';
-import { clsx } from 'clsx';
 import { formatDistanceToNow } from 'date-fns';
 import { useData } from '../hooks/useData';
 import { useToast } from '../components/Toast';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Plus, Search, X, BookOpen, Loader2, Trash2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface KnowledgeEntry {
   key: string;
@@ -41,42 +65,22 @@ export function KnowledgePage() {
     setLoading(true);
     try {
       // Fetch entries
-      const listResult = await callTool('context_list', {
+      const listResult = (await callTool('context_list', {
         memoryType: filter === 'all' ? undefined : filter,
         limit: 100,
-      });
-      const listData = listResult.structuredContent as { entries?: KnowledgeEntry[] };
+      })) as { structuredContent?: unknown };
+      const listData = listResult?.structuredContent as { entries?: KnowledgeEntry[] };
       setEntries(listData?.entries || []);
 
       // Fetch stats
-      const statsResult = await callTool('context_stats', {});
-      const statsData = statsResult.structuredContent as ContextStats;
+      const statsResult = (await callTool('context_stats', {})) as { structuredContent?: unknown };
+      const statsData = statsResult?.structuredContent as ContextStats;
       setStats(statsData);
     } catch (err) {
       console.warn('Failed to fetch knowledge:', err);
-      // Mock data for demo
-      setEntries([
-        {
-          key: 'auth-pattern',
-          value: 'Use JWT tokens with refresh token rotation',
-          memoryType: 'procedural',
-          confidence: 0.9,
-          tags: ['auth', 'security'],
-          createdAt: new Date(Date.now() - 86400000).toISOString(),
-        },
-        {
-          key: 'user-preference-tabs',
-          value: 'Prefer 2-space indentation',
-          memoryType: 'semantic',
-          confidence: 0.8,
-          tags: ['preferences', 'formatting'],
-          createdAt: new Date(Date.now() - 172800000).toISOString(),
-        },
-      ]);
-      setStats({
-        totalEntries: 2,
-        byMemoryType: { episodic: 0, semantic: 1, procedural: 1, decision_trace: 0 },
-      });
+      // No mock data - show empty state when backend unavailable
+      setEntries([]);
+      setStats(null);
     } finally {
       setLoading(false);
     }
@@ -116,25 +120,20 @@ export function KnowledgePage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold">Context Engine</h2>
-          <p className="text-rapid-muted text-sm mt-1">Stored knowledge and learned patterns</p>
+          <p className="text-muted-foreground text-sm mt-1">
+            Stored knowledge and learned patterns
+          </p>
         </div>
-        <button onClick={() => setShowAddModal(true)} className="btn btn-primary">
-          <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-            />
-          </svg>
+        <Button onClick={() => setShowAddModal(true)}>
+          <Plus className="w-4 h-4 mr-2" />
           Add Knowledge
-        </button>
+        </Button>
       </div>
 
       {/* Stats cards */}
       {stats && (
         <div className="grid grid-cols-5 gap-4">
-          <StatCard label="Total" value={stats.totalEntries} color="accent" />
+          <StatCard label="Total" value={stats.totalEntries} color="primary" />
           <StatCard label="Episodic" value={stats.byMemoryType.episodic} color="purple" />
           <StatCard label="Semantic" value={stats.byMemoryType.semantic} color="blue" />
           <StatCard label="Procedural" value={stats.byMemoryType.procedural} color="green" />
@@ -146,41 +145,24 @@ export function KnowledgePage() {
       <div className="flex items-center gap-4">
         <div className="flex gap-2">
           {MEMORY_TYPES.map((type) => (
-            <button
+            <Badge
               key={type}
+              variant={filter === type ? 'default' : 'secondary'}
+              className="cursor-pointer capitalize"
               onClick={() => setFilter(type)}
-              className={clsx(
-                'badge cursor-pointer transition-colors capitalize',
-                filter === type
-                  ? 'bg-rapid-accent text-white'
-                  : 'badge-neutral hover:bg-rapid-border'
-              )}
             >
               {type.replace('_', ' ')}
-            </button>
+            </Badge>
           ))}
         </div>
         <div className="flex-1" />
         <div className="relative">
-          <svg
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rapid-muted"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
-          <input
-            type="text"
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search knowledge..."
-            className="input pl-10 w-64"
+            className="pl-10 w-64"
           />
         </div>
       </div>
@@ -188,34 +170,23 @@ export function KnowledgePage() {
       {/* Content */}
       <div className="flex-1 flex gap-6 overflow-hidden">
         {/* List */}
-        <div className="flex-1 card overflow-hidden flex flex-col">
-          <div className="flex-1 overflow-auto">
+        <Card className="flex-1 overflow-hidden flex flex-col">
+          <ScrollArea className="flex-1">
             {loading ? (
-              <div className="flex items-center justify-center h-full text-rapid-muted">
+              <div className="flex items-center justify-center h-full text-muted-foreground p-8">
+                <Loader2 className="w-6 h-6 animate-spin mr-2" />
                 Loading...
               </div>
             ) : filteredEntries.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-rapid-muted">
+              <div className="flex items-center justify-center h-full text-muted-foreground p-8">
                 <div className="text-center">
-                  <svg
-                    className="w-12 h-12 mx-auto mb-4 opacity-50"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
-                      d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                    />
-                  </svg>
+                  <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
                   <p className="text-lg font-medium">No knowledge stored</p>
                   <p className="text-sm mt-1">Add knowledge to help agents learn</p>
                 </div>
               </div>
             ) : (
-              <div className="divide-y divide-rapid-border">
+              <div className="divide-y divide-border">
                 {filteredEntries.map((entry) => (
                   <KnowledgeRow
                     key={entry.key}
@@ -226,38 +197,35 @@ export function KnowledgePage() {
                 ))}
               </div>
             )}
-          </div>
-        </div>
+          </ScrollArea>
+        </Card>
 
         {/* Detail panel */}
         {selectedEntry && (
-          <div className="w-96 card p-4 overflow-auto">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h3 className="font-semibold">{selectedEntry.key}</h3>
-                <span className={clsx('badge mt-1', getTypeBadge(selectedEntry.memoryType))}>
-                  {selectedEntry.memoryType.replace('_', ' ')}
-                </span>
+          <Card className="w-96 overflow-auto">
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle className="text-base">{selectedEntry.key}</CardTitle>
+                  <Badge variant={getTypeBadgeVariant(selectedEntry.memoryType)} className="mt-1">
+                    {selectedEntry.memoryType.replace('_', ' ')}
+                  </Badge>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSelectedEntry(null)}
+                  className="h-8 w-8"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
-              <button
-                onClick={() => setSelectedEntry(null)}
-                className="text-rapid-muted hover:text-rapid-text"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
+            </CardHeader>
 
-            <div className="space-y-4">
+            <CardContent className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-rapid-muted mb-1">Value</label>
-                <pre className="p-3 bg-rapid-bg rounded-lg text-sm font-mono overflow-auto max-h-48">
+                <Label className="text-muted-foreground">Value</Label>
+                <pre className="mt-1 p-3 bg-muted rounded-lg text-sm font-mono overflow-auto max-h-48">
                   {typeof selectedEntry.value === 'string'
                     ? selectedEntry.value
                     : JSON.stringify(selectedEntry.value, null, 2)}
@@ -265,80 +233,82 @@ export function KnowledgePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-rapid-muted mb-1">
-                  Confidence
-                </label>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-2 bg-rapid-bg rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-rapid-accent"
-                      style={{ width: `${selectedEntry.confidence * 100}%` }}
-                    />
-                  </div>
+                <Label className="text-muted-foreground">Confidence</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Progress value={selectedEntry.confidence * 100} className="flex-1" />
                   <span className="text-sm">{Math.round(selectedEntry.confidence * 100)}%</span>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-rapid-muted mb-1">Tags</label>
-                <div className="flex flex-wrap gap-1">
+                <Label className="text-muted-foreground">Tags</Label>
+                <div className="flex flex-wrap gap-1 mt-1">
                   {selectedEntry.tags.map((tag) => (
-                    <span key={tag} className="badge badge-neutral text-xs">
+                    <Badge key={tag} variant="secondary" className="text-xs">
                       {tag}
-                    </span>
+                    </Badge>
                   ))}
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-rapid-muted mb-1">Created</label>
-                <span className="text-sm">
+                <Label className="text-muted-foreground">Created</Label>
+                <span className="text-sm block mt-1">
                   {formatDistanceToNow(new Date(selectedEntry.createdAt), { addSuffix: true })}
                 </span>
               </div>
 
-              <div className="pt-4 border-t border-rapid-border">
-                <button
+              <div className="pt-4 border-t">
+                <Button
+                  variant="ghost"
                   onClick={() => handleForget(selectedEntry.key)}
-                  className="btn btn-ghost text-red-400 hover:text-red-300 hover:bg-red-500/10 w-full"
+                  className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
                 >
+                  <Trash2 className="w-4 h-4 mr-2" />
                   Forget this knowledge
-                </button>
+                </Button>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         )}
       </div>
 
       {/* Add modal */}
-      {showAddModal && (
-        <AddKnowledgeModal
-          onClose={() => setShowAddModal(false)}
-          onAdd={async (key, value, memoryType, tags) => {
-            try {
-              await callTool('context_learn', {
-                key,
-                value,
-                memoryType,
-                tags,
-                confidence: 0.8,
-              });
-              toast.success('Knowledge Added', `"${key}" has been stored`);
-              await fetchData();
-            } catch (err) {
-              toast.error('Failed to Add', err instanceof Error ? err.message : 'Unknown error');
-              throw err;
-            }
-          }}
-        />
-      )}
+      <AddKnowledgeModal
+        open={showAddModal}
+        onOpenChange={setShowAddModal}
+        onAdd={async (key, value, memoryType, tags) => {
+          try {
+            await callTool('context_learn', {
+              key,
+              value,
+              memoryType,
+              tags,
+              confidence: 0.8,
+            });
+            toast.success('Knowledge Added', `"${key}" has been stored`);
+            await fetchData();
+          } catch (err) {
+            toast.error('Failed to Add', err instanceof Error ? err.message : 'Unknown error');
+            throw err;
+          }
+        }}
+      />
     </div>
   );
 }
 
-function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
+function StatCard({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: number;
+  color: string;
+}) {
   const colorClasses: Record<string, string> = {
-    accent: 'text-rapid-accent',
+    primary: 'text-primary',
     purple: 'text-purple-400',
     blue: 'text-blue-400',
     green: 'text-green-400',
@@ -346,10 +316,12 @@ function StatCard({ label, value, color }: { label: string; value: number; color
   };
 
   return (
-    <div className="card p-3">
-      <div className="text-sm text-rapid-muted">{label}</div>
-      <div className={clsx('text-2xl font-semibold', colorClasses[color])}>{value}</div>
-    </div>
+    <Card>
+      <CardContent className="p-3">
+        <div className="text-sm text-muted-foreground">{label}</div>
+        <div className={cn('text-2xl font-semibold', colorClasses[color])}>{value}</div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -364,9 +336,9 @@ function KnowledgeRow({
 }) {
   return (
     <div
-      className={clsx(
-        'p-4 hover:bg-rapid-elevated cursor-pointer transition-colors',
-        isSelected && 'bg-rapid-elevated'
+      className={cn(
+        'p-4 hover:bg-muted cursor-pointer transition-colors',
+        isSelected && 'bg-muted'
       )}
       onClick={onClick}
     >
@@ -374,27 +346,29 @@ function KnowledgeRow({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-medium truncate">{entry.key}</span>
-            <span className={clsx('badge text-xs', getTypeBadge(entry.memoryType))}>
+            <Badge variant={getTypeBadgeVariant(entry.memoryType)} className="text-xs">
               {entry.memoryType.replace('_', ' ')}
-            </span>
+            </Badge>
           </div>
-          <div className="text-sm text-rapid-muted mt-1 line-clamp-1">
+          <div className="text-sm text-muted-foreground mt-1 line-clamp-1">
             {typeof entry.value === 'string' ? entry.value : JSON.stringify(entry.value)}
           </div>
         </div>
         <div className="ml-4 text-right">
-          <div className="text-sm text-rapid-muted">{Math.round(entry.confidence * 100)}%</div>
+          <div className="text-sm text-muted-foreground">
+            {Math.round(entry.confidence * 100)}%
+          </div>
         </div>
       </div>
       {entry.tags.length > 0 && (
         <div className="flex gap-1 mt-2">
           {entry.tags.slice(0, 3).map((tag) => (
-            <span key={tag} className="badge badge-neutral text-xs">
+            <Badge key={tag} variant="secondary" className="text-xs">
               {tag}
-            </span>
+            </Badge>
           ))}
           {entry.tags.length > 3 && (
-            <span className="text-xs text-rapid-muted">+{entry.tags.length - 3}</span>
+            <span className="text-xs text-muted-foreground">+{entry.tags.length - 3}</span>
           )}
         </div>
       )}
@@ -402,21 +376,25 @@ function KnowledgeRow({
   );
 }
 
-function getTypeBadge(type: KnowledgeEntry['memoryType']): string {
-  const badges: Record<string, string> = {
-    episodic: 'bg-purple-500/20 text-purple-400',
-    semantic: 'bg-blue-500/20 text-blue-400',
-    procedural: 'bg-green-500/20 text-green-400',
-    decision_trace: 'bg-yellow-500/20 text-yellow-400',
+function getTypeBadgeVariant(
+  type: KnowledgeEntry['memoryType']
+): 'default' | 'secondary' | 'destructive' | 'outline' {
+  const variants: Record<string, 'default' | 'secondary'> = {
+    episodic: 'default',
+    semantic: 'secondary',
+    procedural: 'secondary',
+    decision_trace: 'secondary',
   };
-  return badges[type] || 'badge-neutral';
+  return variants[type] || 'secondary';
 }
 
 function AddKnowledgeModal({
-  onClose,
+  open,
+  onOpenChange,
   onAdd,
 }: {
-  onClose: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onAdd: (key: string, value: string, memoryType: string, tags: string[]) => Promise<void>;
 }) {
   const [key, setKey] = useState('');
@@ -434,7 +412,11 @@ function AddKnowledgeModal({
         .map((t) => t.trim())
         .filter(Boolean);
       await onAdd(key, value, memoryType, tags);
-      onClose();
+      onOpenChange(false);
+      setKey('');
+      setValue('');
+      setMemoryType('semantic');
+      setTagsInput('');
     } catch (err) {
       console.error('Failed to add knowledge:', err);
     } finally {
@@ -443,78 +425,83 @@ function AddKnowledgeModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="card-elevated w-[520px] animate-fade-in">
-        <div className="p-4 border-b border-rapid-border">
-          <h3 className="text-lg font-semibold">Add Knowledge</h3>
-          <p className="text-sm text-rapid-muted mt-1">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[520px]">
+        <DialogHeader>
+          <DialogTitle>Add Knowledge</DialogTitle>
+          <DialogDescription>
             Store a new piece of knowledge for agents to use
-          </p>
-        </div>
+          </DialogDescription>
+        </DialogHeader>
 
-        <div className="p-4 space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">Key</label>
-            <input
-              type="text"
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="key">Key</Label>
+            <Input
+              id="key"
               value={key}
               onChange={(e) => setKey(e.target.value)}
               placeholder="auth-pattern, user-preference-tabs, etc."
-              className="input w-full"
               autoFocus
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">Value</label>
-            <textarea
+          <div className="space-y-2">
+            <Label htmlFor="value">Value</Label>
+            <Textarea
+              id="value"
               value={value}
               onChange={(e) => setValue(e.target.value)}
               placeholder="The knowledge content..."
               rows={4}
-              className="input w-full resize-none"
+              className="resize-none"
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">Memory Type</label>
-            <select
-              value={memoryType}
-              onChange={(e) => setMemoryType(e.target.value)}
-              className="input w-full"
-            >
-              <option value="semantic">Semantic (facts and definitions)</option>
-              <option value="procedural">Procedural (how to do things)</option>
-              <option value="episodic">Episodic (specific experiences)</option>
-              <option value="decision_trace">Decision Trace (why decisions were made)</option>
-            </select>
+          <div className="space-y-2">
+            <Label htmlFor="memory-type">Memory Type</Label>
+            <Select value={memoryType} onValueChange={setMemoryType}>
+              <SelectTrigger id="memory-type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="semantic">Semantic (facts and definitions)</SelectItem>
+                <SelectItem value="procedural">Procedural (how to do things)</SelectItem>
+                <SelectItem value="episodic">Episodic (specific experiences)</SelectItem>
+                <SelectItem value="decision_trace">
+                  Decision Trace (why decisions were made)
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">Tags</label>
-            <input
-              type="text"
+          <div className="space-y-2">
+            <Label htmlFor="tags">Tags</Label>
+            <Input
+              id="tags"
               value={tagsInput}
               onChange={(e) => setTagsInput(e.target.value)}
               placeholder="auth, security, patterns (comma separated)"
-              className="input w-full"
             />
           </div>
         </div>
 
-        <div className="p-4 border-t border-rapid-border flex justify-end gap-2">
-          <button onClick={onClose} className="btn btn-ghost">
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
-          </button>
-          <button
-            onClick={handleAdd}
-            disabled={!key.trim() || !value.trim() || isAdding}
-            className="btn btn-primary disabled:opacity-50"
-          >
-            {isAdding ? 'Adding...' : 'Add Knowledge'}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+          <Button onClick={handleAdd} disabled={!key.trim() || !value.trim() || isAdding}>
+            {isAdding ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Adding...
+              </>
+            ) : (
+              'Add Knowledge'
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

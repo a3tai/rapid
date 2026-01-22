@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAppStore, useActiveView, useDaemonStatus } from './stores/app';
-import { useData, useDataPolling, useMcpStatus } from './hooks/useData';
-import { useWebSocketSync } from './hooks/useWebSocketSync';
+import { useData, useDataPolling } from './hooks/useData';
 import { useWailsEvents } from './hooks/useWailsEvents';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -9,6 +8,7 @@ import { CommandPalette, useCommandPalette } from './components/CommandPalette';
 import { SpawnAgentModal } from './components/SpawnAgentModal';
 import { Dashboard } from './pages/Dashboard';
 import { AgentsPage } from './pages/Agents';
+import { AgentDetailPage } from './pages/AgentDetail';
 import { TasksPage } from './pages/Tasks';
 import { EventsPage } from './pages/Events';
 import { KnowledgePage } from './pages/Knowledge';
@@ -21,32 +21,23 @@ function App() {
   const activeView = useActiveView();
   const daemonStatus = useDaemonStatus();
   const isConnecting = useAppStore((s) => s.isConnecting);
-  const { initialize, isWails, mcpEndpoint } = useData();
-  const { checkConnection } = useMcpStatus();
-  const [mcpStatus, setMcpStatus] = useState<{ connected: boolean; toolCount: number } | null>(
-    null
-  );
+  const { initialize } = useData();
   const commandPalette = useCommandPalette();
   const [spawnAgentModal, setSpawnAgentModal] = useState<{
     isOpen: boolean;
     type?: 'worker' | 'orchestrator';
   }>({ isOpen: false });
 
-  // Enable Wails event listening if available
+  // Enable Wails event listening
   useWailsEvents();
 
   // Initialize data on mount
   useEffect(() => {
     initialize();
-    // Check MCP connection
-    checkConnection().then(setMcpStatus);
-  }, [initialize, checkConnection]);
+  }, [initialize]);
 
   // Poll for updates
   useDataPolling(5000);
-
-  // Sync WebSocket events to store (for non-Wails environments)
-  useWebSocketSync();
 
   // Render active view
   const renderView = () => {
@@ -55,6 +46,8 @@ function App() {
         return <Dashboard />;
       case 'agents':
         return <AgentsPage />;
+      case 'agent-detail':
+        return <AgentDetailPage />;
       case 'tasks':
         return <TasksPage />;
       case 'events':
@@ -131,14 +124,12 @@ function App() {
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1.5">
               <span
-                className={`w-2 h-2 rounded-full ${mcpStatus?.connected ? 'bg-green-400' : 'bg-red-400'}`}
+                className={`w-2 h-2 rounded-full ${daemonStatus?.running ? 'bg-green-400' : 'bg-red-400'}`}
               />
-              {isWails ? 'Wails' : mcpStatus?.connected ? 'MCP' : 'Mock Data'}
+              {daemonStatus?.running ? 'Connected' : 'Offline'}
             </span>
-            {mcpStatus?.connected && <span>{mcpStatus.toolCount} tools available</span>}
           </div>
           <div className="flex items-center gap-4">
-            {!isWails && <span className="font-mono text-[10px] opacity-60">{mcpEndpoint}</span>}
             <button
               onClick={commandPalette.open}
               className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-rapid-elevated hover:bg-rapid-border transition-colors"

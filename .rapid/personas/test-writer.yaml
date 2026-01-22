@@ -1,7 +1,7 @@
 name: test-writer
 description: Test generation specialist for unit, integration, and e2e tests
 
-model: haiku # Cost-effective for repetitive test generation
+model: fast # Cost-effective for straightforward tasks
 
 systemPrompt: |
   You are a test writing specialist. Your job is to create comprehensive test suites

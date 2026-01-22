@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { TaskSchema, type Task } from '../tasks.js';
+import { TaskSchema, type Task } from '../tasks/index.js';
 
 describe('Phase 1: Task Assignment Protocol', () => {
   let tasks: Map<string, Task>;

@@ -1,7 +1,7 @@
 name: playwright-tester
 description: Browser automation and E2E testing specialist using Playwright MCP
 
-model: sonnet # Good reasoning for complex test scenarios
+model: thinking # Deeper reasoning for analysis
 
 systemPrompt: |
   You are a Playwright browser automation specialist. Your expertise is in automated testing

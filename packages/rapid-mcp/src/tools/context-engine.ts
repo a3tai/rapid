@@ -86,7 +86,7 @@ export async function registerContextEngineTools(
               id: entry.id,
               key: entry.key,
               memoryType: entry.memoryType,
-              scope: entry.metadata.accessControl.scope,
+              scope: entry.metadata?.accessControl?.scope ?? 'public',
               stored: true,
             }),
           },
@@ -95,7 +95,7 @@ export async function registerContextEngineTools(
           id: entry.id,
           key: entry.key,
           memoryType: entry.memoryType,
-          scope: entry.metadata.accessControl.scope,
+          scope: entry.metadata?.accessControl?.scope ?? 'public',
           stored: true,
         },
       };
@@ -147,8 +147,8 @@ export async function registerContextEngineTools(
               key: entry.key,
               value: entry.value,
               memoryType: entry.memoryType,
-              confidence: entry.metadata.confidence,
-              scope: entry.metadata.accessControl.scope,
+              confidence: entry.metadata?.confidence ?? 0.8,
+              scope: entry.metadata?.accessControl?.scope ?? 'public',
             }),
           },
         ],
@@ -157,8 +157,8 @@ export async function registerContextEngineTools(
           key: entry.key,
           value: entry.value,
           memoryType: entry.memoryType,
-          confidence: entry.metadata.confidence,
-          scope: entry.metadata.accessControl.scope,
+          confidence: entry.metadata?.confidence ?? 0.8,
+          scope: entry.metadata?.accessControl?.scope ?? 'public',
         },
       };
     }
@@ -186,6 +186,7 @@ export async function registerContextEngineTools(
         entries: z.array(
           z.object({
             key: z.string(),
+            value: z.unknown(),
             memoryType: z.string(),
             confidence: z.number(),
             tags: z.array(z.string()),
@@ -212,10 +213,11 @@ export async function registerContextEngineTools(
             text: JSON.stringify({
               entries: limited.map((e) => ({
                 key: e.key,
+                value: e.value,
                 memoryType: e.memoryType,
-                confidence: e.metadata.confidence,
-                tags: e.metadata.tags,
-                createdAt: e.metadata.createdAt,
+                confidence: e.metadata?.confidence ?? 0.8,
+                tags: e.metadata?.tags ?? [],
+                createdAt: e.metadata?.createdAt ?? new Date().toISOString(),
               })),
               count: limited.length,
             }),
@@ -224,10 +226,11 @@ export async function registerContextEngineTools(
         structuredContent: {
           entries: limited.map((e) => ({
             key: e.key,
+            value: e.value,
             memoryType: e.memoryType,
-            confidence: e.metadata.confidence,
-            tags: e.metadata.tags,
-            createdAt: e.metadata.createdAt,
+            confidence: e.metadata?.confidence ?? 0.8,
+            tags: e.metadata?.tags ?? [],
+            createdAt: e.metadata?.createdAt ?? new Date().toISOString(),
           })),
           count: limited.length,
         },
@@ -540,14 +543,14 @@ export async function registerContextEngineTools(
             text: JSON.stringify({
               success: true,
               key: entry.key,
-              scope: entry.metadata.accessControl.scope,
+              scope: entry.metadata?.accessControl?.scope ?? 'public',
             }),
           },
         ],
         structuredContent: {
           success: true,
           key: entry.key,
-          scope: entry.metadata.accessControl.scope,
+          scope: entry.metadata?.accessControl?.scope ?? 'public',
         },
       };
     }
@@ -592,14 +595,14 @@ export async function registerContextEngineTools(
             text: JSON.stringify({
               success: true,
               key: entry.key,
-              scope: entry.metadata.accessControl.scope,
+              scope: entry.metadata?.accessControl?.scope ?? 'public',
             }),
           },
         ],
         structuredContent: {
           success: true,
           key: entry.key,
-          scope: entry.metadata.accessControl.scope,
+          scope: entry.metadata?.accessControl?.scope ?? 'public',
         },
       };
     }
@@ -641,7 +644,7 @@ export async function registerContextEngineTools(
               entries: limited.map((e) => ({
                 key: e.key,
                 memoryType: e.memoryType,
-                scope: e.metadata.accessControl.scope,
+                scope: e.metadata?.accessControl?.scope ?? 'public',
                 confidence: e.metadata.confidence,
               })),
               count: limited.length,
@@ -652,7 +655,7 @@ export async function registerContextEngineTools(
           entries: limited.map((e) => ({
             key: e.key,
             memoryType: e.memoryType,
-            scope: e.metadata.accessControl.scope,
+            scope: e.metadata?.accessControl?.scope ?? 'public',
             confidence: e.metadata.confidence,
           })),
           count: limited.length,

@@ -49,3 +49,4 @@ coverage/
 
 # Local Claude code configuration
 .claude/
+.worktrees/

@@ -1,7 +1,7 @@
 name: devops-engineer
 description: CI/CD, infrastructure, and deployment specialist
 
-model: sonnet # Good reasoning for infrastructure decisions
+model: thinking # Deeper reasoning for analysis
 
 systemPrompt: |
   You are a DevOps engineer specializing in CI/CD pipelines, containerization,

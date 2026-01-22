@@ -1,6 +1,6 @@
 name: orchestrator
 description: Strategic coordinator that plans, prioritizes, delegates, and learns
-model: opus
+model: smart # Can be overridden at spawn time (fast, smart, thinking, or specific model)
 personality: [strategic, thorough, adaptive, quality-focused]
 tools: [read, grep, glob, bus_send, bus_messages, bus_agents, bus_wait, bus_health, task_list, task_create, task_update, task_get]
 triggers: [on_request, manual]

@@ -36,6 +36,8 @@ services:
       - NODE_OPTIONS=--max-old-space-size=4096
       # Inside container, always use /project - the host path is only for the volume mount
       - RAPID_PROJECT_DIR=/project
+      # Host path for worktree creation and agent spawning
+      - RAPID_HOST_PROJECT_DIR=${RAPID_PROJECT_DIR:-/tmp/rapid-project}
       # Secrets passed from host (fetched by rapid start)
       - CONTEXT7_API_KEY=${CONTEXT7_API_KEY:-}
       - TAVILY_API_KEY=${TAVILY_API_KEY:-}

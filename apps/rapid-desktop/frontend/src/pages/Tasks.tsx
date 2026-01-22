@@ -1,18 +1,84 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState } from 'react';
-import { clsx } from 'clsx';
+import { useState, useMemo } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { useTasks, useAppStore, type Task } from '../stores/app';
-import { useMcp } from '../hooks/useMcp';
+import {
+  DndContext,
+  DragOverlay,
+  closestCorners,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragStartEvent,
+  type DragEndEvent,
+  type DragOverEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { useTasks, useAgents, useAppStore, type Task } from '../stores/app';
+import { useData } from '../hooks/useData';
 import { useToast } from '../components/Toast';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Markdown } from '@/components/ui/markdown';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  LayoutGrid,
+  List,
+  Plus,
+  X,
+  Loader2,
+  GripVertical,
+  Clock,
+  Zap,
+  CheckCircle,
+  AlertCircle,
+  XCircle,
+  ArrowUp,
+  ArrowDown,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'blocked' | 'cancelled';
 
-const COLUMNS: { id: TaskStatus; label: string; color: string }[] = [
-  { id: 'pending', label: 'Pending', color: 'bg-rapid-muted' },
-  { id: 'in_progress', label: 'In Progress', color: 'bg-yellow-400' },
-  { id: 'completed', label: 'Completed', color: 'bg-green-400' },
-  { id: 'blocked', label: 'Blocked', color: 'bg-red-400' },
+const COLUMNS: { id: TaskStatus; label: string; color: string; icon: React.ReactNode }[] = [
+  { id: 'pending', label: 'Pending', color: 'bg-muted', icon: <Clock className="w-3 h-3" /> },
+  { id: 'in_progress', label: 'In Progress', color: 'bg-yellow-400', icon: <Zap className="w-3 h-3" /> },
+  { id: 'completed', label: 'Completed', color: 'bg-green-400', icon: <CheckCircle className="w-3 h-3" /> },
+  { id: 'blocked', label: 'Blocked', color: 'bg-red-400', icon: <AlertCircle className="w-3 h-3" /> },
 ];
 
 type SortBy = 'date' | 'priority' | 'status' | 'assignee';
@@ -30,10 +96,21 @@ export function TasksPage() {
   const [sortBy, setSortBy] = useState<SortBy>('date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
-  const { updateTaskStatus, createTask } = useMcp();
+  const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const { updateTaskStatus, createTask } = useData();
   const toast = useToast();
 
-  // App.tsx handles centralized polling - individual pages should not start their own
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Apply filters
   const filteredTasks = tasks.filter((t) => {
@@ -81,13 +158,78 @@ export function TasksPage() {
     return 0;
   });
 
-  const tasksByStatus = COLUMNS.reduce(
-    (acc, col) => {
-      acc[col.id] = tasks.filter((t) => t.status === col.id);
-      return acc;
-    },
-    {} as Record<TaskStatus, Task[]>
-  );
+  // Track recently moved tasks for celebration animation
+  const [recentlyMoved, setRecentlyMoved] = useState<Set<string>>(new Set());
+
+  const tasksByStatus = useMemo(() => {
+    return COLUMNS.reduce(
+      (acc, col) => {
+        acc[col.id] = tasks.filter((t) => t.status === col.id);
+        return acc;
+      },
+      {} as Record<TaskStatus, Task[]>
+    );
+  }, [tasks]);
+
+  // DnD event handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    const task = tasks.find((t) => t.id === event.active.id);
+    if (task) {
+      setActiveTask(task);
+    }
+  };
+
+  const handleDragOver = (_event: DragOverEvent) => {
+    // Visual feedback handled by CSS
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveTask(null);
+
+    if (!over) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    // Check if dropped on a column or another task
+    const task = tasks.find((t) => t.id === activeId);
+    if (!task) return;
+
+    // Determine target status - either the column ID or the status of the task dropped on
+    let targetStatus: TaskStatus | null = null;
+
+    if (COLUMNS.some((c) => c.id === overId)) {
+      targetStatus = overId as TaskStatus;
+    } else {
+      const overTask = tasks.find((t) => t.id === overId);
+      if (overTask) {
+        targetStatus = overTask.status;
+      }
+    }
+
+    if (targetStatus && targetStatus !== task.status) {
+      try {
+        await updateTaskStatus(activeId, targetStatus);
+
+        // Add to recently moved for celebration animation
+        setRecentlyMoved((prev) => new Set([...prev, activeId]));
+
+        // Remove from recently moved after animation completes
+        setTimeout(() => {
+          setRecentlyMoved((prev) => {
+            const next = new Set(prev);
+            next.delete(activeId);
+            return next;
+          });
+        }, 1500);
+
+        toast.success('Task Moved', `"${task.title}" moved to ${targetStatus.replace('_', ' ')}`);
+      } catch (err) {
+        toast.error('Move Failed', err instanceof Error ? err.message : 'Unknown error');
+      }
+    }
+  };
 
   // Get unique assignees for filter dropdown
   const uniqueAssignees = Array.from(
@@ -136,208 +278,256 @@ export function TasksPage() {
     }
   };
 
+  // Get selected task details
+  const selectedTaskId = useAppStore((s) => s.selectedTask);
+  const setSelectedTask = useAppStore((s) => s.setSelectedTask);
+  const selectedTask = tasks.find((t) => t.id === selectedTaskId);
+
   return (
-    <div className="space-y-6 h-full flex flex-col">
+    <div className="space-y-6 h-full flex flex-col relative">
+      {/* Task Detail Flyout Panel */}
+      {selectedTask && (
+        <TaskDetailPanel
+          task={selectedTask}
+          onClose={() => setSelectedTask(null)}
+          onStatusChange={async (newStatus) => {
+            try {
+              await updateTaskStatus(selectedTask.id, newStatus);
+              toast.success('Status Updated', `Task moved to ${newStatus.replace('_', ' ')}`);
+            } catch (err) {
+              toast.error('Update Failed', err instanceof Error ? err.message : 'Unknown error');
+            }
+          }}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold">Task Board</h2>
-          <p className="text-rapid-muted text-sm mt-1">{tasks.length} tasks total</p>
+          <p className="text-muted-foreground text-sm mt-1">{tasks.length} tasks total</p>
         </div>
         <div className="flex items-center gap-3">
           {/* View toggle */}
-          <div className="flex bg-rapid-elevated rounded-lg p-1">
-            <button
+          <div className="flex bg-muted rounded-lg p-1">
+            <Button
+              variant={viewMode === 'board' ? 'default' : 'ghost'}
+              size="sm"
               onClick={() => setViewMode('board')}
-              className={clsx(
-                'px-3 py-1.5 rounded text-sm transition-colors',
-                viewMode === 'board'
-                  ? 'bg-rapid-accent text-white'
-                  : 'text-rapid-muted hover:text-rapid-text'
-              )}
+              className="gap-1"
             >
+              <LayoutGrid className="w-4 h-4" />
               Board
-            </button>
-            <button
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              size="sm"
               onClick={() => setViewMode('list')}
-              className={clsx(
-                'px-3 py-1.5 rounded text-sm transition-colors',
-                viewMode === 'list'
-                  ? 'bg-rapid-accent text-white'
-                  : 'text-rapid-muted hover:text-rapid-text'
-              )}
+              className="gap-1"
             >
+              <List className="w-4 h-4" />
               List
-            </button>
+            </Button>
           </div>
-          <button onClick={() => setShowCreateModal(true)} className="btn btn-primary">
-            <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-              />
-            </svg>
+          <Button onClick={() => setShowCreateModal(true)}>
+            <Plus className="w-4 h-4 mr-2" />
             New Task
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Filters and sorting (list view only) */}
       {viewMode === 'list' && (
-        <div className="card p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium">Filters & Sorting</h3>
-            <button
-              onClick={() => {
-                setFilterStatus('all');
-                setFilterPriority('all');
-                setFilterAssignee('all');
-                setSortBy('date');
-                setSortOrder('desc');
-              }}
-              className="text-xs text-rapid-accent hover:underline"
-            >
-              Reset
-            </button>
-          </div>
-          <div className="grid grid-cols-5 gap-3">
-            {/* Status filter */}
-            <div>
-              <label className="block text-xs font-medium text-rapid-muted mb-1">Status</label>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value as TaskStatus | 'all')}
-                className="input w-full text-sm"
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium">Filters & Sorting</h3>
+              <Button
+                variant="link"
+                size="sm"
+                onClick={() => {
+                  setFilterStatus('all');
+                  setFilterPriority('all');
+                  setFilterAssignee('all');
+                  setSortBy('date');
+                  setSortOrder('desc');
+                }}
+                className="text-xs h-auto p-0"
               >
-                <option value="all">All Statuses</option>
-                <option value="pending">Pending</option>
-                <option value="in_progress">In Progress</option>
-                <option value="completed">Completed</option>
-                <option value="blocked">Blocked</option>
-              </select>
+                Reset
+              </Button>
             </div>
+            <div className="grid grid-cols-5 gap-3">
+              {/* Status filter */}
+              <div className="space-y-1">
+                <Label className="text-xs">Status</Label>
+                <Select
+                  value={filterStatus}
+                  onValueChange={(v) => setFilterStatus(v as TaskStatus | 'all')}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="blocked">Blocked</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Priority filter */}
-            <div>
-              <label className="block text-xs font-medium text-rapid-muted mb-1">Priority</label>
-              <select
-                value={filterPriority}
-                onChange={(e) => setFilterPriority(e.target.value as any)}
-                className="input w-full text-sm"
-              >
-                <option value="all">All Priorities</option>
-                <option value="urgent">Urgent</option>
-                <option value="high">High</option>
-                <option value="normal">Normal</option>
-                <option value="low">Low</option>
-              </select>
-            </div>
+              {/* Priority filter */}
+              <div className="space-y-1">
+                <Label className="text-xs">Priority</Label>
+                <Select
+                  value={filterPriority}
+                  onValueChange={(v) => setFilterPriority(v as any)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Priorities</SelectItem>
+                    <SelectItem value="urgent">Urgent</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="normal">Normal</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Assignee filter */}
-            <div>
-              <label className="block text-xs font-medium text-rapid-muted mb-1">Assignee</label>
-              <select
-                value={filterAssignee}
-                onChange={(e) => setFilterAssignee(e.target.value)}
-                className="input w-full text-sm"
-              >
-                <option value="all">All Assignees</option>
-                <option value="unassigned">Unassigned</option>
-                {uniqueAssignees.map((assignee) => (
-                  <option key={assignee} value={assignee}>
-                    {assignee}
-                  </option>
-                ))}
-              </select>
-            </div>
+              {/* Assignee filter */}
+              <div className="space-y-1">
+                <Label className="text-xs">Assignee</Label>
+                <Select value={filterAssignee} onValueChange={setFilterAssignee}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Assignees</SelectItem>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    {uniqueAssignees.map((assignee) => (
+                      <SelectItem key={assignee} value={assignee || ''}>
+                        {assignee}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Sort by */}
-            <div>
-              <label className="block text-xs font-medium text-rapid-muted mb-1">Sort By</label>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortBy)}
-                className="input w-full text-sm"
-              >
-                <option value="date">Updated Date</option>
-                <option value="priority">Priority</option>
-                <option value="status">Status</option>
-                <option value="assignee">Assignee</option>
-              </select>
-            </div>
+              {/* Sort by */}
+              <div className="space-y-1">
+                <Label className="text-xs">Sort By</Label>
+                <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortBy)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="date">Updated Date</SelectItem>
+                    <SelectItem value="priority">Priority</SelectItem>
+                    <SelectItem value="status">Status</SelectItem>
+                    <SelectItem value="assignee">Assignee</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Sort order */}
-            <div>
-              <label className="block text-xs font-medium text-rapid-muted mb-1">Order</label>
-              <button
-                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                className={clsx(
-                  'input w-full text-sm flex items-center justify-center gap-1',
-                  'hover:bg-rapid-elevated'
-                )}
-              >
-                {sortOrder === 'asc' ? '↑ Ascending' : '↓ Descending'}
-              </button>
+              {/* Sort order */}
+              <div className="space-y-1">
+                <Label className="text-xs">Order</Label>
+                <Button
+                  variant="outline"
+                  onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                  className="w-full justify-center gap-1"
+                >
+                  {sortOrder === 'asc' ? (
+                    <>
+                      <ArrowUp className="w-4 h-4" /> Ascending
+                    </>
+                  ) : (
+                    <>
+                      <ArrowDown className="w-4 h-4" /> Descending
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Bulk actions toolbar (list view only) */}
       {viewMode === 'list' && selectedTasks.size > 0 && (
-        <div className="card p-3 bg-rapid-accent/10 border border-rapid-accent flex items-center justify-between">
-          <div className="text-sm">
-            <span className="font-medium">{selectedTasks.size}</span> task
-            {selectedTasks.size !== 1 ? 's' : ''} selected
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={selectAll}
-              className="text-xs px-2 py-1 rounded hover:bg-rapid-elevated"
-            >
-              Select All
-            </button>
-            <button
-              onClick={deselectAll}
-              className="text-xs px-2 py-1 rounded hover:bg-rapid-elevated"
-            >
-              Deselect
-            </button>
-            <div className="border-l border-rapid-border mx-1" />
-            <select
-              onChange={(e) => {
-                if (e.target.value) {
-                  bulkChangeStatus(e.target.value as TaskStatus);
-                }
-                e.target.value = '';
-              }}
-              className="text-xs px-2 py-1 rounded border border-rapid-accent bg-rapid-elevated hover:bg-rapid-border"
-            >
-              <option value="">Change Status...</option>
-              <option value="pending">→ Pending</option>
-              <option value="in_progress">→ In Progress</option>
-              <option value="completed">→ Completed</option>
-              <option value="blocked">→ Blocked</option>
-            </select>
-            <button
-              onClick={bulkDelete}
-              className="text-xs px-2 py-1 rounded hover:bg-red-500/20 text-red-400"
-            >
-              Delete Selected
-            </button>
-          </div>
-        </div>
+        <Card className="bg-primary/10 border-primary">
+          <CardContent className="p-3 flex items-center justify-between">
+            <div className="text-sm">
+              <span className="font-medium">{selectedTasks.size}</span> task
+              {selectedTasks.size !== 1 ? 's' : ''} selected
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={selectAll}>
+                Select All
+              </Button>
+              <Button variant="ghost" size="sm" onClick={deselectAll}>
+                Deselect
+              </Button>
+              <div className="w-px h-4 bg-border mx-1" />
+              <Select
+                onValueChange={(v) => {
+                  if (v) bulkChangeStatus(v as TaskStatus);
+                }}
+              >
+                <SelectTrigger className="h-8 text-xs w-[140px]">
+                  <SelectValue placeholder="Change Status..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">→ Pending</SelectItem>
+                  <SelectItem value="in_progress">→ In Progress</SelectItem>
+                  <SelectItem value="completed">→ Completed</SelectItem>
+                  <SelectItem value="blocked">→ Blocked</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={bulkDelete}
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              >
+                Delete Selected
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Content */}
       {viewMode === 'board' ? (
-        <div className="flex-1 grid grid-cols-4 gap-4 overflow-hidden">
-          {COLUMNS.map((column) => (
-            <TaskColumn key={column.id} column={column} tasks={tasksByStatus[column.id]} />
-          ))}
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="flex-1 grid grid-cols-4 gap-4 overflow-hidden">
+            {COLUMNS.map((column) => (
+              <TaskColumn
+                key={column.id}
+                column={column}
+                tasks={tasksByStatus[column.id]}
+                recentlyMoved={recentlyMoved}
+              />
+            ))}
+          </div>
+          <DragOverlay>
+            {activeTask ? (
+              <div className="rotate-3 opacity-90">
+                <TaskCardContent task={activeTask} isDragging />
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       ) : (
         <TaskList
           tasks={sortedTasks}
@@ -347,57 +537,132 @@ export function TasksPage() {
       )}
 
       {/* Create modal */}
-      {showCreateModal && (
-        <CreateTaskModal
-          onClose={() => setShowCreateModal(false)}
-          onCreate={async (title, description, priority, tags) => {
-            try {
-              const result = await createTask(title, description, priority, tags);
-              toast.success('Task Created', `"${title}" has been added to the board`);
-              return result;
-            } catch (err) {
-              toast.error(
-                'Failed to Create Task',
-                err instanceof Error ? err.message : 'Unknown error'
-              );
-              throw err;
-            }
-          }}
-        />
-      )}
+      <CreateTaskModal
+        open={showCreateModal}
+        onOpenChange={setShowCreateModal}
+        onCreate={async (title, description, priority, tags) => {
+          try {
+            const result = await createTask(title, description, priority, tags);
+            toast.success('Task Created', `"${title}" has been added to the board`);
+            return result;
+          } catch (err) {
+            toast.error(
+              'Failed to Create Task',
+              err instanceof Error ? err.message : 'Unknown error'
+            );
+            throw err;
+          }
+        }}
+      />
     </div>
   );
 }
 
 interface TaskColumnProps {
-  column: { id: TaskStatus; label: string; color: string };
+  column: { id: TaskStatus; label: string; color: string; icon: React.ReactNode };
   tasks: Task[];
+  recentlyMoved: Set<string>;
 }
 
-function TaskColumn({ column, tasks }: TaskColumnProps) {
+function TaskColumn({ column, tasks, recentlyMoved }: TaskColumnProps) {
+  const { setNodeRef, isOver } = useSortable({
+    id: column.id,
+    data: { type: 'column', column },
+  });
+
   return (
-    <div className="flex flex-col bg-rapid-surface rounded-lg overflow-hidden">
-      <div className="p-3 border-b border-rapid-border flex items-center gap-2">
-        <div className={clsx('w-2 h-2 rounded-full', column.color)} />
+    <div
+      ref={setNodeRef}
+      className={cn(
+        'flex flex-col bg-card rounded-lg overflow-hidden border transition-all duration-200',
+        isOver && 'ring-2 ring-primary ring-offset-2 ring-offset-background'
+      )}
+    >
+      <div className="p-3 border-b flex items-center gap-2">
+        <div className={cn('w-2 h-2 rounded-full', column.color)} />
         <span className="font-medium text-sm">{column.label}</span>
-        <span className="ml-auto badge badge-neutral">{tasks.length}</span>
+        <Badge variant="secondary" className="ml-auto">
+          {tasks.length}
+        </Badge>
       </div>
-      <div className="flex-1 overflow-auto p-2 space-y-2">
-        {tasks.map((task) => (
-          <TaskCard key={task.id} task={task} />
-        ))}
-        {tasks.length === 0 && (
-          <div className="text-center py-8 text-rapid-muted text-sm">No tasks</div>
-        )}
-      </div>
+      <ScrollArea className="flex-1">
+        <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+          <div className="p-2 space-y-2">
+            {tasks.map((task) => (
+              <SortableTaskCard
+                key={task.id}
+                task={task}
+                isCelebrating={recentlyMoved.has(task.id)}
+              />
+            ))}
+            {tasks.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground text-sm">
+                Drop tasks here
+              </div>
+            )}
+          </div>
+        </SortableContext>
+      </ScrollArea>
     </div>
   );
 }
 
-function TaskCard({ task }: { task: Task }) {
+// Sortable wrapper for task cards with drag handle
+function SortableTaskCard({ task, isCelebrating }: { task: Task; isCelebrating?: boolean }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition: transition || 'transform 200ms cubic-bezier(0.25, 1, 0.5, 1)',
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'relative group',
+        isDragging && 'opacity-50 scale-[0.98]',
+        isCelebrating && 'animate-task-celebrate'
+      )}
+    >
+      {/* Celebration glimmer overlay */}
+      {isCelebrating && (
+        <div className="absolute inset-0 overflow-hidden rounded-lg pointer-events-none z-10">
+          <div className="absolute inset-0 animate-glimmer bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+        </div>
+      )}
+
+      {/* Drag handle */}
+      <div
+        {...attributes}
+        {...listeners}
+        className={cn(
+          'absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center',
+          'opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing',
+          'text-muted-foreground hover:text-foreground'
+        )}
+      >
+        <GripVertical className="w-4 h-4" />
+      </div>
+
+      <TaskCardContent task={task} isDragging={isDragging} />
+    </div>
+  );
+}
+
+// The actual card content, used both in the sortable card and drag overlay
+function TaskCardContent({ task, isDragging }: { task: Task; isDragging?: boolean }) {
   const setSelectedTask = useAppStore((s) => s.setSelectedTask);
   const toast = useToast();
-  const { updateTaskStatus } = useMcp();
+  const { updateTaskStatus } = useData();
   const [isChangingStatus, setIsChangingStatus] = useState(false);
 
   const priorityColors = {
@@ -407,24 +672,13 @@ function TaskCard({ task }: { task: Task }) {
     low: 'border-l-gray-500',
   };
 
-  const statusIndicators = {
-    pending: { icon: '⏳', label: 'Pending', color: 'text-rapid-muted' },
-    in_progress: { icon: '⚡', label: 'In Progress', color: 'text-yellow-400' },
-    completed: { icon: '✓', label: 'Completed', color: 'text-green-400' },
-    blocked: { icon: '🚫', label: 'Blocked', color: 'text-red-400' },
-    cancelled: { icon: '✕', label: 'Cancelled', color: 'text-gray-400' },
-  };
-
   const handleStatusChange = async (newStatus: TaskStatus) => {
     if (newStatus === task.status) return;
 
     setIsChangingStatus(true);
     try {
       await updateTaskStatus(task.id, newStatus);
-      toast.success(
-        'Status Updated',
-        `Task moved to ${statusIndicators[newStatus as keyof typeof statusIndicators]?.label || newStatus}`
-      );
+      toast.success('Status Updated', `Task moved to ${newStatus.replace('_', ' ')}`);
     } catch (err) {
       toast.error('Status Update Failed', err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -432,15 +686,14 @@ function TaskCard({ task }: { task: Task }) {
     }
   };
 
-  const status = statusIndicators[task.status as TaskStatus];
-
   return (
     <div
-      onClick={() => setSelectedTask(task.id)}
-      className={clsx(
-        'bg-rapid-elevated rounded-lg p-3 cursor-pointer hover:bg-rapid-border transition-all border-l-4',
+      onClick={() => !isDragging && setSelectedTask(task.id)}
+      className={cn(
+        'bg-muted/50 rounded-lg p-3 pl-7 cursor-pointer hover:bg-muted transition-all border-l-4',
         priorityColors[task.priority],
-        isChangingStatus && 'opacity-75'
+        isChangingStatus && 'opacity-75',
+        isDragging && 'shadow-2xl ring-2 ring-primary'
       )}
     >
       <div className="flex items-start justify-between gap-2">
@@ -448,48 +701,50 @@ function TaskCard({ task }: { task: Task }) {
           <div className="font-medium text-sm">{task.title}</div>
 
           {task.description && (
-            <div className="text-xs text-rapid-muted mt-1 line-clamp-2">{task.description}</div>
+            <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+              {task.description}
+            </div>
           )}
         </div>
 
-        {/* Status dropdown */}
-        <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-          <select
-            value={task.status}
-            onChange={(e) => handleStatusChange(e.target.value as TaskStatus)}
-            disabled={isChangingStatus}
-            className={clsx(
-              'text-xs px-2 py-1 rounded border border-rapid-border bg-rapid-surface',
-              'hover:border-rapid-accent focus:outline-none focus:border-rapid-accent',
-              'transition-colors disabled:opacity-50 cursor-pointer',
-              status.color
-            )}
-            title="Click to change status"
-          >
-            <option value="pending">⏳ Pending</option>
-            <option value="in_progress">⚡ In Progress</option>
-            <option value="completed">✓ Completed</option>
-            <option value="blocked">🚫 Blocked</option>
-          </select>
-        </div>
+        {/* Status dropdown - hidden while dragging */}
+        {!isDragging && (
+          <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+            <Select
+              value={task.status}
+              onValueChange={(v) => handleStatusChange(v as TaskStatus)}
+              disabled={isChangingStatus}
+            >
+              <SelectTrigger className="h-7 text-xs w-[110px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="blocked">Blocked</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-between mt-3">
         {task.assignedTo ? (
           <div className="flex items-center gap-1.5">
-            <div className="w-5 h-5 rounded-full bg-rapid-accent/20 flex items-center justify-center">
-              <span className="text-xs text-rapid-accent font-medium">
+            <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center">
+              <span className="text-xs text-primary font-medium">
                 {task.assignedTo[0].toUpperCase()}
               </span>
             </div>
-            <span className="text-xs text-rapid-muted truncate max-w-[80px]">
+            <span className="text-xs text-muted-foreground truncate max-w-[80px]">
               {task.assignedTo}
             </span>
           </div>
         ) : (
-          <span className="text-xs text-rapid-muted">Unassigned</span>
+          <span className="text-xs text-muted-foreground">Unassigned</span>
         )}
-        <span className="text-xs text-rapid-muted">
+        <span className="text-xs text-muted-foreground">
           {formatDistanceToNow(new Date(task.updatedAt), { addSuffix: true })}
         </span>
       </div>
@@ -497,12 +752,12 @@ function TaskCard({ task }: { task: Task }) {
       {task.tags && task.tags.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-2">
           {task.tags.slice(0, 3).map((tag) => (
-            <span key={tag} className="badge badge-neutral text-xs">
+            <Badge key={tag} variant="secondary" className="text-xs">
               {tag}
-            </span>
+            </Badge>
           ))}
           {task.tags.length > 3 && (
-            <span className="text-xs text-rapid-muted">+{task.tags.length - 3}</span>
+            <span className="text-xs text-muted-foreground">+{task.tags.length - 3}</span>
           )}
         </div>
       )}
@@ -521,22 +776,7 @@ function TaskList({
 }) {
   const [statusChanging, setStatusChanging] = useState<Set<string>>(new Set());
   const toast = useToast();
-  const { updateTaskStatus } = useMcp();
-
-  const statusBadge = {
-    pending: 'badge-neutral',
-    in_progress: 'badge-warning',
-    completed: 'badge-success',
-    blocked: 'badge-error',
-    cancelled: 'badge-neutral',
-  };
-
-  const priorityBadge = {
-    urgent: 'badge-error',
-    high: 'badge-warning',
-    normal: 'badge-info',
-    low: 'badge-neutral',
-  };
+  const { updateTaskStatus } = useData();
 
   const handleStatusChange = async (taskId: string, newStatus: TaskStatus) => {
     const task = tasks.find((t) => t.id === taskId);
@@ -558,106 +798,107 @@ function TaskList({
     }
   };
 
+  const priorityVariant = {
+    urgent: 'destructive' as const,
+    high: 'warning' as const,
+    normal: 'info' as const,
+    low: 'secondary' as const,
+  };
+
   return (
-    <div className="card overflow-hidden">
-      <table className="w-full">
-        <thead>
-          <tr className="border-b border-rapid-border">
+    <Card className="overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow>
             {onToggleSelect && (
-              <th className="text-left p-3 w-10">
-                <input
-                  type="checkbox"
+              <TableHead className="w-10">
+                <Checkbox
                   checked={
                     tasks.length > 0 && selectedTasks && tasks.every((t) => selectedTasks.has(t.id))
                   }
-                  onChange={(e) => {
-                    if (e.target.checked) {
+                  onCheckedChange={(checked) => {
+                    if (checked) {
                       tasks.forEach((t) => onToggleSelect(t.id));
                     } else {
                       tasks.forEach((t) => selectedTasks?.has(t.id) && onToggleSelect(t.id));
                     }
                   }}
-                  className="rounded"
                 />
-              </th>
+              </TableHead>
             )}
-            <th className="text-left p-3 text-sm font-medium text-rapid-muted">Title</th>
-            <th className="text-left p-3 text-sm font-medium text-rapid-muted">Status</th>
-            <th className="text-left p-3 text-sm font-medium text-rapid-muted">Priority</th>
-            <th className="text-left p-3 text-sm font-medium text-rapid-muted">Assigned</th>
-            <th className="text-left p-3 text-sm font-medium text-rapid-muted">Updated</th>
-          </tr>
-        </thead>
-        <tbody>
+            <TableHead>Title</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Priority</TableHead>
+            <TableHead>Assigned</TableHead>
+            <TableHead>Updated</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {tasks.map((task) => (
-            <tr
+            <TableRow
               key={task.id}
-              className={clsx(
-                'border-b border-rapid-border transition-all',
-                selectedTasks?.has(task.id)
-                  ? 'bg-rapid-accent/10 hover:bg-rapid-accent/20'
-                  : 'hover:bg-rapid-elevated',
+              className={cn(
+                selectedTasks?.has(task.id) && 'bg-primary/10',
                 statusChanging.has(task.id) && 'opacity-75'
               )}
             >
               {onToggleSelect && (
-                <td className="p-3 w-10">
-                  <input
-                    type="checkbox"
+                <TableCell>
+                  <Checkbox
                     checked={selectedTasks?.has(task.id) ?? false}
-                    onChange={() => onToggleSelect(task.id)}
-                    className="rounded"
+                    onCheckedChange={() => onToggleSelect(task.id)}
                   />
-                </td>
+                </TableCell>
               )}
-              <td className="p-3">
+              <TableCell>
                 <div className="font-medium text-sm">{task.title}</div>
                 {task.tags && task.tags.length > 0 && (
                   <div className="flex gap-1 mt-1">
                     {task.tags.map((tag) => (
-                      <span key={tag} className="badge badge-neutral text-xs">
+                      <Badge key={tag} variant="secondary" className="text-xs">
                         {tag}
-                      </span>
+                      </Badge>
                     ))}
                   </div>
                 )}
-              </td>
-              <td className="p-3" onClick={(e) => e.stopPropagation()}>
-                <select
+              </TableCell>
+              <TableCell onClick={(e) => e.stopPropagation()}>
+                <Select
                   value={task.status}
-                  onChange={(e) => handleStatusChange(task.id, e.target.value as TaskStatus)}
+                  onValueChange={(v) => handleStatusChange(task.id, v as TaskStatus)}
                   disabled={statusChanging.has(task.id)}
-                  className={clsx(
-                    'text-xs px-2 py-1 rounded border border-rapid-border bg-rapid-surface',
-                    'hover:border-rapid-accent focus:outline-none focus:border-rapid-accent',
-                    'transition-all disabled:opacity-50 cursor-pointer',
-                    statusBadge[task.status]
-                  )}
-                  title="Click to change status"
                 >
-                  <option value="pending">Pending</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="completed">Completed</option>
-                  <option value="blocked">Blocked</option>
-                </select>
-              </td>
-              <td className="p-3">
-                <span className={clsx('badge', priorityBadge[task.priority])}>{task.priority}</span>
-              </td>
-              <td className="p-3 text-sm text-rapid-muted">{task.assignedTo || '-'}</td>
-              <td className="p-3 text-sm text-rapid-muted">
+                  <SelectTrigger className="h-7 text-xs w-[110px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="blocked">Blocked</SelectItem>
+                  </SelectContent>
+                </Select>
+              </TableCell>
+              <TableCell>
+                <Badge variant={priorityVariant[task.priority]}>{task.priority}</Badge>
+              </TableCell>
+              <TableCell className="text-sm text-muted-foreground">
+                {task.assignedTo || '-'}
+              </TableCell>
+              <TableCell className="text-sm text-muted-foreground">
                 {formatDistanceToNow(new Date(task.updatedAt), { addSuffix: true })}
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
-    </div>
+        </TableBody>
+      </Table>
+    </Card>
   );
 }
 
 interface CreateTaskModalProps {
-  onClose: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onCreate: (
     title: string,
     description: string,
@@ -666,7 +907,7 @@ interface CreateTaskModalProps {
   ) => Promise<{ id: string }>;
 }
 
-function CreateTaskModal({ onClose, onCreate }: CreateTaskModalProps) {
+function CreateTaskModal({ open, onOpenChange, onCreate }: CreateTaskModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('normal');
@@ -682,7 +923,11 @@ function CreateTaskModal({ onClose, onCreate }: CreateTaskModalProps) {
         .map((t) => t.trim())
         .filter(Boolean);
       await onCreate(title, description, priority, tags);
-      onClose();
+      onOpenChange(false);
+      setTitle('');
+      setDescription('');
+      setPriority('normal');
+      setTagsInput('');
     } catch (err) {
       console.error('Failed to create task:', err);
     } finally {
@@ -691,75 +936,322 @@ function CreateTaskModal({ onClose, onCreate }: CreateTaskModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="card-elevated w-[520px] animate-fade-in">
-        <div className="p-4 border-b border-rapid-border">
-          <h3 className="text-lg font-semibold">Create Task</h3>
-        </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[520px]">
+        <DialogHeader>
+          <DialogTitle>Create Task</DialogTitle>
+          <DialogDescription>Add a new task to the board</DialogDescription>
+        </DialogHeader>
 
-        <div className="p-4 space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">Title</label>
-            <input
-              type="text"
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="title">Title</Label>
+            <Input
+              id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Task title"
-              className="input w-full"
               autoFocus
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">Description</label>
-            <textarea
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Task description (optional)"
               rows={3}
-              className="input w-full resize-none"
+              className="resize-none"
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">Priority</label>
-            <select
-              value={priority}
-              onChange={(e) => setPriority(e.target.value)}
-              className="input w-full"
-            >
-              <option value="low">Low</option>
-              <option value="normal">Normal</option>
-              <option value="high">High</option>
-              <option value="urgent">Urgent</option>
-            </select>
+          <div className="space-y-2">
+            <Label htmlFor="priority">Priority</Label>
+            <Select value={priority} onValueChange={setPriority}>
+              <SelectTrigger id="priority">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="normal">Normal</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="urgent">Urgent</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">Tags</label>
-            <input
-              type="text"
+          <div className="space-y-2">
+            <Label htmlFor="tags">Tags</Label>
+            <Input
+              id="tags"
               value={tagsInput}
               onChange={(e) => setTagsInput(e.target.value)}
               placeholder="feature, bug, auth (comma separated)"
-              className="input w-full"
             />
           </div>
         </div>
 
-        <div className="p-4 border-t border-rapid-border flex justify-end gap-2">
-          <button onClick={onClose} className="btn btn-ghost">
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
-          </button>
-          <button
-            onClick={handleCreate}
-            disabled={!title.trim() || isCreating}
-            className="btn btn-primary disabled:opacity-50"
-          >
-            {isCreating ? 'Creating...' : 'Create Task'}
-          </button>
+          </Button>
+          <Button onClick={handleCreate} disabled={!title.trim() || isCreating}>
+            {isCreating ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              'Create Task'
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+interface TaskDetailPanelProps {
+  task: Task;
+  onClose: () => void;
+  onStatusChange: (status: TaskStatus) => Promise<void>;
+}
+
+function TaskDetailPanel({ task, onClose, onStatusChange }: TaskDetailPanelProps) {
+  const [isChangingStatus, setIsChangingStatus] = useState(false);
+  const agents = useAgents();
+  const setActiveView = useAppStore((s) => s.setActiveView);
+  const setSelectedAgent = useAppStore((s) => s.setSelectedAgent);
+  const setAgentDetailTab = useAppStore((s) => s.setAgentDetailTab);
+
+  // Find agent by ID or name for display and navigation
+  const assignedAgent = task.assignedTo
+    ? agents.find((a) => a.id === task.assignedTo || a.name === task.assignedTo)
+    : null;
+
+  // Get display name - prefer agent name, fall back to shortened ID
+  const getDisplayName = () => {
+    if (assignedAgent?.name) return assignedAgent.name;
+    if (!task.assignedTo) return '';
+    // If it's a UUID, show shortened version
+    if (task.assignedTo.match(/^[a-f0-9-]{36}$/i)) {
+      return `Agent ${task.assignedTo.slice(0, 8)}`;
+    }
+    // Extract persona name from format like "orchestrator-abc123"
+    const match = task.assignedTo.match(/^([a-zA-Z-]+)-[a-f0-9]+$/);
+    return match ? match[1] : task.assignedTo;
+  };
+
+  const handleNavigateToAgent = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!task.assignedTo) return;
+    // If we found the agent, use its ID, otherwise try using assignedTo directly
+    const agentId = assignedAgent?.id || task.assignedTo;
+    console.log('Navigating to agent:', agentId, 'agents list:', agents);
+    setSelectedAgent(agentId);
+    setAgentDetailTab('logs'); // Open logs tab by default when coming from tasks
+    setActiveView('agents');
+  };
+
+  const priorityColors = {
+    urgent: 'bg-red-500',
+    high: 'bg-orange-500',
+    normal: 'bg-blue-500',
+    low: 'bg-gray-500',
+  };
+
+  const statusConfig = {
+    pending: { label: 'Pending', icon: <Clock className="w-4 h-4" />, color: 'bg-muted' },
+    in_progress: { label: 'In Progress', icon: <Zap className="w-4 h-4" />, color: 'bg-yellow-500' },
+    completed: { label: 'Completed', icon: <CheckCircle className="w-4 h-4" />, color: 'bg-green-500' },
+    blocked: { label: 'Blocked', icon: <AlertCircle className="w-4 h-4" />, color: 'bg-red-500' },
+    cancelled: { label: 'Cancelled', icon: <XCircle className="w-4 h-4" />, color: 'bg-gray-500' },
+  };
+
+  const handleStatusChange = async (newStatus: TaskStatus) => {
+    if (newStatus === task.status) return;
+    setIsChangingStatus(true);
+    try {
+      await onStatusChange(newStatus);
+    } finally {
+      setIsChangingStatus(false);
+    }
+  };
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/30 z-40 transition-opacity"
+        onClick={onClose}
+      />
+
+      {/* Flyout Panel */}
+      <div className="fixed right-0 top-0 bottom-0 w-[420px] bg-card border-l shadow-2xl z-50 flex flex-col animate-in slide-in-from-right overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b bg-muted/50">
+          <div className="flex items-center gap-3">
+            <div className={cn('w-3 h-3 rounded-full', priorityColors[task.priority])} />
+            <h3 className="font-semibold text-lg">Task Details</h3>
+          </div>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="w-5 h-5" />
+          </Button>
+        </div>
+
+        {/* Content */}
+        <ScrollArea className="flex-1 p-4">
+          <div className="space-y-6">
+            {/* Title */}
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                Title
+              </Label>
+              <h2 className="text-xl font-semibold mt-2">{task.title}</h2>
+            </div>
+
+            {/* Status Selector */}
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                Status
+              </Label>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {Object.entries(statusConfig).map(([key, config]) => (
+                  <Button
+                    key={key}
+                    variant={task.status === key ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => handleStatusChange(key as TaskStatus)}
+                    disabled={isChangingStatus}
+                    className="gap-2"
+                  >
+                    {config.icon}
+                    {config.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Description */}
+            {task.description && (
+              <div>
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Description
+                </Label>
+                <div className="bg-muted rounded-lg p-4 mt-2">
+                  <Markdown>{task.description}</Markdown>
+                </div>
+              </div>
+            )}
+
+            {/* Priority */}
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                Priority
+              </Label>
+              <div className="flex items-center gap-2 mt-2">
+                <div className={cn('w-3 h-3 rounded-full', priorityColors[task.priority])} />
+                <span className="font-medium capitalize">{task.priority}</span>
+              </div>
+            </div>
+
+            {/* Assigned To */}
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                Assigned To
+              </Label>
+              {task.assignedTo ? (
+                <button
+                  onClick={(e) => handleNavigateToAgent(e)}
+                  type="button"
+                  className="flex items-center gap-3 mt-2 group cursor-pointer hover:bg-muted/50 -mx-2 px-2 py-1 rounded-lg transition-colors text-left w-full"
+                  title={`View ${getDisplayName()} logs`}
+                >
+                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
+                    <span className="text-primary font-medium">
+                      {getDisplayName()[0]?.toUpperCase() || '?'}
+                    </span>
+                  </div>
+                  <span className="font-medium group-hover:text-primary transition-colors">
+                    {getDisplayName()}
+                  </span>
+                  <svg
+                    className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                    />
+                  </svg>
+                </button>
+              ) : (
+                <span className="text-muted-foreground italic mt-2 block">Unassigned</span>
+              )}
+            </div>
+
+            {/* Tags */}
+            {task.tags && task.tags.length > 0 && (
+              <div>
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Tags
+                </Label>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {task.tags.map((tag) => (
+                    <Badge key={tag} variant="secondary">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Timestamps */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Created
+                </Label>
+                <span className="text-sm block mt-2">
+                  {formatDistanceToNow(new Date(task.createdAt), { addSuffix: true })}
+                </span>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Updated
+                </Label>
+                <span className="text-sm block mt-2">
+                  {formatDistanceToNow(new Date(task.updatedAt), { addSuffix: true })}
+                </span>
+              </div>
+            </div>
+
+            {/* Task ID */}
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                Task ID
+              </Label>
+              <code className="text-xs bg-muted px-2 py-1 rounded font-mono text-muted-foreground block mt-2">
+                {task.id}
+              </code>
+            </div>
+          </div>
+        </ScrollArea>
+
+        {/* Footer Actions */}
+        <div className="p-4 border-t bg-muted/30 flex justify-end gap-3">
+          <Button variant="ghost" onClick={onClose}>
+            Close
+          </Button>
         </div>
       </div>
-    </div>
+    </>
   );
 }

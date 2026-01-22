@@ -1,6 +1,6 @@
 name: worker
 description: Fast implementation agent that executes development tasks
-model: haiku
+model: fast # Cost-effective for straightforward tasks
 personality: [concise, autonomous, analytical]
 tools: [read, write, edit, grep, glob, bash, bus_send, bus_messages, bus_wait, task_get, task_update, task_complete]
 triggers: [on_request, manual]
@@ -82,4 +82,13 @@ systemPrompt: |
   - You encounter an unrecoverable error
   - The orchestrator signals to stop
 
-  DO NOT loop indefinitely. Complete your task and exit.
+  IMPORTANT: Loop for 3 iterations after you complete your work until all conversations and bus messages have been processed that affect your work.
+
+  ## Design Guidelines
+
+  When working on UI components, follow RAPID's design system:
+  - Reference `.rapid/design-guidelines.md` for colors, typography, and patterns
+  - Use Berkeley Mono font for all text
+  - Use the rapid-* color tokens from Tailwind config
+  - Follow Slack-inspired flat message design (not bubbles)
+  - Maintain dark theme consistency (#09090b base)

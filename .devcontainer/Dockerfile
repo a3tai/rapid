@@ -25,8 +25,8 @@ RUN npm install -g pnpm@10
 # Note: Aider requires Python 3.12 or earlier due to setuptools compatibility
 # For now, skip aider installation - Claude Code and OpenCode are available
 
-# Install Claude Code CLI globally
-RUN npm install -g @anthropic-ai/claude-code
+# Install Claude Code and Codex CLIs globally
+RUN npm install -g @anthropic-ai/claude-code @openai/codex
 
 # Install coding agents for the node user
 USER node

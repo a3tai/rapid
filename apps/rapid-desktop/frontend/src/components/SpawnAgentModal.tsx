@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useMcp } from '../hooks/useMcp';
+import { useData } from '../hooks/useData';
 
 interface Persona {
   name: string;
@@ -22,7 +22,7 @@ export function SpawnAgentModal({ isOpen, onClose, type = 'worker' }: SpawnAgent
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { spawnAgent, callTool } = useMcp();
+  const { spawnAgent, callTool } = useData();
 
   // Fetch available personas when modal opens
   useEffect(() => {

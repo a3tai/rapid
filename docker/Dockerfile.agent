@@ -12,11 +12,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     jq \
     procps \
     ripgrep \
+    gettext-base \
     && rm -rf /var/lib/apt/lists/*
 
-# Install pnpm and Claude CLI globally
+# Install pnpm, Claude Code, and Codex CLIs globally
 RUN corepack enable && corepack prepare pnpm@latest --activate \
-    && npm install -g @anthropic-ai/claude-code
+    && npm install -g @anthropic-ai/claude-code @openai/codex
 
 # Create non-root user for running Claude Code
 # (--dangerously-skip-permissions is blocked when running as root)
@@ -26,11 +27,12 @@ RUN groupadd -r agent && useradd -r -g agent -m agent
 WORKDIR /workspace
 RUN chown -R agent:agent /workspace
 
-# Create Claude config directory for agent user
-RUN mkdir -p /home/agent/.config/claude-code && chown -R agent:agent /home/agent
+# Create Claude and Codex config directories for agent user
+RUN mkdir -p /home/agent/.config/claude-code /home/agent/.codex \
+    && chown -R agent:agent /home/agent
 
 # Copy the agent loop script
-COPY agent-loop.sh /usr/local/bin/agent-loop.sh
+COPY docker/agent-loop.sh /usr/local/bin/agent-loop.sh
 RUN chmod +x /usr/local/bin/agent-loop.sh
 
 # Environment variables (set at runtime)

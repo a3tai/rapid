@@ -8,6 +8,7 @@
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
+import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { PassThrough } from 'node:stream';
 import { execa } from 'execa';
@@ -115,6 +116,8 @@ export class DockerProvider extends BaseProvider {
       }
     }
 
+    const hostHomeDir = process.env.RAPID_HOST_HOME_DIR || homedir();
+
     // Build environment variables
     const env: string[] = [
       `HOME=/home/agent`, // Set HOME for Claude Code to find credentials
@@ -151,14 +154,14 @@ export class DockerProvider extends BaseProvider {
     // Pass through important environment variables from host (fallback)
     // NOTE: Do NOT include ANTHROPIC_AUTH_TOKEN - it conflicts with Claude Code's OAuth
     // Use CLAUDE_CODE_OAUTH_TOKEN for OAuth authentication
+    // NOTE: Do NOT include MCP_URL or REDIS_URL - agents use host.docker.internal
+    // to reach services running on the host, since they may be on different Docker networks
     const passthroughEnvVars = [
       'ANTHROPIC_API_KEY',
       'OPENAI_API_KEY',
       'CLAUDE_CODE_OAUTH_TOKEN',
       'CONTEXT7_API_KEY',
       'TAVILY_API_KEY',
-      'REDIS_URL',
-      'MCP_URL',
     ];
     for (const envVar of passthroughEnvVars) {
       const value = process.env[envVar];
@@ -193,16 +196,27 @@ export class DockerProvider extends BaseProvider {
       }
     }
 
-    // Set default Redis/MCP URLs for container network
-    if (!session.env?.REDIS_URL && !process.env.REDIS_URL) {
-      env.push('REDIS_URL=redis://rapid-redis:6379');
-    }
-    if (!session.env?.MCP_URL && !process.env.MCP_URL) {
-      env.push('MCP_URL=http://rapid-mcp:3100/mcp');
-    }
+    // Set host for cross-network access - agent containers may be on a different
+    // Docker network than rapid-dev services. RAPID_MCP_HOST is the source of truth,
+    // MCP_URL is derived from it for convenience in scripts
+    const mcpHost = 'host.docker.internal';
+    env.push(`RAPID_MCP_HOST=${mcpHost}`);
+    env.push(`MCP_URL=http://${mcpHost}:3100/mcp`);
+    env.push(`REDIS_URL=redis://${mcpHost}:6379`);
 
     try {
       // Create the container
+      const binds = [
+        `${hostWorktreeDir}:/workspace`, // Agent's worktree (host path)
+        `${hostProjectDir}:/project`, // Main project (writable for git operations)
+      ];
+      const codexAuthPath = join(hostHomeDir, '.codex', 'auth.json');
+      if (existsSync(codexAuthPath)) {
+        binds.push(`${codexAuthPath}:/home/agent/.codex/auth.json`);
+      } else if (this.verbose) {
+        console.error(`[docker] WARNING: Codex auth.json not found at ${codexAuthPath}`);
+      }
+
       const container = await this.docker.createContainer({
         name: containerName,
         Image: this.agentImage,
@@ -210,14 +224,7 @@ export class DockerProvider extends BaseProvider {
         WorkingDir: '/workspace',
         Cmd: ['tail', '-f', '/dev/null'], // Keep container running
         HostConfig: {
-          Binds: [
-            `${hostWorktreeDir}:/workspace`, // Agent's worktree (host path)
-            `${hostProjectDir}:/project:ro`, // Main project for reference (has rapid.json)
-            // NOTE: We intentionally DO NOT mount ~/.claude.json from host
-            // The host's config has oauthAccount which triggers OAuth auth,
-            // but the token is in macOS Keychain (not accessible from container).
-            // Instead, pass CLAUDE_CODE_OAUTH_TOKEN env var for container auth.
-          ],
+          Binds: binds,
           NetworkMode: RAPID_NETWORK,
           AutoRemove: true,
         },

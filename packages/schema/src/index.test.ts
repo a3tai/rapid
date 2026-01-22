@@ -49,6 +49,7 @@ describe('@a3t/rapid-schema', () => {
       expect(DEFAULT_CONFIG.agents).toBeDefined();
       expect(DEFAULT_CONFIG.agents.default).toBe('claude');
       expect(DEFAULT_CONFIG.agents.available.claude).toBeDefined();
+      expect(DEFAULT_CONFIG.agents.available.codex).toBeDefined();
     });
 
     it('should have claude as default agent with proper config', () => {
@@ -58,6 +59,13 @@ describe('@a3t/rapid-schema', () => {
       expect(claude!.instructionFile).toBe('CLAUDE.md');
       // Auth passthrough is used instead of explicit envVars - no ANTHROPIC_API_KEY needed
       expect(claude!.yolo).toBe(true); // Skip permission prompts by default
+    });
+
+    it('should have codex configured by default', () => {
+      const codex = DEFAULT_CONFIG.agents.available.codex;
+      expect(codex).toBeDefined();
+      expect(codex!.cli).toBe('codex');
+      expect(codex!.instructionFile).toBe('AGENTS.md');
     });
 
     it('should have eventBus enabled by default', () => {

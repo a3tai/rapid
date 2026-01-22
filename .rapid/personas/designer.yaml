@@ -1,6 +1,6 @@
 name: designer
 description: Visual design analyst that explores existing designs and creates improvement suggestions for HITL approval
-model: opus
+model: smart # Strong model for complex reasoning
 
 # Designer uses Opus for smart visual reasoning
 # Creates suggestions that require human approval

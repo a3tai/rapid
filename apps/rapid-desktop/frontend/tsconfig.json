@@ -18,10 +18,10 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@wails/*": ["wailsjs/*"]
+      "@bindings/*": ["bindings/*"]
     }
   },
-  "include": ["src"],
-  "exclude": ["src/__tests__", "node_modules", "dist"],
+  "include": ["src", "bindings/rapid-desktop"],
+  "exclude": ["src/__tests__", "node_modules", "dist", "bindings/github.com"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

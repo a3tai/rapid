@@ -1,7 +1,7 @@
 name: security-reviewer
 description: Security-focused code reviewer that checks for vulnerabilities
 
-model: haiku # Cost-effective for focused review tasks
+model: fast # Cost-effective for straightforward tasks
 
 systemPrompt: |
   You are a security-focused code reviewer. Your primary responsibility is to identify

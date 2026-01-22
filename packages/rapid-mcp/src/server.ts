@@ -16,9 +16,9 @@ import { registerFetchViaProxyTool } from './tools/fetch.js';
 import { registerGetSecretTool } from './tools/secrets.js';
 import { registerFilesystemTools } from './tools/filesystem.js';
 import { registerSecurityTools } from './tools/security.js';
-import { registerEventBusTools } from './tools/eventbus.js';
+import { registerEventBusTools } from './tools/eventbus/index.js';
 import { registerPersonaTools } from './tools/personas.js';
-import { registerTaskTools } from './tools/tasks.js';
+import { registerTaskTools } from './tools/tasks/index.js';
 import { registerTaskWatchTools } from './tools/task-watch.js';
 import { registerDependencyTools } from './tools/dependencies.js';
 import { registerMetricsTools } from './tools/metrics.js';
@@ -30,8 +30,10 @@ import { registerBudgetTrackingTools } from './tools/budget-tracking.js';
 import { registerAuditTrailTools } from './tools/audit-trail.js';
 import { registerGitWorkflowTools } from './tools/git-workflow.js';
 import { registerWorktreeMergeTools, registerWorktreeRecoveryTools } from './tools/worktree-merge.js';
+import { registerMergeApprovalTools } from './tools/merge-approval.js';
 import { registerCapabilityTools } from './tools/capability-tools.js';
 import { registerContext7Tools } from './tools/context7.js';
+import { registerLoggingTools } from './tools/logging.js';
 
 // Import resource implementations
 import { registerConfigResource } from './resources/config.js';
@@ -87,8 +89,10 @@ export function createRapidMcpServer(config: RapidMcpServerConfig): McpServer {
   registerGitWorkflowTools(server, context);
   registerWorktreeMergeTools(server, context);
   registerWorktreeRecoveryTools(server, context);
+  registerMergeApprovalTools(server, context);
   registerCapabilityTools(server, context);
   registerContext7Tools(server, context);
+  registerLoggingTools(server, context);
 
   // Register resources
   registerConfigResource(server, context);

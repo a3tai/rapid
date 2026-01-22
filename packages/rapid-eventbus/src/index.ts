@@ -45,3 +45,12 @@ export {
   type RedisContainerConfig,
   type RedisContainerStatus,
 } from './redis-container.js';
+
+// Log buffer for agent output streaming
+export {
+  LogBuffer,
+  createLogBuffer,
+  type LogBufferConfig,
+  type LogEntry,
+  type AgentLogMeta,
+} from './log-buffer.js';

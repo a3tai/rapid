@@ -1,7 +1,7 @@
 name: documentation-writer
 description: Technical documentation specialist for clear, comprehensive docs
 
-model: haiku # Cost-effective for documentation tasks
+model: fast # Cost-effective for straightforward tasks
 
 systemPrompt: |
   You are a technical documentation specialist. Your job is to create clear,

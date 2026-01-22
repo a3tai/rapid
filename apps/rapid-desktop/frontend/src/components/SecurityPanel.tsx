@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useMcp } from '../hooks/useMcp';
+import { useData } from '../hooks/useData';
 
 export interface SecurityStatus {
   trustLevel: 'development' | 'staging' | 'production';
@@ -26,52 +26,60 @@ export function SecurityPanel() {
   const [status, setStatus] = useState<SecurityStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { callTool: _callTool } = useMcp(); // Will be used when connected to real MCP
+  const [toolUnavailable, setToolUnavailable] = useState(false);
+  const { callTool: _callTool } = useData();
 
   useEffect(() => {
     loadSecurityStatus();
-    // Refresh every 10 seconds
-    const interval = setInterval(loadSecurityStatus, 10000);
+    // Refresh every 30 seconds (longer interval since tool may not exist)
+    const interval = setInterval(loadSecurityStatus, 30000);
     return () => clearInterval(interval);
   }, []);
 
   const loadSecurityStatus = async () => {
+    // Don't retry if we know the tool doesn't exist
+    if (toolUnavailable) return;
+
     try {
       setLoading(true);
 
-      // In a real implementation, we would call MCP tools to get this data
-      // For now, we'll set up the structure
-      const mockStatus: SecurityStatus = {
-        trustLevel: 'development',
-        sandboxEnabled: true,
-        sandboxMethod: 'bubblewrap',
-        strictMode: false,
-        humanApprovalEnabled: false,
-        auditLoggingEnabled: true,
-        pendingApprovals: 0,
-        recentViolations: 0,
-        budgetUsage: {
-          sessionBudget: { used: 5.23, limit: 500, percentage: 1.05 },
-          agentBudget: { used: 2.15, limit: 50, percentage: 4.3 },
-        },
-        lastAuditEvent: {
-          timestamp: new Date().toISOString(),
-          eventType: 'tool_call',
-          allowed: true,
-        },
-      };
+      // Call MCP to get real security status
+      const result = await _callTool('security_status', {});
 
-      setStatus(mockStatus);
+      if (result?.structuredContent) {
+        setStatus(result.structuredContent as SecurityStatus);
+      } else {
+        // No data available - show null state
+        setStatus(null);
+      }
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load security status');
+      const errorMessage = err instanceof Error ? err.message : String(err);
+
+      // Check if the tool doesn't exist - hide panel gracefully
+      if (errorMessage.includes('not found') ||
+          errorMessage.includes('Tool security_status') ||
+          errorMessage.includes('status 400') ||
+          errorMessage.includes('-32602')) {
+        setToolUnavailable(true);
+        setStatus(null);
+        setError(null);
+      } else {
+        // Actual error - show it
+        setStatus(null);
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
+  // Hide panel entirely if tool doesn't exist
+  if (toolUnavailable) {
+    return null;
+  }
+
+  if (loading && !status) {
     return (
       <div className="card p-4">
         <div className="space-y-3">

@@ -1,16 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../stores/app';
+import { Events } from '@wailsio/runtime';
 
-// Wails event listener types
-declare global {
-  interface Window {
-    runtime?: {
-      EventsOn: (eventName: string, callback: (data: any) => void) => () => void;
-      EventsOff: (eventName: string) => void;
-    };
-  }
-}
+// Get store actions directly to avoid re-renders (these don't change)
+const getStoreActions = () => useAppStore.getState();
 
 /**
  * Hook to listen for Wails events and sync to store
@@ -18,22 +12,22 @@ declare global {
  * NOTE: Uses merge functions to preserve existing data and prevent flickering
  */
 export function useWailsEvents() {
-  const store = useAppStore();
-  const unlistenersRef = useRef<Array<() => void>>([]);
+  const unlistenersRef = useRef<Array<Function>>([]);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    const runtime = window.runtime;
-
-    if (!runtime?.EventsOn) {
-      console.log('[WailsEvents] Runtime not available');
+    // Wails v3 uses Events module from @wailsio/runtime
+    if (!Events?.On) {
+      console.log('[WailsEvents] Events module not available');
       return;
     }
 
     // Listen for agents updates - use merge to preserve existing data
-    const unlistenAgents = runtime.EventsOn('rapid:agents', (event: any) => {
+    const unlistenAgents = Events.On('rapid:agents', (event: any) => {
       try {
-        if (event.data && Array.isArray(event.data)) {
-          store.mergeAgents(event.data);
+        const data = event?.data;
+        if (data && Array.isArray(data)) {
+          getStoreActions().mergeAgents(data);
         }
       } catch (err) {
         console.error('[WailsEvents] Error syncing agents:', err);
@@ -41,10 +35,11 @@ export function useWailsEvents() {
     });
 
     // Listen for tasks updates - use merge to preserve existing data
-    const unlistenTasks = runtime.EventsOn('rapid:tasks', (event: any) => {
+    const unlistenTasks = Events.On('rapid:tasks', (event: any) => {
       try {
-        if (event.data && Array.isArray(event.data)) {
-          store.mergeTasks(event.data);
+        const data = event?.data;
+        if (data && Array.isArray(data)) {
+          getStoreActions().mergeTasks(data);
         }
       } catch (err) {
         console.error('[WailsEvents] Error syncing tasks:', err);
@@ -52,10 +47,11 @@ export function useWailsEvents() {
     });
 
     // Listen for messages updates - use merge to preserve history
-    const unlistenMessages = runtime.EventsOn('rapid:messages', (event: any) => {
+    const unlistenMessages = Events.On('rapid:messages', (event: any) => {
       try {
-        if (event.data && Array.isArray(event.data)) {
-          store.mergeMessages(event.data);
+        const data = event?.data;
+        if (data && Array.isArray(data)) {
+          getStoreActions().mergeMessages(data);
         }
       } catch (err) {
         console.error('[WailsEvents] Error syncing messages:', err);
@@ -63,10 +59,11 @@ export function useWailsEvents() {
     });
 
     // Listen for status updates
-    const unlistenStatus = runtime.EventsOn('rapid:status', (event: any) => {
+    const unlistenStatus = Events.On('rapid:status', (event: any) => {
       try {
-        if (event.data) {
-          store.setDaemonStatus(event.data);
+        const data = event?.data;
+        if (data) {
+          getStoreActions().setDaemonStatus(data);
         }
       } catch (err) {
         console.error('[WailsEvents] Error syncing status:', err);
@@ -74,6 +71,7 @@ export function useWailsEvents() {
     });
 
     unlistenersRef.current = [unlistenAgents, unlistenTasks, unlistenMessages, unlistenStatus];
+    setIsReady(true);
 
     console.log('[WailsEvents] Event listeners registered');
 
@@ -85,9 +83,9 @@ export function useWailsEvents() {
       });
       console.log('[WailsEvents] Event listeners cleaned up');
     };
-  }, [store]);
+  }, []); // Empty deps - event listeners only need to be set up once
 
   return {
-    isReady: Boolean(window.runtime?.EventsOn),
+    isReady,
   };
 }

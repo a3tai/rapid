@@ -83,6 +83,13 @@ export function getDefaultConfig(): RapidConfig {
           // It also supports instructions in opencode.json
           readsInstructionFiles: true,
         },
+        codex: {
+          cli: 'codex',
+          instructionFile: 'AGENTS.md',
+          envVars: ['OPENAI_API_KEY'],
+          // Codex reads AGENTS.md from filesystem automatically
+          readsInstructionFiles: true,
+        },
         aider: {
           cli: 'aider',
           instructionFile: 'AGENTS.md',

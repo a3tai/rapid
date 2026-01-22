@@ -84,10 +84,20 @@ export function useAsyncOperation<T>(
       options.onSuccess?.(data);
       return data;
     } catch (error) {
+      // Don't handle cancellation errors if the component is unmounted
+      const isCancelled = error instanceof Error && error.message === 'Operation cancelled';
+      if (isCancelled && !isMountedRef.current) {
+        return;
+      }
+
       const appError = handleFetchError(error);
       updateState({ loading: false, error: appError, isRetrying: false });
       options.onError?.(appError);
-      throw appError;
+
+      // Don't re-throw cancellation errors - they're expected during cleanup
+      if (!isCancelled) {
+        throw appError;
+      }
     }
   }, [operation, state.loading, updateState, options]);
 
@@ -104,6 +114,11 @@ export function useAsyncOperation<T>(
       options.onSuccess?.(data);
       return data;
     } catch (error) {
+      // Don't handle errors if the component is unmounted
+      if (!isMountedRef.current) {
+        return;
+      }
+
       const appError = handleFetchError(error);
       updateState({ loading: false, error: appError, isRetrying: false });
       options.onError?.(appError);

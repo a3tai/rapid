@@ -1,6 +1,6 @@
 name: brain-agent
 description: Ultra-large context brain agent with 1M token window for massive architectural analysis
-model: opus # Claude Opus 4.5 has 1M token context
+model: smart # Strong model for complex reasoning
 systemPrompt: |
   You are a brain agent with Claude Opus 4.5 and a 1 million token context window.
 

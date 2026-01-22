@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { clsx } from 'clsx';
 import { useMcp } from '../hooks/useMcp';
+import { Markdown } from './ui/markdown';
 
 interface ChatMessage {
   id: string;
@@ -19,7 +20,7 @@ export function ChatInterface({ isOpen, onClose }: ChatInterfaceProps) {
     {
       id: 'welcome',
       role: 'system',
-      content: 'Welcome to RAPID. I'm your router agent. Tell me what you want to do and I'll coordinate the right agents to help you.',
+      content: "Welcome to RAPID. I'm your router agent. Tell me what you want to do and I'll coordinate the right agents to help you.",
       timestamp: new Date(),
     },
   ]);
@@ -225,7 +226,7 @@ export function ChatInterface({ isOpen, onClose }: ChatInterfaceProps) {
                       : 'bg-rapid-elevated text-rapid-text'
                 )}
               >
-                <div className="whitespace-pre-wrap">{message.content}</div>
+                <Markdown>{message.content}</Markdown>
                 <div
                   className={clsx(
                     'text-xs mt-2 opacity-60',

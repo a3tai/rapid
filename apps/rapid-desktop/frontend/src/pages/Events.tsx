@@ -1,8 +1,27 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { clsx } from 'clsx';
 import { formatDistanceToNow, format } from 'date-fns';
 import { useMessages, type Message } from '../stores/app';
-import { useMcp } from '../hooks/useMcp';
+import { useData } from '../hooks/useData';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Search,
+  MessageSquare,
+  AlertCircle,
+  CheckCircle,
+  HelpCircle,
+  BookOpen,
+  RefreshCw,
+  Heart,
+  Lightbulb,
+  Vote,
+  Pause,
+  Trash2,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const MESSAGE_TYPES = [
   'all',
@@ -53,7 +72,7 @@ function safeFormatDistance(dateStr: string | undefined, fallback = 'unknown'): 
 
 export function EventsPage() {
   const messages = useMessages();
-  const { callTool, fetchMessages, fetchAgents } = useMcp();
+  const { callTool, fetchMessages, fetchAgents } = useData();
 
   const [filter, setFilter] = useState<FilterType>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -67,8 +86,8 @@ export function EventsPage() {
   // Fetch bus status
   const fetchBusStatus = useCallback(async () => {
     try {
-      const result = await callTool('bus_status', {});
-      const data = result.structuredContent as {
+      const result = await callTool('bus_status', {}) as { structuredContent?: unknown };
+      const data = result?.structuredContent as {
         connected?: boolean;
         mode?: string;
         messageCount?: number;
@@ -91,8 +110,8 @@ export function EventsPage() {
 
   const fetchAgentHealth = useCallback(async () => {
     try {
-      const result = await callTool('bus_health', { staleThresholdSeconds: STALE_THRESHOLD_SECONDS });
-      const data = result.structuredContent as {
+      const result = await callTool('bus_health', { staleThresholdSeconds: STALE_THRESHOLD_SECONDS }) as { structuredContent?: unknown };
+      const data = result?.structuredContent as {
         activeAgents?: Array<{ id: string; name: string; lastSeen: string }>;
         staleAgents?: Array<{ id: string; name: string; lastSeen: string }>;
       };
@@ -119,8 +138,8 @@ export function EventsPage() {
   // Auto-cleanup stale agents (15 min timeout)
   const cleanupStaleAgents = useCallback(async () => {
     try {
-      const result = await callTool('bus_health', { cleanupStale: true, staleThresholdSeconds: STALE_THRESHOLD_SECONDS });
-      const data = result.structuredContent as { cleanedUp?: number };
+      const result = await callTool('bus_health', { cleanupStale: true, staleThresholdSeconds: STALE_THRESHOLD_SECONDS }) as { structuredContent?: unknown };
+      const data = result?.structuredContent as { cleanedUp?: number };
       if (data?.cleanedUp && data.cleanedUp > 0) {
         console.log(`Cleaned up ${data.cleanedUp} stale agents`);
       }
@@ -203,74 +222,70 @@ export function EventsPage() {
         <div className="flex items-center gap-4">
           <div>
             <h2 className="text-xl font-semibold">Event Bus</h2>
-            <p className="text-rapid-muted text-sm mt-1">Real-time agent communication</p>
+            <p className="text-muted-foreground text-sm mt-1">Real-time agent communication</p>
           </div>
           {/* Bus Status Indicator */}
           {busStatus && (
-            <div className={clsx(
-              'flex items-center gap-3 px-4 py-2 rounded-lg border',
+            <Card className={cn(
+              'px-4 py-2',
               busStatus.connected
-                ? 'bg-green-500/10 border-green-500/30 text-green-400'
-                : 'bg-red-500/10 border-red-500/30 text-red-400'
+                ? 'bg-success/10 border-success/30'
+                : 'bg-destructive/10 border-destructive/30'
             )}>
-              <div className={clsx(
-                'w-2 h-2 rounded-full',
-                busStatus.connected ? 'bg-green-400 animate-pulse' : 'bg-red-400'
-              )} />
-              <span className="text-sm font-medium">
-                {busStatus.connected ? 'Connected' : 'Disconnected'}
-              </span>
-              <span className="text-xs opacity-70">({busStatus.mode})</span>
-              <div className="border-l border-current/30 pl-3 ml-1">
-                <span className="text-xs">{busStatus.messageCount} msgs</span>
-              </div>
-              <div className="border-l border-current/30 pl-3">
-                <span className="text-xs">{busStatus.activeAgents} agents</span>
-              </div>
-            </div>
+              <CardContent className="p-0 flex items-center gap-3">
+                <div className={cn(
+                  'w-2 h-2 rounded-full',
+                  busStatus.connected ? 'bg-success animate-pulse' : 'bg-destructive'
+                )} />
+                <span className={cn(
+                  'text-sm font-medium',
+                  busStatus.connected ? 'text-success' : 'text-destructive'
+                )}>
+                  {busStatus.connected ? 'Connected' : 'Disconnected'}
+                </span>
+                <span className="text-xs opacity-70">({busStatus.mode})</span>
+                <div className="border-l border-current/30 pl-3 ml-1">
+                  <span className="text-xs">{busStatus.messageCount} msgs</span>
+                </div>
+                <div className="border-l border-current/30 pl-3">
+                  <span className="text-xs">{busStatus.activeAgents} agents</span>
+                </div>
+              </CardContent>
+            </Card>
           )}
         </div>
         <div className="flex items-center gap-3">
           {/* Last Update */}
-          <span className="text-xs text-rapid-muted">
+          <span className="text-xs text-muted-foreground">
             Updated: {format(lastUpdate, 'HH:mm:ss')}
           </span>
           {/* Polling Toggle */}
-          <button
+          <Button
+            variant={isPolling ? 'default' : 'outline'}
+            size="sm"
             onClick={() => setIsPolling(!isPolling)}
-            className={clsx(
-              'btn btn-sm',
-              isPolling ? 'btn-primary' : 'btn-ghost'
-            )}
+            className="gap-2"
           >
             {isPolling ? (
               <>
-                <span className="w-2 h-2 rounded-full bg-white animate-pulse mr-2" />
+                <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
                 Live
               </>
-            ) : 'Paused'}
-          </button>
+            ) : (
+              <>
+                <Pause className="w-4 h-4" />
+                Paused
+              </>
+            )}
+          </Button>
           {/* Search */}
           <div className="relative">
-            <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rapid-muted"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-            <input
-              type="text"
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search events..."
-              className="input pl-10 w-64"
+              className="pl-10 w-64"
             />
           </div>
         </div>
@@ -279,47 +294,29 @@ export function EventsPage() {
       {/* Stats */}
       <div className="flex gap-2">
         {MESSAGE_TYPES.map((type) => (
-          <button
+          <Badge
             key={type}
+            variant={filter === type ? 'default' : 'secondary'}
+            className="cursor-pointer"
             onClick={() => setFilter(type)}
-            className={clsx(
-              'badge cursor-pointer transition-colors',
-              filter === type
-                ? type === 'all'
-                  ? 'bg-rapid-accent text-white'
-                  : getTypeBadgeClass(type as Message['type'])
-                : 'badge-neutral hover:bg-rapid-border'
-            )}
           >
             {type === 'all' ? 'All' : type}
             <span className="ml-1.5 opacity-70">
               {type === 'all' ? messages.length : typeStats[type] || 0}
             </span>
-          </button>
+          </Badge>
         ))}
       </div>
 
       {/* Main content with sidebar */}
       <div className="flex-1 flex gap-4 overflow-hidden">
         {/* Message list */}
-        <div className="flex-1 card overflow-hidden flex flex-col">
-          <div className="flex-1 overflow-auto">
+        <Card className="flex-1 overflow-hidden flex flex-col">
+          <ScrollArea className="flex-1">
             {filteredMessages.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-rapid-muted">
+              <div className="flex items-center justify-center h-full text-muted-foreground p-8">
                 <div className="text-center">
-                  <svg
-                    className="w-12 h-12 mx-auto mb-4 opacity-50"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
-                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                    />
-                  </svg>
+                  <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
                   <p className="text-lg font-medium">No events found</p>
                   <p className="text-sm mt-1">
                     {filter !== 'all' || searchQuery
@@ -329,7 +326,7 @@ export function EventsPage() {
                 </div>
               </div>
             ) : (
-              <div className="divide-y divide-rapid-border">
+              <div className="divide-y divide-border">
                 {filteredMessages.map((message) => (
                   <MessageItem
                     key={message.id}
@@ -339,64 +336,69 @@ export function EventsPage() {
                 ))}
               </div>
             )}
-          </div>
-        </div>
+          </ScrollArea>
+        </Card>
 
         {/* Agent Health Sidebar */}
-        <div className="w-64 flex-shrink-0 card overflow-hidden flex flex-col">
-          <div className="p-3 border-b border-rapid-border">
+        <Card className="w-64 flex-shrink-0 overflow-hidden flex flex-col">
+          <div className="p-3 border-b">
             <h3 className="font-semibold text-sm">Agent Health</h3>
-            <p className="text-xs text-rapid-muted mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               {agentHealth.filter(a => a.status === 'active').length} active,{' '}
               {agentHealth.filter(a => a.status === 'stale').length} stale
             </p>
           </div>
-          <div className="flex-1 overflow-auto">
+          <ScrollArea className="flex-1">
             {agentHealth.length === 0 ? (
-              <div className="p-4 text-center text-rapid-muted text-sm">
+              <div className="p-4 text-center text-muted-foreground text-sm">
                 No agents registered
               </div>
             ) : (
               <div className="p-2 space-y-1">
                 {agentHealth.map((agent) => (
-                  <div
+                  <Card
                     key={agent.id}
-                    className={clsx(
-                      'p-2 rounded-lg text-sm',
+                    className={cn(
+                      'p-2',
                       agent.status === 'active'
-                        ? 'bg-green-500/10 border border-green-500/20'
-                        : 'bg-yellow-500/10 border border-yellow-500/20'
+                        ? 'bg-success/10 border-success/20'
+                        : 'bg-warning/10 border-warning/20'
                     )}
                   >
-                    <div className="flex items-center gap-2">
-                      <div className={clsx(
-                        'w-2 h-2 rounded-full',
-                        agent.status === 'active' ? 'bg-green-400 animate-pulse' : 'bg-yellow-400'
-                      )} />
-                      <span className="font-medium truncate">{agent.name}</span>
-                    </div>
-                    <div className="text-xs text-rapid-muted mt-1 pl-4">
-                      {agent.status === 'active' ? 'Active' : 'Stale'} •{' '}
-                      {safeFormatDistance(agent.lastSeen)}
-                    </div>
-                  </div>
+                    <CardContent className="p-0">
+                      <div className="flex items-center gap-2">
+                        <div className={cn(
+                          'w-2 h-2 rounded-full',
+                          agent.status === 'active' ? 'bg-success animate-pulse' : 'bg-warning'
+                        )} />
+                        <span className="font-medium text-sm truncate">{agent.name}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1 pl-4">
+                        {agent.status === 'active' ? 'Active' : 'Stale'} •{' '}
+                        {safeFormatDistance(agent.lastSeen)}
+                      </div>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
             )}
-          </div>
+          </ScrollArea>
           {/* Quick Actions */}
-          <div className="p-2 border-t border-rapid-border space-y-1">
-            <button
+          <div className="p-2 border-t space-y-1">
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={cleanupStaleAgents}
-              className="btn btn-ghost btn-sm w-full text-xs"
+              className="w-full gap-2"
             >
+              <Trash2 className="w-4 h-4" />
               Cleanup Stale Agents
-            </button>
-            <p className="text-[10px] text-rapid-muted text-center">
+            </Button>
+            <p className="text-[10px] text-muted-foreground text-center">
               Auto-cleanup: 15 min timeout
             </p>
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );
@@ -405,100 +407,19 @@ export function EventsPage() {
 function MessageItem({ message, isNew = false }: { message: Message; isNew?: boolean }) {
   const [expanded, setExpanded] = useState(false);
 
-  const typeIcon = {
-    discovery: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={1.5}
-          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-        />
-      </svg>
-    ),
-    error: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={1.5}
-          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-        />
-      </svg>
-    ),
-    completion: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={1.5}
-          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-        />
-      </svg>
-    ),
-    question: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={1.5}
-          d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-        />
-      </svg>
-    ),
-    learning: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={1.5}
-          d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-        />
-      </svg>
-    ),
-    coordination: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={1.5}
-          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-        />
-      </svg>
-    ),
-    heartbeat: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={1.5}
-          d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-        />
-      </svg>
-    ),
-    suggestion: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={1.5}
-          d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-        />
-      </svg>
-    ),
-    vote: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={1.5}
-          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-        />
-      </svg>
-    ),
+  const typeIcon: Record<Message['type'], React.ReactNode> = {
+    discovery: <Search className="w-5 h-5" />,
+    error: <AlertCircle className="w-5 h-5" />,
+    completion: <CheckCircle className="w-5 h-5" />,
+    question: <HelpCircle className="w-5 h-5" />,
+    learning: <BookOpen className="w-5 h-5" />,
+    coordination: <RefreshCw className="w-5 h-5" />,
+    heartbeat: <Heart className="w-5 h-5" />,
+    suggestion: <Lightbulb className="w-5 h-5" />,
+    vote: <Vote className="w-5 h-5" />,
   };
 
-  const typeColor = {
+  const typeColor: Record<Message['type'], string> = {
     discovery: 'text-cyan-400 bg-cyan-400/10',
     error: 'text-red-400 bg-red-400/10',
     completion: 'text-green-400 bg-green-400/10',
@@ -510,25 +431,37 @@ function MessageItem({ message, isNew = false }: { message: Message; isNew?: boo
     vote: 'text-emerald-400 bg-emerald-400/10',
   };
 
+  const typeBadgeVariant: Record<Message['type'], 'info' | 'destructive' | 'success' | 'warning' | 'secondary'> = {
+    discovery: 'info',
+    error: 'destructive',
+    completion: 'success',
+    question: 'warning',
+    learning: 'secondary',
+    coordination: 'info',
+    heartbeat: 'secondary',
+    suggestion: 'secondary',
+    vote: 'success',
+  };
+
   return (
     <div
-      className={clsx(
-        'p-4 hover:bg-rapid-elevated transition-all cursor-pointer',
-        expanded && 'bg-rapid-elevated',
-        isNew && 'bg-rapid-accent/10 border-l-2 border-rapid-accent animate-pulse'
+      className={cn(
+        'p-4 hover:bg-muted transition-all cursor-pointer',
+        expanded && 'bg-muted',
+        isNew && 'bg-primary/10 border-l-2 border-primary animate-pulse'
       )}
       onClick={() => setExpanded(!expanded)}
     >
       <div className="flex items-start gap-3">
-        <div className={clsx('p-2 rounded-lg', typeColor[message.type])}>
+        <div className={cn('p-2 rounded-lg', typeColor[message.type])}>
           {typeIcon[message.type]}
         </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-medium">{message.fromAgent.name}</span>
-            <span className={clsx('badge', getTypeBadgeClass(message.type))}>{message.type}</span>
-            <span className="text-sm text-rapid-muted ml-auto">
+            <Badge variant={typeBadgeVariant[message.type]}>{message.type}</Badge>
+            <span className="text-sm text-muted-foreground ml-auto">
               {safeFormat(message.timestamp, 'HH:mm:ss')}
             </span>
           </div>
@@ -538,20 +471,20 @@ function MessageItem({ message, isNew = false }: { message: Message; isNew?: boo
           )}
 
           {message.payload.content && (
-            <div className={clsx('text-sm text-rapid-muted mt-1', !expanded && 'line-clamp-2')}>
+            <div className={cn('text-sm text-muted-foreground mt-1', !expanded && 'line-clamp-2')}>
               {message.payload.content}
             </div>
           )}
 
           {expanded && Object.keys(message.payload).length > 2 && (
-            <div className="mt-3 p-3 bg-rapid-bg rounded-lg">
-              <pre className="text-xs font-mono text-rapid-muted overflow-auto">
+            <div className="mt-3 p-3 bg-background rounded-lg">
+              <pre className="text-xs font-mono text-muted-foreground overflow-auto">
                 {JSON.stringify(message.payload, null, 2)}
               </pre>
             </div>
           )}
 
-          <div className="flex items-center gap-4 mt-2 text-xs text-rapid-muted">
+          <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
             <span>ID: {message.id}</span>
             <span>Agent: {message.fromAgent.id}</span>
             <span>{safeFormatDistance(message.timestamp)}</span>
@@ -560,19 +493,4 @@ function MessageItem({ message, isNew = false }: { message: Message; isNew?: boo
       </div>
     </div>
   );
-}
-
-function getTypeBadgeClass(type: Message['type']): string {
-  const classes: Record<string, string> = {
-    discovery: 'badge-info',
-    error: 'badge-error',
-    completion: 'badge-success',
-    question: 'badge-warning',
-    learning: 'bg-purple-500/20 text-purple-400',
-    coordination: 'bg-blue-500/20 text-blue-400',
-    heartbeat: 'badge-neutral',
-    suggestion: 'bg-indigo-500/20 text-indigo-400',
-    vote: 'bg-emerald-500/20 text-emerald-400',
-  };
-  return classes[type] || 'badge-neutral';
 }

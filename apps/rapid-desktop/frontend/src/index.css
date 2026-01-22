@@ -1,7 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    RAPID Desktop - Design System
    Clean, minimal dark theme with violet-blue accent
-   Matching the docs site aesthetic
+   Native-feel macOS aesthetic with shadcn/ui components
    ═══════════════════════════════════════════════════════════════════════════ */
 
 @tailwind base;
@@ -29,12 +29,76 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Base Styles
+   shadcn/ui CSS Variables - RAPID Design System Mapping
+   Native-feel minimal design, macOS-inspired
    ═══════════════════════════════════════════════════════════════════════════ */
 
 @layer base {
   :root {
     color-scheme: dark;
+
+    /* Softer, more macOS-like grays */
+    --background: 240 10% 4%;
+    --foreground: 0 0% 93%;
+
+    /* Card/Surface */
+    --card: 240 10% 6%;
+    --card-foreground: 0 0% 93%;
+
+    /* Popover/Elevated */
+    --popover: 240 6% 10%;
+    --popover-foreground: 0 0% 93%;
+
+    /* Muted */
+    --muted: 240 6% 10%;
+    --muted-foreground: 240 5% 55%;
+
+    /* Borders & Inputs */
+    --border: 240 4% 16%;
+    --input: 240 4% 16%;
+    --ring: 245 85% 67%;
+
+    /* Primary (Violet-Blue Accent) */
+    --primary: 245 85% 67%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary */
+    --secondary: 240 6% 10%;
+    --secondary-foreground: 0 0% 93%;
+
+    /* Accent */
+    --accent: 240 6% 10%;
+    --accent-foreground: 0 0% 93%;
+
+    /* Semantic Colors */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 45 93% 47%;
+    --warning-foreground: 0 0% 0%;
+    --info: 217 91% 60%;
+    --info-foreground: 0 0% 100%;
+
+    /* Chart colors for Recharts */
+    --chart-1: 245 85% 67%;
+    --chart-2: 142 71% 45%;
+    --chart-3: 45 93% 47%;
+    --chart-4: 217 91% 60%;
+    --chart-5: 0 72% 51%;
+
+    /* Border radius - macOS-like */
+    --radius: 0.5rem;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Base Styles
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@layer base {
+  * {
+    @apply border-border;
   }
 
   html {
@@ -283,6 +347,10 @@
   .animate-pulse-slow {
     animation: pulse-slow 2s ease-in-out infinite;
   }
+
+  .animate-slide-in-right {
+    animation: slide-in-right 0.25s ease-out;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -317,6 +385,57 @@
   50% {
     opacity: 0.5;
   }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Task celebration animations */
+@keyframes task-celebrate {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 hsl(245 85% 67% / 0.4);
+  }
+  15% {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 4px hsl(245 85% 67% / 0.3);
+  }
+  30% {
+    transform: scale(1);
+    box-shadow: 0 0 0 8px hsl(245 85% 67% / 0.1);
+  }
+  50% {
+    box-shadow: 0 0 0 12px hsl(245 85% 67% / 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+@keyframes glimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-task-celebrate {
+  animation: task-celebrate 1.2s ease-out;
+}
+
+.animate-glimmer {
+  animation: glimmer 0.8s ease-in-out;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

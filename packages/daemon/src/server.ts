@@ -530,6 +530,7 @@ export class DaemonServer {
   /**
    * Handle log streaming via SSE for a specific agent
    * Streams log file updates in real-time using file watching
+   * Checks multiple locations: project root, worktrees, and by agent ID
    */
   private async handleLogStream(
     req: IncomingMessage,
@@ -543,9 +544,13 @@ export class DaemonServer {
       'Access-Control-Allow-Origin': '*',
     });
 
-    // Log files are in /project/.rapid/logs/ inside daemon container
+    // Log files can be in multiple locations:
+    // 1. /project/.rapid/logs/ (project root)
+    // 2. /project/.worktrees/{worktree}/.rapid/logs/ (worktree-specific)
     const projectDir = process.env.RAPID_PROJECT_DIR || '/project';
-    const logFile = join(projectDir, '.rapid', 'logs', `agent-${agentName}.log`);
+
+    // Find the actual log file - try multiple locations
+    const logFile = await this.findAgentLogFile(projectDir, agentName);
 
     // Send initial connection event
     res.write(
@@ -631,6 +636,63 @@ export class DaemonServer {
     if (this.config.verbose) {
       console.log(`[LogStream] Client connected for agent ${agentName}, watching ${logFile}`);
     }
+  }
+
+  /**
+   * Find agent log file in multiple possible locations
+   * Agents now use a consistent "agent.log" filename in their worktree
+   */
+  private async findAgentLogFile(projectDir: string, agentName: string): Promise<string> {
+    const { readdir } = await import('node:fs/promises');
+
+    // Potential log file locations to check (in priority order)
+    const candidates: string[] = [];
+
+    // 1. Check worktree matching agent name for agent.log (new simple naming)
+    const worktreesDir = join(projectDir, '.worktrees');
+    try {
+      const worktrees = await readdir(worktreesDir, { withFileTypes: true });
+      for (const wt of worktrees) {
+        if (wt.isDirectory()) {
+          // Prioritize worktree that matches agent name
+          if (wt.name.includes(agentName) || agentName.includes(wt.name)) {
+            candidates.unshift(join(worktreesDir, wt.name, '.rapid', 'logs', 'agent.log'));
+          } else {
+            candidates.push(join(worktreesDir, wt.name, '.rapid', 'logs', 'agent.log'));
+          }
+        }
+      }
+    } catch {
+      // Worktrees dir doesn't exist
+    }
+
+    // 2. Project root logs directory (fallback for non-worktree agents)
+    candidates.push(join(projectDir, '.rapid', 'logs', 'agent.log'));
+
+    // 3. Legacy patterns for backwards compatibility
+    candidates.push(join(projectDir, '.rapid', 'logs', `agent-${agentName}.log`));
+
+    // Find the first file that exists
+    for (const candidate of candidates) {
+      try {
+        const stats = await stat(candidate);
+        if (stats.isFile()) {
+          if (this.config.verbose) {
+            console.log(`[LogStream] Found log file: ${candidate}`);
+          }
+          return candidate;
+        }
+      } catch {
+        // File doesn't exist, try next
+      }
+    }
+
+    // Return default path (will be created when agent starts writing)
+    const defaultPath = join(projectDir, '.rapid', 'logs', 'agent.log');
+    if (this.config.verbose) {
+      console.log(`[LogStream] Using default log path: ${defaultPath}`);
+    }
+    return defaultPath;
   }
 
   /**
@@ -748,7 +810,8 @@ export class DaemonServer {
    * Execute an RPC method
    */
   private async executeMethod(method: string, params: unknown): Promise<unknown> {
-    const typedParams = params as Record<string, unknown>;
+    // Ensure params is always an object to avoid undefined access errors
+    const typedParams = (params || {}) as Record<string, unknown>;
 
     switch (method) {
       // Session management
@@ -1002,27 +1065,104 @@ export class DaemonServer {
         return { tasks, count: tasks.length };
       }
 
-      // Agent logs (from container)
+      // Messages (from Redis event bus stream)
+      case 'messages.list': {
+        if (!this.redis) {
+          return { messages: [], count: 0 };
+        }
+        const limit = typedParams.limit !== undefined ? (typedParams.limit as number) : 20;
+        const messages = await this.getMessagesFromRedis(limit);
+        return { messages, count: messages.length };
+      }
+
+      // Agent logs (from container or log files)
       case 'agent.logs': {
         const sessionId = typedParams.sessionId as string;
+        const agentName = typedParams.agentName as string;
         const tail = typedParams.tail as number | undefined;
         const since = typedParams.since as number | undefined;
         const timestamps = typedParams.timestamps as boolean | undefined;
 
-        if (!sessionId) {
-          throw new Error('sessionId is required');
+        const identifier = sessionId || agentName;
+        if (!identifier) {
+          throw new Error('sessionId or agentName is required');
         }
 
+        // First try to get logs from session/container
+        if (sessionId) {
+          try {
+            const logOptions = {
+              tail: tail ?? 200,
+              timestamps: timestamps ?? false,
+              ...(since !== undefined && { since }),
+            };
+            const logs = await this.sessionManager.getSessionLogs(sessionId, logOptions);
+            if (logs) {
+              return { sessionId, logs };
+            }
+          } catch {
+            // Fall through to file-based logs
+          }
+        }
+
+        // Fall back to reading from log files
         try {
-          const logOptions = {
-            tail: tail ?? 200,
-            timestamps: timestamps ?? false,
-            ...(since !== undefined && { since }),
-          };
-          const logs = await this.sessionManager.getSessionLogs(sessionId, logOptions);
-          return { sessionId, logs };
+          const projectDir = process.env.RAPID_PROJECT_DIR || '/project';
+          const logFile = await this.findAgentLogFile(projectDir, identifier);
+          const { readFile: fsReadFile } = await import('node:fs/promises');
+
+          try {
+            const content = await fsReadFile(logFile, 'utf-8');
+            const lines = content.trim().split('\n');
+            const tailLines = tail ? lines.slice(-tail) : lines.slice(-200);
+            return { sessionId: identifier, logs: tailLines.join('\n') };
+          } catch {
+            return { sessionId: identifier, logs: '', error: `Log file not found: ${logFile}` };
+          }
         } catch (err) {
-          return { sessionId, logs: '', error: err instanceof Error ? err.message : String(err) };
+          return { sessionId: identifier, logs: '', error: err instanceof Error ? err.message : String(err) };
+        }
+      }
+
+      // Call MCP tool through daemon (avoids CORS issues)
+      case 'tools.call': {
+        const toolName = typedParams.name as string;
+        const toolArguments = (typedParams.arguments || {}) as Record<string, unknown>;
+
+        if (!toolName) {
+          throw new Error('Tool name is required');
+        }
+
+        const isDocker = process.env.DOCKER_ENV === 'true' || process.env.HOSTNAME?.includes('rapid');
+        const mcpUrl = process.env.MCP_URL || (isDocker ? 'http://rapid-mcp:3100/mcp' : 'http://localhost:3100/mcp');
+
+        try {
+          const response = await fetch(mcpUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json, text/event-stream',
+              'Mcp-Session-Id': 'rapid-daemon',
+            },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: Date.now(),
+              method: 'tools/call',
+              params: {
+                name: toolName,
+                arguments: toolArguments,
+              },
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`MCP server returned status ${response.status}`);
+          }
+
+          const result = await response.json();
+          return result;
+        } catch (err) {
+          throw new Error(`Failed to call MCP tool ${toolName}: ${err instanceof Error ? err.message : String(err)}`);
         }
       }
 
@@ -1185,6 +1325,12 @@ export class DaemonServer {
       const minScore = maxAgeSeconds > 0 ? String(cutoff) : '-inf';
 
       for (const key of keys) {
+        // Check if the key is a sorted set (zset) before querying
+        const keyType = await this.redis.type(key);
+        if (keyType !== 'zset') {
+          continue; // Skip hashes and other key types
+        }
+
         // Get all entries from the sorted set with scores (timestamps)
         const entries = await this.redis.zrangebyscore(key, minScore, '+inf', 'WITHSCORES');
 
@@ -1223,7 +1369,7 @@ export class DaemonServer {
   }
 
   /**
-   * Get tasks from Redis
+   * Get tasks from .rapid/tasks.json file (primary) or Redis (fallback)
    */
   private async getTasksFromRedis(statusFilter?: string): Promise<Array<{
     id: string;
@@ -1236,6 +1382,45 @@ export class DaemonServer {
     updatedAt: string;
     tags?: string[];
   }>> {
+    // First, try to read from .rapid/tasks.json (MCP storage)
+    try {
+      const projectDir = process.env.RAPID_PROJECT_DIR || process.cwd();
+      const tasksFile = join(projectDir, '.rapid', 'tasks.json');
+      const content = await readFile(tasksFile, 'utf-8');
+      const allTasks = JSON.parse(content) as Array<{
+        id: string;
+        title: string;
+        description?: string;
+        status: string;
+        priority: string;
+        assignedTo?: string;
+        createdAt: string;
+        updatedAt: string;
+        tags?: string[];
+      }>;
+
+      // Filter by status if specified
+      let tasks = allTasks;
+      if (statusFilter) {
+        tasks = tasks.filter(t => t.status === statusFilter);
+      }
+
+      // Sort by updatedAt descending
+      tasks.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+      if (this.config.verbose) {
+        console.log(`Loaded ${tasks.length} tasks from ${tasksFile}`);
+      }
+
+      return tasks;
+    } catch (err) {
+      // File doesn't exist or can't be read, fall back to Redis
+      if (this.config.verbose) {
+        console.log('Tasks file not found, falling back to Redis:', err);
+      }
+    }
+
+    // Fallback: try Redis
     if (!this.redis) return [];
 
     try {
@@ -1286,6 +1471,74 @@ export class DaemonServer {
     } catch (err) {
       if (this.config.verbose) {
         console.error('Error getting tasks from Redis:', err);
+      }
+      return [];
+    }
+  }
+
+  /**
+   * Get messages from Redis event bus stream
+   * Messages are stored in rapid:events:<projectId> stream
+   */
+  private async getMessagesFromRedis(limit: number): Promise<Array<{
+    id: string;
+    type: string;
+    fromAgent: { id: string; name: string; worktree?: string; session?: string };
+    timestamp: string;
+    payload: Record<string, unknown>;
+  }>> {
+    if (!this.redis) return [];
+
+    try {
+      // Try to get project name from the first config we find
+      // The stream key format is rapid:events:<projectId>
+      // For simplicity, we'll search for any events stream
+      const streamKeys = await this.redis.keys('rapid:events:*');
+      const messages: Array<{
+        id: string;
+        type: string;
+        fromAgent: { id: string; name: string; worktree?: string; session?: string };
+        timestamp: string;
+        payload: Record<string, unknown>;
+      }> = [];
+
+      for (const streamKey of streamKeys) {
+        // Read messages from the stream (most recent first using XREVRANGE)
+        const results = await this.redis.xrevrange(streamKey, '+', '-', 'COUNT', String(limit));
+
+        for (const [id, fields] of results) {
+          // Fields is an array like ['message', '<json>']
+          const messageJson = fields[1];
+          if (!messageJson) continue;
+
+          try {
+            const parsed = JSON.parse(messageJson);
+            messages.push({
+              id: id,
+              type: parsed.type || 'unknown',
+              fromAgent: {
+                id: parsed.fromAgent?.id || 'unknown',
+                name: parsed.fromAgent?.name || 'unknown',
+                worktree: parsed.fromAgent?.worktree,
+                session: parsed.fromAgent?.session,
+              },
+              timestamp: parsed.timestamp || new Date().toISOString(),
+              payload: parsed.payload || {},
+            });
+          } catch {
+            // Skip invalid JSON entries
+          }
+        }
+      }
+
+      // Sort by timestamp descending (most recent first)
+      messages.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+      // Limit total results
+      return messages.slice(0, limit);
+    } catch (err) {
+      if (this.config.verbose) {
+        console.error('Error getting messages from Redis:', err);
       }
       return [];
     }
