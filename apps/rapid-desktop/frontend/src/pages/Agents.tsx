@@ -17,6 +17,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Plus,
   Loader2,
   Monitor,
@@ -40,11 +47,10 @@ interface PersonaInfo {
   capabilities?: string[];
 }
 
+// Minimal fallback - persona_list should provide all available personas
 const DEFAULT_PERSONAS: PersonaInfo[] = [
-  { id: 'orchestrator', name: 'Orchestrator', description: 'Coordinates tasks between agents', model: 'opus' },
   { id: 'worker', name: 'Worker', description: 'Executes development tasks', model: 'haiku' },
-  { id: 'architect', name: 'Architect', description: 'Designs system architecture', model: 'sonnet' },
-  { id: 'researcher', name: 'Researcher', description: 'Researches and investigates', model: 'haiku' },
+  { id: 'orchestrator', name: 'Orchestrator', description: 'Coordinates tasks between agents', model: 'opus' },
 ];
 
 export function AgentsPage() {
@@ -56,6 +62,7 @@ export function AgentsPage() {
   const { spawnAgent, stopAgent, callTool, fetchAgents } = useData();
   const [showSpawnModal, setShowSpawnModal] = useState(false);
   const [personas, setPersonas] = useState<PersonaInfo[]>(DEFAULT_PERSONAS);
+  const [personasLoading, setPersonasLoading] = useState(true);
   const toast = useToast();
 
   // Find the selected agent object
@@ -63,19 +70,35 @@ export function AgentsPage() {
 
   useEffect(() => {
     const loadPersonas = async () => {
+      setPersonasLoading(true);
       try {
         const result = await callTool('persona_list', { includePrompts: false }) as { structuredContent?: unknown };
         const data = result?.structuredContent as { personas?: Array<{ name: string; description?: string; model?: string }> };
         if (data?.personas && data.personas.length > 0) {
-          setPersonas(data.personas.map(p => ({
-            id: p.name,
-            name: p.name,
-            description: p.description || `${p.name} persona`,
-            model: p.model,
-          })));
+          // Sort personas alphabetically, but put worker and orchestrator first
+          const sorted = data.personas
+            .map(p => ({
+              id: p.name,
+              name: p.name,
+              description: p.description || `${p.name} persona`,
+              model: p.model,
+            }))
+            .sort((a, b) => {
+              // Priority order for common personas
+              const priority = ['worker', 'orchestrator', 'architect', 'researcher'];
+              const aIdx = priority.indexOf(a.id.toLowerCase());
+              const bIdx = priority.indexOf(b.id.toLowerCase());
+              if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+              if (aIdx !== -1) return -1;
+              if (bIdx !== -1) return 1;
+              return a.name.localeCompare(b.name);
+            });
+          setPersonas(sorted);
         }
       } catch (err) {
-        console.warn('Failed to load personas:', err);
+        console.warn('Failed to load personas, using defaults:', err);
+      } finally {
+        setPersonasLoading(false);
       }
     };
     loadPersonas();
@@ -168,6 +191,7 @@ export function AgentsPage() {
         onOpenChange={setShowSpawnModal}
         onSpawn={handleSpawnAgent}
         personas={personas}
+        personasLoading={personasLoading}
       />
 
       {/* Agent Detail Panel */}
@@ -347,9 +371,10 @@ interface SpawnModalProps {
   onOpenChange: (open: boolean) => void;
   onSpawn: (persona: string, task: string) => Promise<void>;
   personas: PersonaInfo[];
+  personasLoading?: boolean;
 }
 
-function SpawnModal({ open, onOpenChange, onSpawn, personas }: SpawnModalProps) {
+function SpawnModal({ open, onOpenChange, onSpawn, personas, personasLoading }: SpawnModalProps) {
   const [selectedPersona, setSelectedPersona] = useState('');
   const [task, setTask] = useState('');
   const [isSpawning, setIsSpawning] = useState(false);
@@ -375,6 +400,9 @@ function SpawnModal({ open, onOpenChange, onSpawn, personas }: SpawnModalProps) 
     haiku: 'text-cyan-400',
   };
 
+  // Get selected persona info for display
+  const selectedPersonaInfo = personas.find(p => p.id === selectedPersona);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[520px]">
@@ -384,34 +412,51 @@ function SpawnModal({ open, onOpenChange, onSpawn, personas }: SpawnModalProps) 
         </DialogHeader>
 
         <div className="space-y-5 py-4">
-          {/* Persona Grid */}
-          <div>
-            <Label className="text-xs uppercase tracking-wider mb-3 block">Persona</Label>
-            <div className="grid grid-cols-2 gap-2" role="group" aria-label="Agent personas">
-              {personas.map((persona) => (
-                <button
-                  key={persona.id}
-                  onClick={() => setSelectedPersona(persona.id)}
-                  className={cn(
-                    'p-3 rounded-lg border text-left transition-all duration-200',
-                    selectedPersona === persona.id
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border bg-muted/30 hover:border-muted-foreground/50 hover:bg-muted/50'
-                  )}
-                  role="radio"
-                  aria-checked={selectedPersona === persona.id}
-                  aria-label={`${persona.name} persona: ${persona.description}`}
-                >
-                  <div className="font-mono text-sm capitalize">{persona.name}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{persona.description}</div>
-                  {persona.model && (
-                    <div className={cn('text-[10px] font-mono mt-1.5 uppercase', modelColors[persona.model] || 'text-muted-foreground')}>
-                      {persona.model}
-                    </div>
-                  )}
-                </button>
-              ))}
-            </div>
+          {/* Persona Dropdown */}
+          <div className="space-y-2">
+            <Label className="text-xs uppercase tracking-wider">
+              Persona
+              {personasLoading && (
+                <Loader2 className="w-3 h-3 ml-2 inline animate-spin" aria-hidden="true" />
+              )}
+            </Label>
+            <Select value={selectedPersona} onValueChange={setSelectedPersona} disabled={personasLoading}>
+              <SelectTrigger className="w-full" aria-label="Select agent persona">
+                <SelectValue placeholder={personasLoading ? "Loading personas..." : "Select a persona..."} />
+              </SelectTrigger>
+              <SelectContent className="max-h-[300px]">
+                {personas.map((persona) => (
+                  <SelectItem key={persona.id} value={persona.id} className="capitalize">
+                    {persona.name}
+                    {persona.model && (
+                      <span className={cn('ml-2 text-[10px] font-mono uppercase', modelColors[persona.model] || 'text-muted-foreground')}>
+                        ({persona.model})
+                      </span>
+                    )}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {/* Show model badge next to selected persona */}
+            {selectedPersonaInfo?.model && (
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs text-muted-foreground">Model:</span>
+                <span className={cn('text-xs font-mono uppercase', modelColors[selectedPersonaInfo.model] || 'text-muted-foreground')}>
+                  {selectedPersonaInfo.model}
+                </span>
+              </div>
+            )}
+            {/* Show description of selected persona */}
+            {selectedPersonaInfo && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {selectedPersonaInfo.description}
+              </p>
+            )}
+            {!personasLoading && personas.length > 2 && (
+              <p className="text-[10px] text-muted-foreground">
+                {personas.length} personas available
+              </p>
+            )}
           </div>
 
           {/* Task Input */}
