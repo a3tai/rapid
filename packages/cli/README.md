@@ -101,16 +101,17 @@ rapid dev --list
 
 ### rapid stop
 
-Stop the development container.
+Stop the development container and clean up.
 
 ```bash
-rapid stop [--remove] [--volumes]
+rapid stop [--remove] [--services-only] [--prune-worktrees]
 ```
 
 **Options:**
 
-- `--remove` - Remove container after stopping
-- `--volumes` - Also remove volumes
+- `--remove` - Remove containers and volumes after stopping
+- `--services-only` - Only stop services, not the dev container
+- `--prune-worktrees` - Automatically clean up merged agent worktrees
 
 ### rapid status
 
@@ -152,6 +153,123 @@ Manage AI agents.
 ```bash
 rapid agent list
 rapid agent info <name>
+```
+
+### rapid worktree
+
+Manage git worktrees for isolated agent environments.
+
+```bash
+rapid worktree list [--json]
+rapid worktree spawn <persona> <branch> [--no-checkout]
+rapid worktree remove <branch> [--force]
+```
+
+**Subcommands:**
+
+- `list` - List active worktrees
+- `spawn` - Create a new worktree for an agent persona
+- `remove` - Remove a worktree
+
+**Options:**
+
+- `--json` - Output in JSON format
+- `--no-checkout` - Create branch but don't checkout
+- `--force` - Force removal without safety checks
+
+### rapid mcp serve
+
+Start the RAPID MCP server for secure execution and inter-agent communication.
+
+```bash
+rapid mcp serve [--http] [--port <port>] [--project <dir>] [--verbose]
+```
+
+**Options:**
+
+- `--http` - Use HTTP transport instead of stdio (recommended)
+- `--port <port>` - HTTP port (default: 3100)
+- `--project <dir>` - Project directory for MCP context
+- `--verbose` - Enable verbose logging
+
+**Features:**
+
+- Secure sandboxed command execution
+- File operations with access controls
+- Secrets management
+- Event bus integration
+- Task management
+- Persona spawning
+
+### rapid approve
+
+Handle human-in-the-loop (HITL) approval requests from agents.
+
+```bash
+rapid approve list
+rapid approve <request-id> approve [--reason <reason>]
+rapid approve <request-id> reject --reason <reason>
+rapid approve <request-id> defer --reason <reason>
+```
+
+**Subcommands:**
+
+- `list` - List pending approval requests
+- `approve` - Approve a specific request
+- `reject` - Reject a request with optional reason
+- `defer` - Defer a decision with optional reason
+
+**Options:**
+
+- `-r, --reason <reason>` - Provide reason for the decision
+
+### rapid bus
+
+Interact with the event bus for agent coordination.
+
+```bash
+rapid bus register [--agent <name>] [--session <id>]
+rapid bus send <type> <message> [--to <agent>] [--priority <level>]
+rapid bus messages [--type <type>] [--limit <n>] [--json]
+rapid bus agents [--json]
+rapid bus status
+```
+
+**Subcommands:**
+
+- `register` - Register current agent on the bus
+- `send` - Broadcast message to all agents
+- `messages` - Retrieve messages with optional filtering
+- `agents` - List active agents
+- `status` - Show event bus health
+
+### rapid plugin
+
+Manage Claude Code plugins and integrations.
+
+```bash
+rapid plugin list
+rapid plugin install <plugin>
+rapid plugin remove <plugin>
+rapid plugin config <plugin> [options]
+```
+
+### rapid checkpoint / rapid rewind
+
+Save and restore project state.
+
+```bash
+# Create a checkpoint
+rapid checkpoint [--message <msg>]
+
+# List checkpoints
+rapid checkpoint list [--json]
+
+# Restore to a checkpoint
+rapid rewind <checkpoint-id>
+
+# Show checkpoint details
+rapid checkpoint show <checkpoint-id> [--diff]
 ```
 
 ### Global Options
@@ -196,7 +314,7 @@ Create a `rapid.json` in your project root:
 }
 ```
 
-See [rapid.json Specification](https://github.com/a3tai/rapid/docs/reference/rapid.json-spec.md) for complete reference.
+See [rapid.json Specification](../../docs/reference/rapid.json-spec.md) for complete reference.
 
 ## Environment Variables
 

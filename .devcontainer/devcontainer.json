@@ -1,18 +1,27 @@
 {
-  "name": "rapid-dev",
+  "name": "RAPID Typescript",
   "build": {
     "dockerfile": "Dockerfile",
-    "context": ".."
+    "context": "."
   },
-  "containerEnv": {
-    "OP_SERVICE_ACCOUNT_TOKEN": "${localEnv:OP_SERVICE_ACCOUNT_TOKEN}",
-    "SSH_AUTH_SOCK": "/run/host-services/ssh-auth.sock"
-  },
-  "postCreateCommand": "npm install -g @anthropic-ai/claude-code && CI=true pnpm install",
   "customizations": {
     "vscode": {
-      "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode"]
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "prisma.prisma",
+        "mikestead.dotenv"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+      }
     }
   },
+  "containerEnv": {
+    "OP_SERVICE_ACCOUNT_TOKEN": "${localEnv:OP_SERVICE_ACCOUNT_TOKEN}"
+  },
+  "postStartCommand": "direnv allow 2>/dev/null || true",
   "remoteUser": "node"
 }

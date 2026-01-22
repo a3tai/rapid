@@ -5,6 +5,7 @@
  */
 
 import { z } from 'zod';
+import { FETCH_DEFAULT_TIMEOUT, SECURE_EXEC_DEFAULT_TIMEOUT } from './constants.js';
 
 /**
  * Server configuration
@@ -38,7 +39,7 @@ export const SecureExecInputSchema = z.object({
   command: z.string().describe('Command to execute'),
   args: z.array(z.string()).optional().describe('Command arguments'),
   cwd: z.string().optional().describe('Working directory'),
-  timeout: z.number().default(120000).describe('Timeout in milliseconds'),
+  timeout: z.number().default(SECURE_EXEC_DEFAULT_TIMEOUT).describe('Timeout in milliseconds'),
   allowNetwork: z.boolean().default(false).describe('Allow network access'),
 });
 
@@ -66,7 +67,7 @@ export const FetchViaProxyInputSchema = z.object({
   method: z.enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD']).default('GET'),
   headers: z.record(z.string()).optional().describe('HTTP headers'),
   body: z.string().optional().describe('Request body'),
-  timeout: z.number().default(30000).describe('Timeout in milliseconds'),
+  timeout: z.number().default(FETCH_DEFAULT_TIMEOUT).describe('Timeout in milliseconds'),
 });
 
 export type FetchViaProxyInput = z.infer<typeof FetchViaProxyInputSchema>;

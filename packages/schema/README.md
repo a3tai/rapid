@@ -243,7 +243,7 @@ Configuration values support variable substitution:
 - [@a3t/rapid](https://www.npmjs.com/package/@a3t/rapid) - CLI tool
 - [@a3t/rapid-core](https://www.npmjs.com/package/@a3t/rapid-core) - Core library
 - [RAPID Documentation](https://getrapid.dev)
-- [rapid.json Specification](https://github.com/a3tai/rapid/docs/reference/rapid.json-spec.md)
+- [rapid.json Specification](../../docs/reference/rapid.json-spec.md)
 
 ## License
 

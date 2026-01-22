@@ -1,0 +1,54 @@
+# RAPID MCP Server
+# Provides MCP tools via HTTP transport for agents
+
+FROM node:22-slim
+
+WORKDIR /app
+
+# Install build dependencies for native modules (better-sqlite3) and git for worktree creation
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Copy package files and tsconfig
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json tsconfig.base.json ./
+COPY packages/rapid-mcp/package.json packages/rapid-mcp/
+COPY packages/rapid-eventbus/package.json packages/rapid-eventbus/
+COPY packages/schema/package.json packages/schema/
+COPY packages/core/package.json packages/core/
+COPY packages/runtime/package.json packages/runtime/
+COPY packages/daemon/package.json packages/daemon/
+
+# Install dependencies and rebuild better-sqlite3 native module
+RUN pnpm install --frozen-lockfile --prod=false && \
+    cd node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3 && \
+    npm run build-release
+
+# Copy source and build dependencies first
+COPY packages/schema packages/schema
+COPY packages/core packages/core
+COPY packages/runtime packages/runtime
+COPY packages/rapid-eventbus packages/rapid-eventbus
+COPY packages/daemon packages/daemon
+COPY packages/rapid-mcp packages/rapid-mcp
+
+# Build in dependency order
+RUN pnpm --filter @a3t/rapid-schema build && \
+    pnpm --filter @a3t/rapid-eventbus build && \
+    pnpm --filter @a3t/rapid-core build && \
+    pnpm --filter @a3t/rapid-runtime build && \
+    pnpm --filter @a3t/rapid-daemon build && \
+    pnpm --filter @a3t/rapid-mcp build
+
+# Expose HTTP port
+EXPOSE 3100
+
+# Run MCP server in HTTP mode
+ENV NODE_ENV=production
+CMD ["node", "packages/rapid-mcp/dist/bin.js", "--http", "--port", "3100"]

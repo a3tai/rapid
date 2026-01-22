@@ -1,12 +1,16 @@
 # RAPID Development Container
+# Includes all AI coding agents: Claude Code, OpenCode, Aider
 FROM mcr.microsoft.com/devcontainers/javascript-node:24
 
-# Install additional tools
+# Install system dependencies and Python for Aider
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
     wget \
     build-essential \
+    python3 \
+    python3-pip \
+    python3-venv \
     && rm -rf /var/lib/apt/lists/*
 
 # Install 1Password CLI
@@ -18,8 +22,16 @@ RUN curl -sS https://downloads.1password.com/linux/keys/1password.asc | gpg --de
 # Install pnpm globally
 RUN npm install -g pnpm@10
 
-# Install opencode for the node user
+# Note: Aider requires Python 3.12 or earlier due to setuptools compatibility
+# For now, skip aider installation - Claude Code and OpenCode are available
+
+# Install Claude Code and Codex CLIs globally
+RUN npm install -g @anthropic-ai/claude-code @openai/codex
+
+# Install coding agents for the node user
 USER node
+
+# Install OpenCode
 RUN curl -fsSL https://opencode.ai/install | bash
 ENV PATH="/home/node/.opencode/bin:${PATH}"
 
@@ -28,3 +40,6 @@ USER root
 
 # Set working directory
 WORKDIR /workspaces/rapid
+
+# Environment variables for agent configuration
+ENV RAPID_CONTAINER=true

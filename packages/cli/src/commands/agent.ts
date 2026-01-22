@@ -24,26 +24,33 @@ agentCommand
       const { config } = loaded;
       const statuses = await checkAllAgents(config);
 
-      logger.header('Available Agents');
+      console.log();
+      console.log(`  ${logger.brand('Available Agents')}`);
+      console.log(`  ${logger.dim('─'.repeat(30))}`);
+      console.log();
 
       statuses.forEach((status) => {
         const isDefault = status.name === config.agents.default;
-        const icon = status.available ? '✓' : '○';
-        const defaultTag = isDefault ? ' (default)' : '';
-        const versionTag = status.version ? ` - ${status.version}` : '';
+        const icon = status.available ? logger.brand('✓') : logger.dim('○');
+        const name = isDefault ? logger.bold(status.name) : status.name;
+        const versionTag = status.version ? logger.dim(` (${status.version})`) : '';
+        const defaultTag = isDefault ? logger.dim(' [default]') : '';
 
         if (status.available) {
-          console.log(
-            `  ${logger.brand(icon)} ${status.name}${defaultTag}${logger.dim(versionTag)}`
-          );
+          console.log(`    ${icon} ${name}${versionTag}${defaultTag}`);
         } else {
           console.log(
-            `  ${logger.dim(icon)} ${logger.dim(status.name)}${defaultTag} ${logger.dim('[not installed]')}`
+            `    ${icon} ${logger.dim(status.name)}${defaultTag} ${logger.dim('[not installed]')}`
           );
         }
       });
 
-      logger.blank();
+      console.log();
+      console.log(`  ${logger.dim('Quick Actions')}`);
+      console.log(`  ${logger.dim('─────────────')}`);
+      console.log(`    ${logger.dim('•')} Run: rapid agent list (shows this)`);
+      console.log(`    ${logger.dim('•')} Run: rapid start (launches default agent)`);
+      console.log();
     } catch (error) {
       logger.error(error instanceof Error ? error.message : String(error));
       process.exit(1);

@@ -15,6 +15,8 @@ export default tseslint.config(
       '**/coverage/**',
       'apps/docs/**',
       '**/*.test.ts',
+      '**/wailsjs/**',
+      '**/.wrangler/**',
     ],
   },
 

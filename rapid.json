@@ -1,44 +1,51 @@
 {
   "$schema": "https://getrapid.dev/schema/v1/rapid.json",
   "version": "1.0",
+  "name": "rapid",
   "agents": {
     "default": "claude",
     "available": {
       "claude": {
         "cli": "claude",
         "instructionFile": "CLAUDE.md",
-        "envVars": ["ANTHROPIC_API_KEY"],
         "yolo": true
       },
-      "opencode": {
-        "cli": "opencode",
-        "instructionFile": "AGENTS.md",
-        "envVars": ["ANTHROPIC_API_KEY"]
-      },
+      "opencode": { "cli": "opencode", "instructionFile": "AGENTS.md" },
+      "codex": { "cli": "codex", "instructionFile": "AGENTS.md" },
       "aider": {
         "cli": "aider",
         "instructionFile": "AGENTS.md",
         "envVars": ["ANTHROPIC_API_KEY"],
-        "args": ["--model", "claude-3-5-sonnet-20241022"]
+        "args": ["--model", "claude-3-5-sonnet-20241022"],
+        "readsInstructionFiles": true
       }
     }
   },
   "secrets": {
     "provider": "1password",
-    "vault": "Development",
+    "vault": "A3T",
     "items": {
       "ANTHROPIC_API_KEY": "op://A3T/RAPID/ANTHROPIC_API_KEY",
-      "TAVILY_API_KEY": "op://A3T/RAPID/TAVILY_API_KEY",
-      "CONTEXT7_API_KEY": "op://A3T/RAPID/CONTEXT7_API_KEY"
+      "CONTEXT7_API_KEY": "op://A3T/RAPID/CONTEXT7_API_KEY",
+      "TAVILY_API_KEY": "op://A3T/RAPID/TAVILY_API_KEY"
     }
   },
   "context": {
     "files": ["README.md", "CLAUDE.md", "AGENTS.md"],
     "generateAgentFiles": false
   },
+  "gateway": {
+    "enabled": true,
+    "mode": "managed"
+  },
   "mcp": {
     "configFile": ".mcp.json",
     "servers": {
+      "rapid": {
+        "enabled": true,
+        "type": "remote",
+        "url": "http://localhost:3100/mcp"
+      },
       "context7": {
         "enabled": true,
         "type": "remote",
@@ -50,10 +57,105 @@
         "type": "remote",
         "url": "https://mcp.tavily.com/mcp",
         "headers": { "Authorization": "Bearer ${TAVILY_API_KEY}" }
+      },
+      "playwright": {
+        "enabled": true,
+        "type": "stdio",
+        "command": "npx",
+        "args": ["@playwright/mcp"]
       }
     }
   },
-  "eventBus": {
-    "enabled": true
+  "eventBus": { "enabled": true },
+  "security": {
+    "trustLevel": "development",
+    "strictMode": false,
+    "humanApproval": {
+      "enabled": false,
+      "timeout": 300,
+      "timeoutBehavior": "deny",
+      "actions": [
+        {
+          "pattern": "delete_*",
+          "requireApproval": true,
+          "description": "Deletion operations require approval"
+        },
+        {
+          "pattern": "*deploy*",
+          "requireApproval": true,
+          "exemptRoles": ["devops", "orchestrator"],
+          "description": "Deployment operations require approval"
+        }
+      ],
+      "notify": {
+        "eventBus": true,
+        "desktop": true
+      }
+    },
+    "toolAcls": [
+      {
+        "tool": "secure_exec",
+        "allowedRoles": ["worker", "orchestrator"],
+        "alwaysRequireApproval": false,
+        "rateLimit": 100
+      },
+      {
+        "tool": "write_file",
+        "allowedRoles": ["worker", "orchestrator", "designer"],
+        "requireApprovalFor": ["*.env", "*.key", "*credentials*", "*secret*"],
+        "rateLimit": 50
+      },
+      {
+        "tool": "read_file",
+        "allowedRoles": ["worker", "orchestrator", "designer", "reviewer"],
+        "rateLimit": 200
+      },
+      {
+        "tool": "get_secret",
+        "allowedRoles": ["worker", "orchestrator"],
+        "alwaysRequireApproval": false,
+        "rateLimit": 20
+      },
+      {
+        "tool": "delete_file",
+        "allowedRoles": ["worker", "orchestrator"],
+        "alwaysRequireApproval": true,
+        "rateLimit": 5
+      }
+    ],
+    "audit": {
+      "enabled": true,
+      "events": [
+        "tool_call",
+        "approval_request",
+        "approval_response",
+        "secret_access",
+        "sandbox_violation",
+        "budget_alert"
+      ],
+      "destination": "both",
+      "logFile": ".rapid/audit.jsonl",
+      "retentionDays": 30
+    },
+    "perAgentBudget": 50,
+    "perSessionBudget": 500,
+    "sandbox": {
+      "enabled": true,
+      "mode": "auto",
+      "network": {
+        "enabled": true,
+        "allowedDomains": ["*.github.com", "*.npm.org", "registry.npmjs.org", "api.github.com"],
+        "proxyPort": 8888,
+        "socksPort": 1080
+      },
+      "filesystem": {
+        "readOnlyRoot": true,
+        "writePaths": [".rapid", "node_modules"]
+      }
+    },
+    "budgets": {
+      "enabled": true,
+      "alerts": [0.5, 0.75, 0.9]
+    }
   }
 }

@@ -30,6 +30,7 @@ describe('config', () => {
       expect(config.agents.default).toBe('claude');
       expect(config.agents.available).toHaveProperty('claude');
       expect(config.agents.available).toHaveProperty('opencode');
+      expect(config.agents.available).toHaveProperty('codex');
       expect(config.agents.available).toHaveProperty('aider');
       expect(config.secrets?.provider).toBe('env');
       expect(config.context?.generateAgentFiles).toBe(true);
@@ -46,6 +47,10 @@ describe('config', () => {
       // OpenCode
       expect(config.agents.available.opencode.cli).toBe('opencode');
       expect(config.agents.available.opencode.instructionFile).toBe('AGENTS.md');
+
+      // Codex
+      expect(config.agents.available.codex.cli).toBe('codex');
+      expect(config.agents.available.codex.instructionFile).toBe('AGENTS.md');
 
       // Aider
       expect(config.agents.available.aider.cli).toBe('aider');

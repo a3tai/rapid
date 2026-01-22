@@ -1,0 +1,107 @@
+# RAPID Development Stack
+# Hot-reload enabled for rapid iteration
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml up -d
+#   docker compose -f docker-compose.dev.yml logs -f
+#   docker compose -f docker-compose.dev.yml down
+
+name: rapid-dev
+
+services:
+  # Event Bus (Redis) - Required for multi-agent communication
+  redis:
+    image: redis:7-alpine
+    container_name: rapid-dev-redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - rapid-dev-redis:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - rapid-dev-net
+
+  # Redis Commander - Web UI for debugging Redis
+  redis-ui:
+    image: rediscommander/redis-commander:latest
+    container_name: rapid-dev-redis-ui
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - '8081:8081'
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - rapid-dev-net
+    profiles:
+      - debug
+
+  # MCP Server - Development mode with source mounts
+  mcp:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.mcp
+    container_name: rapid-dev-mcp
+    ports:
+      - '3100:3100'
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - NODE_ENV=development
+      - DEBUG=rapid:*
+      - RAPID_PROJECT_DIR=/workspace
+      - RAPID_DAEMON_URL=http://host.docker.internal:3200
+    volumes:
+      # Mount source for hot reload
+      - ./packages/rapid-mcp/src:/app/packages/rapid-mcp/src:ro
+      - ./packages/rapid-eventbus/src:/app/packages/rapid-eventbus/src:ro
+      - ./packages/core/src:/app/packages/core/src:ro
+      # Mount workspace for file operations
+      - .:/workspace:rw
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'node', '-e', "require('http').get('http://localhost:3100/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - rapid-dev-net
+
+  # LLM Gateway (LiteLLM) - Development mode
+  gateway:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.gateway
+    container_name: rapid-dev-gateway
+    ports:
+      - '4000:4000'
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY:-sk-rapid-dev}
+      - LITELLM_LOG_LEVEL=DEBUG
+    volumes:
+      - ./litellm_config.yaml:/app/config.yaml:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q --spider http://localhost:4000/health || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - rapid-dev-net
+    profiles:
+      - gateway
+
+networks:
+  rapid-dev-net:
+    name: rapid-dev-net
+    driver: bridge
+
+volumes:
+  rapid-dev-redis:

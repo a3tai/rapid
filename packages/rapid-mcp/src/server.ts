@@ -6,6 +6,7 @@
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { RapidMcpServerConfig, TransportType } from './types.js';
 
@@ -15,7 +16,24 @@ import { registerFetchViaProxyTool } from './tools/fetch.js';
 import { registerGetSecretTool } from './tools/secrets.js';
 import { registerFilesystemTools } from './tools/filesystem.js';
 import { registerSecurityTools } from './tools/security.js';
-import { registerEventBusTools } from './tools/eventbus.js';
+import { registerEventBusTools } from './tools/eventbus/index.js';
+import { registerPersonaTools } from './tools/personas.js';
+import { registerTaskTools } from './tools/tasks/index.js';
+import { registerTaskWatchTools } from './tools/task-watch.js';
+import { registerDependencyTools } from './tools/dependencies.js';
+import { registerMetricsTools } from './tools/metrics.js';
+// registerKnowledgeTools disabled - context-engine.ts provides these tools
+// import { registerKnowledgeTools } from './tools/knowledge.js';
+import { registerSuggestionTools } from './tools/suggestions.js';
+import { registerContextEngineTools } from './tools/context-engine.js';
+import { registerBudgetTrackingTools } from './tools/budget-tracking.js';
+import { registerAuditTrailTools } from './tools/audit-trail.js';
+import { registerGitWorkflowTools } from './tools/git-workflow.js';
+import { registerWorktreeMergeTools, registerWorktreeRecoveryTools } from './tools/worktree-merge.js';
+import { registerMergeApprovalTools } from './tools/merge-approval.js';
+import { registerCapabilityTools } from './tools/capability-tools.js';
+import { registerContext7Tools } from './tools/context7.js';
+import { registerLoggingTools } from './tools/logging.js';
 
 // Import resource implementations
 import { registerConfigResource } from './resources/config.js';
@@ -56,6 +74,25 @@ export function createRapidMcpServer(config: RapidMcpServerConfig): McpServer {
   registerFilesystemTools(server, context);
   registerSecurityTools(server, context);
   registerEventBusTools(server, context);
+  registerPersonaTools(server, context);
+  registerTaskTools(server, context);
+  registerTaskWatchTools(server, context);
+  registerDependencyTools(server, context);
+  registerMetricsTools(server, context);
+  // NOTE: registerKnowledgeTools disabled - context-engine.ts provides the same tools
+  // with more features (memory types, scopes, relations). Keep for type exports only.
+  // registerKnowledgeTools(server, context);
+  registerSuggestionTools(server, context);
+  registerContextEngineTools(server, context);
+  registerBudgetTrackingTools(server, context);
+  registerAuditTrailTools(server, context);
+  registerGitWorkflowTools(server, context);
+  registerWorktreeMergeTools(server, context);
+  registerWorktreeRecoveryTools(server, context);
+  registerMergeApprovalTools(server, context);
+  registerCapabilityTools(server, context);
+  registerContext7Tools(server, context);
+  registerLoggingTools(server, context);
 
   // Register resources
   registerConfigResource(server, context);
@@ -108,12 +145,18 @@ export async function runHttp(server: McpServer, port: number = 3100): Promise<v
   app.use(json());
 
   // Create HTTP transport for MCP
+  // StreamableHTTPServerTransport is from MCP SDK and implements Transport interface,
+  // but doesn't have proper TypeScript exports. Using type assertion here is safe.
+  interface StreamableTransport extends Transport {
+    handleRequest(req: unknown, res: unknown, body: unknown): Promise<void>;
+  }
+
   const httpTransport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => randomUUID(),
-  });
+  }) as unknown as StreamableTransport;
 
   // Connect the server to the transport
-  await server.connect(httpTransport as any);
+  await server.connect(httpTransport);
 
   // Mount at /mcp - handle both GET (SSE) and POST (JSON-RPC)
   app.all('/mcp', async (req, res) => {
