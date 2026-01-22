@@ -1,7 +1,7 @@
 /**
  * @a3t/rapid-schema
  *
- * JSON schema and TypeScript types for RAPID configuration.
+ * JSON schema, TypeScript types, and Zod validation schemas for RAPID configuration.
  * An open source project by A3T.
  *
  * @packageDocumentation
@@ -9,6 +9,9 @@
 
 // Re-export the JSON schema
 export { default as schema } from './rapid.schema.json';
+
+// Re-export all Zod schemas and their inferred types
+export * from './schemas.js';
 
 /**
  * RAPID configuration file (rapid.json)

@@ -1,7 +1,7 @@
 {
   "name": "@a3t/rapid-schema",
   "version": "0.2.0",
-  "description": "JSON schema and TypeScript types for RAPID configuration",
+  "description": "JSON schema, TypeScript types, and Zod validation schemas for RAPID configuration",
   "license": "MIT",
   "author": "Steve Rude <steve@rude.la>",
   "homepage": "https://getrapid.dev",
@@ -16,13 +16,19 @@
     "devcontainer",
     "schema",
     "json-schema",
-    "typescript"
+    "typescript",
+    "zod",
+    "validation"
   ],
   "type": "module",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./schemas": {
+      "types": "./dist/schemas.d.ts",
+      "import": "./dist/schemas.js"
     },
     "./schema": {
       "import": "./src/rapid.schema.json"
@@ -41,6 +47,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "zod": "^3.25.32"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
