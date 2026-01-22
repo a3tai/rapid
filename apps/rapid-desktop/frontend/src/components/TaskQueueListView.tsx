@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { useTasks, useAppStore } from '../stores/app';
-import type { Task } from '../stores/app';
+// Task type used in useTasks()
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -251,7 +251,7 @@ export function TaskQueueListView() {
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="unassigned">Unassigned</SelectItem>
                   {uniqueAssignees.map((assignee) => (
-                    <SelectItem key={assignee} value={assignee}>
+                    <SelectItem key={assignee} value={assignee || 'unknown'}>
                       {assignee}
                     </SelectItem>
                   ))}

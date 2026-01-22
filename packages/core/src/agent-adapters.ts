@@ -531,13 +531,21 @@ export class RooCodeAdapter implements AgentAdapter {
     const instructions: string[] = [];
 
     // Roo Code MCP configuration goes in .vscode/mcp.json
-    const mcpConfig = {
-      servers: {
-        rapid: {
+    // Use HTTP transport if mcpServerUrl is provided (e.g., in Docker), otherwise use stdio
+    const mcpServerConfig = options.mcpServerUrl
+      ? {
+          type: 'http' as const,
+          url: options.mcpServerUrl,
+        }
+      : {
           command: 'rapid',
           args: ['mcp', 'serve'],
           env: {},
-        },
+        };
+
+    const mcpConfig = {
+      servers: {
+        rapid: mcpServerConfig,
       },
     };
 
@@ -631,13 +639,21 @@ export class CopilotAdapter implements AgentAdapter {
     const instructions: string[] = [];
 
     // Copilot MCP configuration
-    const mcpConfig = {
-      servers: {
-        rapid: {
+    // Use HTTP transport if mcpServerUrl is provided (e.g., in Docker), otherwise use stdio
+    const mcpServerConfig = options.mcpServerUrl
+      ? {
+          type: 'http' as const,
+          url: options.mcpServerUrl,
+        }
+      : {
           command: 'rapid',
           args: ['mcp', 'serve'],
           env: {},
-        },
+        };
+
+    const mcpConfig = {
+      servers: {
+        rapid: mcpServerConfig,
       },
     };
 
@@ -748,13 +764,21 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     const instructions: string[] = [];
 
     // Claude Code MCP configuration in .mcp.json
-    const mcpConfig = {
-      mcpServers: {
-        rapid: {
+    // Use HTTP transport if mcpServerUrl is provided (e.g., in Docker), otherwise use stdio
+    const mcpServerConfig = options.mcpServerUrl
+      ? {
+          type: 'http' as const,
+          url: options.mcpServerUrl,
+        }
+      : {
           command: 'rapid',
           args: ['mcp', 'serve'],
           env: {},
-        },
+        };
+
+    const mcpConfig = {
+      mcpServers: {
+        rapid: mcpServerConfig,
       },
     };
 

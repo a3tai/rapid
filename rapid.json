@@ -44,7 +44,7 @@
       "rapid": {
         "enabled": true,
         "type": "remote",
-        "url": "http://localhost:3100/mcp"
+        "url": "http://host.docker.internal:3100/mcp"
       },
       "context7": {
         "enabled": true,

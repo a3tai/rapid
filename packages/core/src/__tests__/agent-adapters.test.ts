@@ -403,6 +403,18 @@ describe('Agent Adapters', () => {
         expect(settings['roo-code.mcpServers']).toEqual(['rapid']);
         expect(settings['roo-code.customInstructions']).toBeDefined();
       });
+
+      it('should use HTTP transport when mcpServerUrl is provided', async () => {
+        const options = createConfigOptions();
+        options.mcpServerUrl = 'http://host.docker.internal:3100/mcp';
+        const result = await adapter.generateConfig(options);
+        const config = JSON.parse(result.files[0].content);
+
+        expect(config.servers.rapid).toBeDefined();
+        expect(config.servers.rapid.type).toBe('http');
+        expect(config.servers.rapid.url).toBe('http://host.docker.internal:3100/mcp');
+        expect(config.servers.rapid.command).toBeUndefined();
+      });
     });
 
     describe('getArgs', () => {
@@ -448,6 +460,18 @@ describe('Agent Adapters', () => {
         expect(settings['github.copilot.advanced']).toBeDefined();
         expect(settings['github.copilot.advanced'].customInstructions).toBeDefined();
       });
+
+      it('should use HTTP transport when mcpServerUrl is provided', async () => {
+        const options = createConfigOptions();
+        options.mcpServerUrl = 'http://host.docker.internal:3100/mcp';
+        const result = await adapter.generateConfig(options);
+        const config = JSON.parse(result.files[0].content);
+
+        expect(config.servers.rapid).toBeDefined();
+        expect(config.servers.rapid.type).toBe('http');
+        expect(config.servers.rapid.url).toBe('http://host.docker.internal:3100/mcp');
+        expect(config.servers.rapid.command).toBeUndefined();
+      });
     });
   });
 
@@ -490,6 +514,18 @@ describe('Agent Adapters', () => {
 
         expect(config.mcpServers.rapid).toBeDefined();
         expect(config.mcpServers.rapid.command).toBe('rapid');
+      });
+
+      it('should use HTTP transport when mcpServerUrl is provided', async () => {
+        const options = createConfigOptions();
+        options.mcpServerUrl = 'http://host.docker.internal:3100/mcp';
+        const result = await adapter.generateConfig(options);
+        const config = JSON.parse(result.files[0].content);
+
+        expect(config.mcpServers.rapid).toBeDefined();
+        expect(config.mcpServers.rapid.type).toBe('http');
+        expect(config.mcpServers.rapid.url).toBe('http://host.docker.internal:3100/mcp');
+        expect(config.mcpServers.rapid.command).toBeUndefined();
       });
     });
 

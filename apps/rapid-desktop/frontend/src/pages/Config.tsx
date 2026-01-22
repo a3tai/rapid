@@ -16,7 +16,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '../components/Skeleton';
 import { McpServerManager } from '../components/McpServerManager';
-import { useConfig, useConfigValidation, type RapidConfig, type AgentConfig, type SecretsConfig, type SecurityConfig } from '../hooks/useConfig';
+import { useConfig, useConfigValidation, type RapidConfig, type SecretsConfig } from '../hooks/useConfig';
 import { cn } from '@/lib/utils';
 
 /**
@@ -440,9 +440,9 @@ interface SecretsSettingsProps {
   onChange: (path: string, value: unknown) => void;
 }
 
-function SecretsSettings({ config, errors, onChange }: SecretsSettingsProps) {
-  const secrets = config.secrets || {};
-  const items = secrets.items || {};
+function SecretsSettings({ config, onChange }: SecretsSettingsProps) {
+  const secrets: SecretsConfig = config.secrets || { provider: '1password' };
+  const items: Record<string, string> = secrets.items || {};
 
   return (
     <div className="space-y-6">
@@ -493,7 +493,7 @@ function SecretsSettings({ config, errors, onChange }: SecretsSettingsProps) {
               />
               <span className="text-muted-foreground">=</span>
               <Input
-                value={value}
+                value={String(value)}
                 className="flex-1"
                 onChange={(e) => {
                   const newItems = { ...items, [key]: e.target.value };

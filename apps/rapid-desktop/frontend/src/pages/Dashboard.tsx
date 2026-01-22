@@ -12,6 +12,7 @@ import { SecurityPanel } from '../components/SecurityPanel';
 import { ActivityFeed } from '../components/ActivityFeed';
 import { PerformanceMonitor } from '../components/PerformanceMonitor';
 import { ConnectionStatus } from '../components/ConnectionStatus';
+import { ExportReports } from '../components/ExportReports';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -53,6 +54,12 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Top toolbar with export */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <ExportReports />
+      </div>
+
       {/* Stats cards with sparklines */}
       <div className="grid grid-cols-4 gap-4">
         <StatCard
