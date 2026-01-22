@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { clsx } from 'clsx';
-import { useActiveView, useAppStore, useAgents, useTasks } from '../stores/app';
+import { useActiveView, useAppStore, useAgents, useTasks, useSidebarCollapsed } from '../stores/app';
 import { ConnectionStatusBadge } from './ConnectionStatus';
 import { useToast } from './Toast';
 
@@ -73,13 +73,47 @@ export function Header() {
     },
   ];
 
+  const collapsed = useSidebarCollapsed();
+  const toggleSidebar = useAppStore((s) => s.toggleSidebar);
+
   return (
-    <header className="h-14 bg-rapid-surface border-b border-rapid-border flex items-center justify-between px-6 wails-drag">
-      {/* Left: Title and subtitle */}
-      <div className="flex items-center gap-4 wails-no-drag">
+    <header className="h-14 bg-rapid-surface border-b border-rapid-border flex items-center justify-between wails-drag">
+      {/* Left: Toggle + Logo + Title */}
+      <div className="flex items-center wails-no-drag">
+        {/* Space for macOS traffic lights + Toggle + Logo */}
+        <div className="flex items-center pl-20 gap-3">
+          {/* Sidebar toggle */}
+          <button
+            onClick={toggleSidebar}
+            className="p-1.5 rounded-md text-rapid-muted hover:text-rapid-text hover:bg-rapid-elevated transition-colors"
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+              </svg>
+            )}
+          </button>
+
+          {/* Logo */}
+          <div className="flex items-center">
+            <span className="font-mono text-lg font-normal tracking-[0.1em] bg-gradient-to-br from-rapid-text to-rapid-accent bg-clip-text text-transparent">
+              RAPID
+            </span>
+            <span className="font-mono text-lg text-rapid-accent animate-cursor-blink">_</span>
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="h-6 w-px bg-rapid-border mx-4" />
+
+        {/* Page title */}
         <div>
-          <h1 className="text-lg font-semibold leading-tight">{viewInfo.title}</h1>
-          {viewInfo.subtitle && <p className="text-xs text-rapid-muted">{viewInfo.subtitle}</p>}
+          <h1 className="text-base font-medium leading-tight">{viewInfo.title}</h1>
         </div>
       </div>
 

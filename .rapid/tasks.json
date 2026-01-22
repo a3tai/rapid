@@ -2411,17 +2411,26 @@
     "id": "a99193ce-bcc2-497f-a7c3-8cd71ec5da46",
     "title": "Research Claude streaming output formats and thinking blocks",
     "description": "Research how to capture Claude Code CLI output including thinking blocks:\n\n1. Test --output-format json vs stream-json\n2. Document the event structure for thinking_delta events\n3. Identify how to parse and display thinking content\n4. Research best practices for streaming UI (SSE, WebSocket patterns)\n5. Look at examples of thinking visualization in other AI UIs\n\nOutput a comprehensive design document with:\n- Event schemas\n- Recommended streaming approach\n- UI component structure\n- Example code snippets",
-    "status": "pending",
+    "status": "completed",
     "priority": "urgent",
     "createdAt": "2026-01-22T07:04:11.481Z",
-    "updatedAt": "2026-01-22T07:04:11.481Z",
+    "updatedAt": "2026-01-22T18:48:16.029Z",
     "createdBy": "orchestrator",
+    "assignedTo": "researcher-researcher-522497",
     "tags": [
       "research",
       "streaming",
       "thinking",
       "ui"
     ],
+    "metadata": {
+      "progressPercentage": 0.9,
+      "lastProgressMessage": "Design document written to docs/streaming-thinking-design.md. Finalizing task.",
+      "completionSummary": "Completed comprehensive research on Claude streaming output formats and thinking blocks. Created detailed design document at docs/streaming-thinking-design.md covering:\n\n1. **Output Format Comparison**: Documented `--output-format json` (complete response) vs `stream-json` (real-time NDJSON) with use case recommendations.\n\n2. **Event Schema Documentation**: Full TypeScript interfaces for all streaming events including `message_start`, `content_block_start`, `content_block_delta`, `content_block_stop`, `message_delta`, and `message_stop`.\n\n3. **Extended Thinking Events**: Detailed `thinking_delta` event structure, signature preservation requirements for tool use, and multi-turn conversation handling.\n\n4. **Streaming Architecture**: Recommended SSE (Server-Sent Events) with backend proxy pattern. Included architecture diagram and comparison of SSE vs WebSocket vs direct CLI streaming.\n\n5. **UI Component Structure**: Component hierarchy with collapsible ThinkingBlock pattern following industry standards (ChatGPT, Claude.ai, shadcn/ui). Includes duration indicators, auto-collapse behavior, and copy functionality.\n\n6. **Complete Code Examples**: \n   - ClaudeStreamProcessor class for event parsing\n   - React ThinkingBlock component with animations\n   - useClaudeStream hook for SSE client\n   - Full ChatInterface integration example\n\n7. **Best Practices**: Guidance on stream processing, thinking block UI, multi-turn conversations, performance optimization, and error handling."
+    },
+    "claimedAt": "2026-01-22T18:45:33.178Z",
+    "claimDeadline": "2026-01-22T18:50:33.178Z",
+    "lastProgressAt": "2026-01-22T18:48:06.823Z",
     "requiredCapabilities": [
       "research",
       "typescript",
@@ -2478,7 +2487,7 @@
     "status": "pending",
     "priority": "urgent",
     "createdAt": "2026-01-22T07:04:11.757Z",
-    "updatedAt": "2026-01-22T07:04:11.757Z",
+    "updatedAt": "2026-01-22T18:51:44.552Z",
     "createdBy": "orchestrator",
     "tags": [
       "ui",
@@ -2486,6 +2495,13 @@
       "streaming",
       "agents"
     ],
+    "metadata": {
+      "progressPercentage": 0.8,
+      "lastProgressMessage": "Component implementation complete, running type checks"
+    },
+    "claimedAt": "2026-01-22T18:46:42.393Z",
+    "claimDeadline": "2026-01-22T18:51:42.393Z",
+    "lastProgressAt": "2026-01-22T18:48:59.551Z",
     "requiredCapabilities": [
       "react",
       "typescript"
@@ -2496,17 +2512,24 @@
     "id": "4105fd90-c831-4a33-b501-9dd1e2aa34fe",
     "title": "Add daemon SSE endpoint for agent stream events",
     "description": "Add a Server-Sent Events endpoint to the daemon for real-time agent output streaming:\n\n1. Create /agents/:agentId/stream SSE endpoint\n2. Parse agent log files for stream-json events\n3. Forward new events as SSE messages\n4. Include event types: thinking, text, tool_use, tool_result\n5. Handle reconnection with Last-Event-ID\n6. Add heartbeat to keep connection alive\n7. Support multiple concurrent subscribers\n\nEvent format:\n```\nevent: thinking\ndata: {\"content\": \"...\", \"timestamp\": \"...\"}\n\nevent: text  \ndata: {\"content\": \"...\", \"timestamp\": \"...\"}\n\nevent: tool_use\ndata: {\"name\": \"...\", \"input\": {...}, \"timestamp\": \"...\"}\n```",
-    "status": "pending",
+    "status": "completed",
     "priority": "high",
     "createdAt": "2026-01-22T07:04:11.848Z",
-    "updatedAt": "2026-01-22T07:04:11.848Z",
+    "updatedAt": "2026-01-22T18:45:08.442Z",
     "createdBy": "orchestrator",
+    "assignedTo": "implementer-implementer-279106",
     "tags": [
       "daemon",
       "sse",
       "streaming",
       "backend"
     ],
+    "metadata": {
+      "completionSummary": "Successfully implemented the daemon SSE endpoint for agent stream events. The /agents/:agentId/stream endpoint now:\n\n1. ✓ Parses stream-json events from agent log files\n2. ✓ Extracts and forwards specific event types (thinking, text, tool_use, tool_result)\n3. ✓ Sends events in proper SSE format with event type and line ID\n4. ✓ Implements Last-Event-ID header support for client reconnection\n5. ✓ Maintains heartbeat every 30 seconds to keep connection alive\n6. ✓ Supports multiple concurrent subscribers via file watching and polling\n7. ✓ Handles connection close events with proper cleanup\n\nKey implementation details:\n- parseStreamJsonEvent() extracts relevant events from NDJSON format logs\n- Tracks line numbers for event IDs to support Last-Event-ID reconnection\n- Uses both file watching (efficient) and polling (fallback) for reliability\n- Properly parses assistant messages with thinking/text content\n- Extracts tool_use and tool_result events with complete input/output\n- File: packages/daemon/src/server.ts (handleLogStream method, lines 530-770)"
+    },
+    "claimedAt": "2026-01-22T18:41:31.846Z",
+    "claimDeadline": "2026-01-22T18:46:31.846Z",
+    "lastProgressAt": "2026-01-22T18:41:31.846Z",
     "requiredCapabilities": [
       "typescript",
       "node"
@@ -2539,10 +2562,10 @@
     "id": "8405479e-6dc4-4bf9-ba2c-61ab550f763f",
     "title": "Recover and merge stale worktree changes",
     "description": "8 orphaned worktrees exist with potentially uncommitted work:\n- agent-618d3b99\n- agent-8711d5ee\n- agent-8cf2192d\n- agent-9a3b8f8d\n- agent-9b01f397\n- agent-c5176e48\n- agent-df03329b\n- agent-f246cef0\n\nFor each worktree:\n1. Check for uncommitted changes using worktree_recover tool\n2. Review modified files for valuable work\n3. Copy relevant changes to main branch\n4. Document what was recovered\n5. Clean up worktree after recovery\n\nUse mcp__rapid__worktree_recover with dryRun first to see what's there.",
-    "status": "pending",
+    "status": "completed",
     "priority": "high",
     "createdAt": "2026-01-22T07:04:12.014Z",
-    "updatedAt": "2026-01-22T07:04:12.014Z",
+    "updatedAt": "2026-01-22T18:08:48.331Z",
     "createdBy": "orchestrator",
     "tags": [
       "worktree",
@@ -2559,16 +2582,25 @@
     "id": "0870dfbe-2e62-4573-9565-e1073a48dd13",
     "title": "Design new Agent Runner architecture",
     "description": "Design a sophisticated agent runner to replace agent-loop.sh with proper I/O control:\n\n**Requirements:**\n1. Real-time stream-json parsing\n2. Event forwarding to Redis/event bus\n3. Proper signal handling (SIGTERM, SIGINT)\n4. Health monitoring with heartbeats\n5. Resource tracking (memory, tokens, cost)\n6. Graceful shutdown with cleanup\n7. Task claiming and completion workflow\n8. Git worktree management\n\n**Architecture Options:**\nA) Node.js runner (TypeScript) - matches RAPID stack\nB) Go runner - matches Wails backend\nC) Rust runner - high performance\n\n**Deliverables:**\n- Architecture document\n- Event schema definitions\n- Process lifecycle diagram\n- API for daemon communication",
-    "status": "pending",
+    "status": "completed",
     "priority": "urgent",
     "createdAt": "2026-01-22T07:19:05.171Z",
-    "updatedAt": "2026-01-22T07:19:05.171Z",
+    "updatedAt": "2026-01-22T18:49:06.302Z",
     "createdBy": "orchestrator",
+    "assignedTo": "architect-architect-522871",
     "tags": [
       "agent-runner",
       "architecture",
       "design"
     ],
+    "metadata": {
+      "progressPercentage": 0.9,
+      "lastProgressMessage": "Architecture document complete with all deliverables - preparing to commit",
+      "completionSummary": "Created comprehensive Agent Runner v2 architecture document at docs/architecture/agent-runner-v2.md. The document includes:\n\n**Architecture Decision**: Recommended TypeScript/Node.js based on stack alignment, stream processing capabilities, and XState integration.\n\n**Core Components Designed**:\n1. Process Manager - spawns/controls Claude Code via node-pty\n2. Stream Parser - real-time JSON stream parsing\n3. State Machine - XState-based lifecycle management (idle→claiming→working→completed)\n4. Event Dispatcher - Redis integration with event schemas\n5. Heartbeat Manager - 30s heartbeat with failure detection\n6. Resource Tracker - token/cost/memory monitoring\n7. Worktree Manager - git worktree lifecycle\n\n**Deliverables Completed**:\n- Architecture document with system diagrams\n- Event schema definitions (lifecycle, task, stream, system events)\n- Process lifecycle diagram (ASCII art state flow)\n- Daemon communication API (JSON-RPC interface)\n- Implementation plan (4-week phased approach)\n- File structure proposal for packages/agent-runner/\n\nNote: Git commit not possible due to worktree reference pointing to host path outside container."
+    },
+    "claimedAt": "2026-01-22T18:45:33.189Z",
+    "claimDeadline": "2026-01-22T18:50:33.189Z",
+    "lastProgressAt": "2026-01-22T18:48:41.541Z",
     "requiredCapabilities": [
       "architecture",
       "typescript"
@@ -2582,13 +2614,17 @@
     "status": "pending",
     "priority": "urgent",
     "createdAt": "2026-01-22T07:19:05.352Z",
-    "updatedAt": "2026-01-22T07:19:05.352Z",
+    "updatedAt": "2026-01-22T18:49:32.478Z",
     "createdBy": "orchestrator",
     "tags": [
       "agent-runner",
       "typescript",
       "implementation"
     ],
+    "metadata": {
+      "timeoutReason": "progress_timeout"
+    },
+    "lastProgressAt": "2026-01-22T18:45:33.202Z",
     "requiredCapabilities": [
       "typescript",
       "node"
@@ -2599,16 +2635,30 @@
     "id": "e901be73-1e39-459b-8250-eac27785ce5e",
     "title": "Implement Agent Runner event streaming",
     "description": "Add real-time event streaming from Agent Runner to daemon/UI:\n\n**Features:**\n1. Parse stream-json events as they arrive\n2. Transform to typed events with timestamps\n3. Publish to Redis streams for persistence\n4. Support SSE subscribers via daemon\n5. Buffer events during disconnection\n6. Replay missed events on reconnect\n\n**Event Types:**\n```typescript\ntype StreamEvent = \n  | { type: 'init'; session_id: string; model: string }\n  | { type: 'thinking'; content: string; timestamp: string }\n  | { type: 'text'; content: string; timestamp: string }\n  | { type: 'tool_use'; name: string; input: object }\n  | { type: 'tool_result'; content: string; is_error: boolean }\n  | { type: 'complete'; usage: TokenUsage }\n  | { type: 'error'; message: string };\n```\n\n**Redis Stream:**\n- Key: `agent:{agentId}:events`\n- Use XADD for publishing\n- Use XREAD for subscribers",
-    "status": "pending",
+    "status": "completed",
     "priority": "urgent",
     "createdAt": "2026-01-22T07:19:05.530Z",
-    "updatedAt": "2026-01-22T07:19:05.530Z",
+    "updatedAt": "2026-01-22T18:48:58.522Z",
     "createdBy": "orchestrator",
+    "assignedTo": "implementer-implementer-279106",
     "tags": [
       "agent-runner",
       "streaming",
       "redis"
     ],
+    "metadata": {
+      "progressPercentage": 0.5,
+      "lastProgressMessage": "Implemented core stream event infrastructure:\n\n1. ✓ Created stream-events.ts in core package with typed StreamEvent union\n2. ✓ Added TokenUsage, StreamEventType, and Redis stream key patterns\n3. ✓ Created StreamPublisher utility in daemon for publishing events to Redis\n4. ✓ Updated daemon server to instantiate StreamPublisher for each log stream\n5. ✓ Modified handleLogStream to publish parsed events to Redis\n\nNext: Update daemon to support SSE client reconnection with Redis replay, and update types export.\"",
+      "completionSummary": "Implemented Agent Runner event streaming with Redis persistence and SSE client support\n\n**Features Implemented:**\n\n1. ✓ **Stream Event Types** (`packages/core/src/stream-events.ts`)\n   - Typed StreamEvent union with all required event types (init, thinking, text, tool_use, tool_result, complete, error)\n   - TokenUsage schema with input/output/cache token counts\n   - Zod validation for runtime safety\n   - REDIS_STREAM_KEYS constants for consistent naming\n   - Configuration defaults for stream retention\n\n2. ✓ **Stream Publisher** (`packages/daemon/src/stream-publisher.ts`)\n   - Redis stream publishing with XADD\n   - Convenient typed methods for each event type\n   - Automatic stream trimming to bounded size (default 10k events)\n   - TTL-based expiration (default 7 days)\n   - Event replay with getEventsSince() for reconnection\n\n3. ✓ **Daemon Integration** (`packages/daemon/src/server.ts`)\n   - SSE endpoint at /agents/:agentId/stream\n   - Parses stream-json events from agent log files\n   - Publishes events to Redis as they're encountered\n   - Supports Last-Event-ID header for client reconnection\n   - Replays missed events from Redis on reconnect\n   - 30-second heartbeat for connection keep-alive\n   - Multiple concurrent subscriber support\n\n4. ✓ **API Exports** (`packages/core/src/index.ts`)\n   - Exported StreamEvent, TokenUsage, and Redis stream utilities\n   - Available for consumers to import typed event definitions\n\n**Redis Stream Design:**\n- Key: agent:{agentId}:events\n- Max entries: 10,000 (configurable with approximateTrim)\n- TTL: 7 days (configurable)\n- Format: XADD with event JSON payload\n\n**Event Flow:**\n1. Agent logs stream-json events\n2. Daemon reads and parses events from log file\n3. Parsed events are published to Redis streams\n4. SSE clients receive events in real-time\n5. Redis persists events for late-joining clients\n6. Reconnecting clients replay missed events and resume live stream\n\n**Documentation:**\n- Created AGENT_STREAMING.md with complete architecture, usage, and examples\n\n**Testing Ready:** The implementation supports:\n- Real-time streaming with file watching and polling fallback\n- Client reconnection with event replay from Redis\n- Automatic stream cleanup and memory management\n- Type-safe event handling with Zod validation\n- Multiple concurrent SSE subscribers per agent",
+      "worktree": "implementer-279106",
+      "mergeWorkflowInitiated": true,
+      "mergeWorkflowInitiatedAt": "2026-01-22T18:48:58.521Z",
+      "needsMergeWorkflow": true,
+      "validateFirst": true
+    },
+    "claimedAt": "2026-01-22T18:46:31.524Z",
+    "claimDeadline": "2026-01-22T18:51:31.524Z",
+    "lastProgressAt": "2026-01-22T18:47:54.577Z",
     "requiredCapabilities": [
       "typescript",
       "redis"
@@ -2697,17 +2747,26 @@
     "id": "5cfc6459-5b41-46d7-a4f6-00d6100379b0",
     "title": "Create useAgentStream React hook",
     "description": "Build React hook for subscribing to agent event streams:\n\n**File:** apps/rapid-desktop/frontend/src/hooks/useAgentStream.ts\n\n**Features:**\n1. Connect to daemon SSE endpoint\n2. Parse and type events\n3. Handle reconnection with Last-Event-ID\n4. Buffer events during disconnect\n5. Provide loading/error states\n\n**API:**\n```typescript\ninterface UseAgentStreamReturn {\n  events: StreamEvent[];\n  isConnected: boolean;\n  isStreaming: boolean;\n  error: string | null;\n  clearEvents: () => void;\n}\n\nfunction useAgentStream(agentId: string): UseAgentStreamReturn;\n```\n\n**Implementation:**\n- Use EventSource API\n- Add event listeners for each type\n- Handle reconnection automatically\n- Limit event buffer to 1000 items",
-    "status": "pending",
+    "status": "completed",
     "priority": "high",
     "createdAt": "2026-01-22T07:19:06.344Z",
-    "updatedAt": "2026-01-22T07:19:06.344Z",
+    "updatedAt": "2026-01-22T18:45:29.592Z",
     "createdBy": "orchestrator",
+    "assignedTo": "frontend-developer-frontend-developer-279387",
     "tags": [
       "ui",
       "react",
       "hooks",
       "streaming"
     ],
+    "metadata": {
+      "progressPercentage": 0.7,
+      "lastProgressMessage": "Implementation complete, running type checks",
+      "completionSummary": "Successfully implemented the useAgentStream React hook at apps/rapid-desktop/frontend/src/hooks/useAgentStream.ts.\n\n**Features implemented:**\n1. ✅ SSE connection to daemon endpoint (/agents/stream/:agentId)\n2. ✅ Full event type parsing (connected, log, heartbeat, error, warning)\n3. ✅ Automatic reconnection with exponential backoff (up to 10 attempts)\n4. ✅ Last-Event-ID tracking via query parameter for stream resumption\n5. ✅ Event buffering with configurable limit (default 1000)\n6. ✅ Loading, error, and connection states (isConnected, isStreaming, error)\n7. ✅ clearEvents() function to reset the buffer\n\n**API implemented:**\n- `useAgentStream(agentId, options)` - main hook with all features\n- `useLegacyAgentStream()` - backwards-compatible callback-based API\n\n**Exports:**\n- StreamEvent, StreamEventType, StreamEventData types\n- ConnectedEventData, LogEventData, HeartbeatEventData, ErrorEventData, WarningEventData\n- UseAgentStreamReturn, UseAgentStreamOptions interfaces\n\nThe implementation follows existing codebase patterns (useEventStream, useLogStream) and uses project conventions for NodeJS.Timeout and import.meta.env."
+    },
+    "claimedAt": "2026-01-22T18:45:20.106Z",
+    "claimDeadline": "2026-01-22T18:50:20.106Z",
+    "lastProgressAt": "2026-01-22T18:45:20.106Z",
     "requiredCapabilities": [
       "react",
       "typescript"
@@ -2894,15 +2953,22 @@
     "status": "in_progress",
     "priority": "urgent",
     "createdAt": "2026-01-22T08:03:31.684Z",
-    "updatedAt": "2026-01-22T08:05:14.624Z",
+    "updatedAt": "2026-01-22T18:48:57.896Z",
     "createdBy": "orchestrator-agent-73b073e1",
-    "assignedTo": "6614e0a0-2e6f-4676-82ad-9a3a3fe86963",
+    "assignedTo": "architect-architect-665454",
     "tags": [
       "ui-redesign",
       "architecture",
       "chat",
       "rapid-router"
     ],
+    "metadata": {
+      "progressPercentage": 0.5,
+      "lastProgressMessage": "Research complete. Writing architecture document with component hierarchy, backend API changes, and migration path"
+    },
+    "claimedAt": "2026-01-22T18:47:59.180Z",
+    "claimDeadline": "2026-01-22T18:52:59.180Z",
+    "lastProgressAt": "2026-01-22T18:48:57.896Z",
     "requiredCapabilities": [
       "architecture",
       "react",
@@ -2917,7 +2983,7 @@
     "status": "pending",
     "priority": "urgent",
     "createdAt": "2026-01-22T08:03:31.727Z",
-    "updatedAt": "2026-01-22T08:03:31.727Z",
+    "updatedAt": "2026-01-22T18:51:44.552Z",
     "createdBy": "orchestrator-agent-73b073e1",
     "tags": [
       "ui-redesign",
@@ -2925,6 +2991,13 @@
       "chat",
       "implementation"
     ],
+    "metadata": {
+      "progressPercentage": 0.2,
+      "lastProgressMessage": "Completed codebase exploration. Starting to enhance ChatInterface with streaming support."
+    },
+    "claimedAt": "2026-01-22T18:48:08.806Z",
+    "claimDeadline": "2026-01-22T18:53:08.806Z",
+    "lastProgressAt": "2026-01-22T18:49:01.218Z",
     "requiredCapabilities": [
       "react",
       "typescript"
@@ -2935,18 +3008,26 @@
     "id": "3b80e1c7-8584-4d8f-bd31-fa9117d47baf",
     "title": "Add backend chat endpoint for rapid-router",
     "description": "Create backend endpoint to send user messages to rapid-router and receive responses.\n\n**Endpoint Design:**\n```\nPOST /api/chat\nBody: { message: string, context?: object }\nResponse: SSE stream of agent responses\n```\n\n**Implementation:**\n1. Add `/api/chat` endpoint to daemon\n2. Check if rapid-router is running, spawn if needed\n3. Send message via MCP bus_send to rapid-router\n4. Subscribe to responses from rapid-router\n5. Stream responses back to frontend via SSE\n6. Handle errors and timeouts gracefully\n\n**Technical Details:**\n- Use mcp__rapid__bus_agents to check for rapid-router\n- Use mcp__rapid__persona_spawn to start rapid-router if needed\n- Use mcp__rapid__bus_send to send user message\n- Use mcp__rapid__bus_messages or bus_wait to listen for responses\n- Format SSE events for frontend consumption\n\n**Error Handling:**\n- Agent spawn failures\n- MCP connection issues\n- Timeout handling\n- Graceful degradation\n\n**Acceptance Criteria:**\n- Endpoint successfully spawns rapid-router if needed\n- User messages reach rapid-router\n- Responses stream back to frontend\n- Proper error messages returned\n- Works with existing MCP infrastructure",
-    "status": "in_progress",
+    "status": "completed",
     "priority": "urgent",
     "createdAt": "2026-01-22T08:03:31.738Z",
-    "updatedAt": "2026-01-22T08:05:14.642Z",
+    "updatedAt": "2026-01-22T18:49:15.573Z",
     "createdBy": "orchestrator-agent-73b073e1",
-    "assignedTo": "bb11dd3f-17db-4bd7-bd3d-e96923f3cb30",
+    "assignedTo": "implementer-implementer-678370",
     "tags": [
       "backend",
       "chat",
       "rapid-router",
       "mcp"
     ],
+    "metadata": {
+      "progressPercentage": 0.95,
+      "lastProgressMessage": "Implemented complete /api/chat endpoint with SSE streaming, rapid-router spawning, MCP bus integration, and error handling. Endpoint: POST /api/chat accepts {message, context?} and streams responses via SSE. Features: auto-spawning rapid-router if needed, MCP bus communication, 30-second message timeout, heartbeat support, graceful error handling.",
+      "completionSummary": "Successfully implemented the /api/chat backend endpoint with full SSE streaming, MCP bus integration, and rapid-router management.\n\n**Implementation Details:**\n\n1. **POST /api/chat Endpoint** (packages/daemon/src/server.ts:710-910)\n   - Accepts JSON body: {message: string, context?: object}\n   - Validates input and returns JSON errors for invalid requests\n   - Returns SSE (Server-Sent Events) stream for real-time responses\n\n2. **Rapid-Router Management** (findRouterAgent, spawnRouterAgent)\n   - Checks if rapid-router agent is running via MCP bus_agents\n   - Auto-spawns rapid-router via mcp__rapid__persona_spawn if not found\n   - Waits up to 5 seconds for agent registration\n   - Provides feedback to client during spawn\n\n3. **MCP Bus Communication** (callMCPTool)\n   - Sends user message to rapid-router via bus_send\n   - Message includes optional context and proper routing\n   - Uses standard MCP JSON-RPC format\n\n4. **Response Streaming**\n   - Subscribes to rapid:events Redis channel\n   - Filters messages from rapid-router agent\n   - Streams responses back to client as SSE events\n   - Includes event types: connected, info, message, heartbeat, error, timeout\n\n5. **Error Handling & Timeouts**\n   - 30-second message timeout with user feedback\n   - Graceful handling of spawn failures\n   - Redis connection validation\n   - Proper cleanup on client disconnect\n   - Detailed error messages for debugging\n\n6. **Integration Points**\n   - Uses existing daemon infrastructure (Redis, MCP client)\n   - Follows existing HTTP handler patterns\n   - Compatible with CORS (wildcard origin)\n   - Supports verbose logging for debugging\n\n**Acceptance Criteria Met:**\n✅ Endpoint successfully spawns rapid-router if needed\n✅ User messages reach rapid-router via MCP bus\n✅ Responses stream back to frontend via SSE\n✅ Proper error messages returned\n✅ Works with existing MCP infrastructure\n\n**How the Frontend Can Use It:**\n```javascript\nconst eventSource = new EventSource('/api/chat', {\n  method: 'POST',\n  headers: {'Content-Type': 'application/json'},\n  body: JSON.stringify({message: 'Hello!', context: {}})\n});\n\neventSource.addEventListener('message', (e) => {\n  const data = JSON.parse(e.data);\n  console.log('Response:', data.content);\n});\n```\n\nThe endpoint is ready for integration with the ChatInterface component.\""
+    },
+    "claimedAt": "2026-01-22T18:48:07.127Z",
+    "claimDeadline": "2026-01-22T18:53:07.127Z",
+    "lastProgressAt": "2026-01-22T18:49:08.837Z",
     "requiredCapabilities": [
       "typescript",
       "node",
@@ -3011,12 +3092,15 @@
     "status": "pending",
     "priority": "high",
     "createdAt": "2026-01-22T08:16:15.502Z",
-    "updatedAt": "2026-01-22T08:16:15.502Z",
+    "updatedAt": "2026-01-22T18:54:26.803Z",
     "createdBy": "claude-orchestrator",
     "tags": [
       "architecture",
       "storage"
     ],
+    "claimedAt": "2026-01-22T18:50:06.757Z",
+    "claimDeadline": "2026-01-22T18:55:06.757Z",
+    "lastProgressAt": "2026-01-22T18:50:06.757Z",
     "attemptNumber": 1
   },
   {
@@ -3056,7 +3140,7 @@
     "status": "pending",
     "priority": "urgent",
     "createdAt": "2026-01-22T08:26:31.295Z",
-    "updatedAt": "2026-01-22T08:26:31.295Z",
+    "updatedAt": "2026-01-22T18:51:44.552Z",
     "createdBy": "claude-orchestrator",
     "tags": [
       "storage",
@@ -3064,6 +3148,9 @@
       "implementation",
       "better-sqlite3"
     ],
+    "claimedAt": "2026-01-22T18:48:08.253Z",
+    "claimDeadline": "2026-01-22T18:53:08.253Z",
+    "lastProgressAt": "2026-01-22T18:48:08.253Z",
     "requiredCapabilities": [
       "typescript",
       "sqlite",
@@ -3120,13 +3207,20 @@
     "status": "pending",
     "priority": "high",
     "createdAt": "2026-01-22T09:03:21.240Z",
-    "updatedAt": "2026-01-22T09:03:21.240Z",
+    "updatedAt": "2026-01-22T18:51:44.552Z",
     "createdBy": "orchestrator",
     "tags": [
       "dashboard",
       "ui",
       "phase-1"
     ],
+    "metadata": {
+      "progressPercentage": 0.5,
+      "lastProgressMessage": "Created KPICard component and useMetrics hook. Now integrating into Dashboard."
+    },
+    "claimedAt": "2026-01-22T18:47:19.506Z",
+    "claimDeadline": "2026-01-22T18:52:19.506Z",
+    "lastProgressAt": "2026-01-22T18:49:30.093Z",
     "requiredCapabilities": [
       "typescript",
       "react",
@@ -3566,17 +3660,29 @@
     "id": "1b4392fd-c524-4584-b1c7-5c2a447e83d0",
     "title": "Dashboard Foundation: Cost Data Hooks",
     "description": "Create React hooks for fetching cost data:\n- useCostSummary() - fetches get_cost_summary\n- useCostRecords(filters) - fetches get_cost_records with filtering\n- useAgentBudget(agentId) - fetches check_agent_budget\n- useSessionBudget(sessionId) - fetches check_session_budget\n\nInclude caching, refetch intervals, and error handling. Use TanStack Query or SWR pattern.",
-    "status": "pending",
+    "status": "completed",
     "priority": "high",
     "createdAt": "2026-01-22T09:04:28.114Z",
-    "updatedAt": "2026-01-22T09:04:28.114Z",
+    "updatedAt": "2026-01-22T18:45:48.245Z",
     "createdBy": "orchestrator",
+    "assignedTo": "implementer-implementer-268056",
     "tags": [
       "dashboard",
       "hooks",
       "foundation",
       "cost"
     ],
+    "metadata": {
+      "completionSummary": "Successfully created four cost data React hooks with full caching and error handling support:\n\n**Hooks Created:**\n1. useCostSummary(intervalMs, hours) - Fetches cost summary with time period aggregation\n2. useCostRecords(filters, intervalMs) - Fetches cost records with flexible filtering options\n3. useAgentBudget(agentId, intervalMs) - Monitors agent-specific budget with status thresholds\n4. useSessionBudget(sessionId, intervalMs) - Monitors session-wide budget with status thresholds\n\n**Key Features:**\n- Automatic caching using the project's existing PollingManager pattern\n- Configurable refetch intervals for each hook\n- Comprehensive error handling with typed error objects\n- Budget status determination (ok/warning/critical) based on percentage thresholds\n- Type-safe interfaces for all cost data structures\n- Integration with the existing useMcp hook for MCP tool calls\n\n**Integration:**\n- Updated SecurityPanel component to use useSessionBudget and useAgentBudget hooks\n- Replaced mocked budget data with real-time data from MCP\n- Refresh button now properly calls hook refetch methods\n- Proper loading states and error handling maintained\n\n**Commit:**\nHash: db2036b - feat(dashboard): Add cost data hooks for budget tracking",
+      "worktree": "implementer-268056",
+      "mergeWorkflowInitiated": true,
+      "mergeWorkflowInitiatedAt": "2026-01-22T18:45:48.242Z",
+      "needsMergeWorkflow": true,
+      "validateFirst": true
+    },
+    "claimedAt": "2026-01-22T18:41:17.461Z",
+    "claimDeadline": "2026-01-22T18:46:17.461Z",
+    "lastProgressAt": "2026-01-22T18:41:17.461Z",
     "requiredCapabilities": [
       "typescript",
       "react"
@@ -3590,7 +3696,7 @@
     "status": "pending",
     "priority": "high",
     "createdAt": "2026-01-22T09:04:28.241Z",
-    "updatedAt": "2026-01-22T09:04:28.241Z",
+    "updatedAt": "2026-01-22T18:54:26.803Z",
     "createdBy": "orchestrator",
     "tags": [
       "dashboard",
@@ -3598,6 +3704,13 @@
       "foundation",
       "metrics"
     ],
+    "metadata": {
+      "progressPercentage": 1,
+      "lastProgressMessage": "Implemented all cost data hooks: useCostSummary, useCostRecords, useAgentBudget, useSessionBudget with comprehensive caching, error handling, and automatic polling. Includes unit tests and detailed documentation."
+    },
+    "claimedAt": "2026-01-22T18:48:13.316Z",
+    "claimDeadline": "2026-01-22T18:53:13.316Z",
+    "lastProgressAt": "2026-01-22T18:50:04.393Z",
     "requiredCapabilities": [
       "typescript",
       "react"
@@ -3608,17 +3721,98 @@
     "id": "40fca1b3-4123-4e66-a39c-12c1f7763d5b",
     "title": "Dashboard Foundation: Install and Configure Recharts",
     "description": "Set up Recharts for dashboard visualizations:\n- Install recharts package\n- Create chart theme matching RAPID design system\n- Create reusable chart wrapper components\n- Configure responsive containers\n- Set up color palette for consistent styling\n\nDocument chart component usage patterns.",
-    "status": "pending",
+    "status": "completed",
     "priority": "high",
     "createdAt": "2026-01-22T09:04:28.388Z",
-    "updatedAt": "2026-01-22T09:04:28.388Z",
+    "updatedAt": "2026-01-22T18:46:15.154Z",
     "createdBy": "orchestrator",
+    "assignedTo": "frontend-developer-frontend-developer-267443",
     "tags": [
       "dashboard",
       "foundation",
       "charts",
       "recharts"
     ],
+    "metadata": {
+      "progressPercentage": 0.95,
+      "lastProgressMessage": "Committing changes",
+      "completionSummary": "Installed and configured Recharts for dashboard visualizations:\n\n**Installed:**\n- recharts ^3.7.0\n\n**Created Files:**\n- `src/lib/chartTheme.ts` - RAPID design system color palette and styles\n- `src/components/charts/ChartContainer.tsx` - Responsive wrapper with loading/empty states\n- `src/components/charts/RapidAreaChart.tsx` - Styled area chart component\n- `src/components/charts/RapidBarChart.tsx` - Styled bar chart component\n- `src/components/charts/RapidLineChart.tsx` - Styled line chart component\n- `src/components/charts/RapidPieChart.tsx` - Styled pie/donut chart components\n- `src/components/charts/index.ts` - Central exports\n- `src/components/charts/CHARTS.md` - Usage documentation\n\n**Features:**\n- Color palette matching RAPID design system (accent, success, warning, error, info)\n- Gradient fills for area charts\n- Responsive containers with min-height support\n- Loading skeleton and empty state handling\n- TypeScript types for all components\n- Consistent styling for grid, axes, tooltips, and legends"
+    },
+    "claimedAt": "2026-01-22T18:45:13.326Z",
+    "claimDeadline": "2026-01-22T18:50:13.326Z",
+    "lastProgressAt": "2026-01-22T18:45:55.362Z",
+    "requiredCapabilities": [
+      "typescript",
+      "react",
+      "npm"
+    ],
+    "result": {
+      "filesCreated": [
+        "src/lib/chartTheme.ts",
+        "src/components/charts/ChartContainer.tsx",
+        "src/components/charts/RapidAreaChart.tsx",
+        "src/components/charts/RapidBarChart.tsx",
+        "src/components/charts/RapidLineChart.tsx",
+        "src/components/charts/RapidPieChart.tsx",
+        "src/components/charts/index.ts",
+        "src/components/charts/CHARTS.md"
+      ],
+      "packageAdded": "recharts@^3.7.0"
+    },
+    "attemptNumber": 1
+  },
+  {
+    "id": "9c99ded2-70be-497b-8819-ba134a04895c",
+    "title": "Dashboard Foundation: Stat Card Component",
+    "description": "Create reusable StatCard component for KPI display:\n- Large numeric value with formatting (currency, percentage, number)\n- Label text\n- Trend indicator (up/down arrow with percentage)\n- Optional sparkline\n- Loading skeleton state\n- Consistent sizing and styling\n\nProps: value, label, trend, trendDirection, format, loading",
+    "status": "completed",
+    "priority": "high",
+    "createdAt": "2026-01-22T09:04:28.509Z",
+    "updatedAt": "2026-01-22T18:46:12.390Z",
+    "createdBy": "orchestrator",
+    "assignedTo": "frontend-developer-frontend-developer-267757",
+    "tags": [
+      "dashboard",
+      "foundation",
+      "components"
+    ],
+    "metadata": {
+      "progressPercentage": 0.95,
+      "lastProgressMessage": "Implementation complete. Files created: StatCard.tsx and StatCard.test.tsx. All 29 tests pass.",
+      "completionSummary": "Created StatCard component for KPI display with all required features:\n\n**Files Created:**\n- `apps/rapid-desktop/frontend/src/components/StatCard.tsx` - Main component\n- `apps/rapid-desktop/frontend/src/__tests__/components/StatCard.test.tsx` - 29 unit tests\n\n**Features Implemented:**\n1. **Value Formatting** - Supports number (with K/M/B suffixes), currency ($), and percentage formats\n2. **Label Text** - Monospace uppercase label with optional icon\n3. **Trend Indicator** - Up/down arrows with percentage, auto-detects direction from value\n4. **Optional Sparkline** - Simple SVG mini-chart with positive/negative coloring\n5. **Loading Skeleton** - Animated pulse skeleton matching card layout\n6. **Consistent Styling** - Uses RAPID design system colors and `.card` base styles\n\n**Props Interface:**\n- `value: number` - The numeric value to display\n- `label: string` - Label text describing the metric  \n- `trend?: number` - Trend percentage change\n- `trendDirection?: 'up' | 'down' | 'neutral'` - Optional explicit direction\n- `format?: 'number' | 'currency' | 'percentage'` - Value format\n- `loading?: boolean` - Show loading skeleton\n- `sparklineData?: number[]` - Optional sparkline data points\n- `icon?: React.ReactNode` - Optional icon\n\n**Test Results:** 29/29 tests passing"
+    },
+    "claimedAt": "2026-01-22T18:45:44.056Z",
+    "claimDeadline": "2026-01-22T18:50:44.056Z",
+    "lastProgressAt": "2026-01-22T18:46:03.268Z",
+    "requiredCapabilities": [
+      "typescript",
+      "react",
+      "tailwind"
+    ],
+    "attemptNumber": 1
+  },
+  {
+    "id": "f5895cba-5c93-4dd2-b241-cd98ec4373fd",
+    "title": "Install and configure shadcn/ui in rapid-desktop frontend",
+    "description": "Install and configure shadcn/ui as a prerequisite for UI migration tasks.\n\n**Steps:**\n1. Install shadcn/ui CLI: `npx shadcn-ui@latest init`\n2. Configure for React + Vite + TypeScript\n3. Set up components directory at src/components/ui\n4. Install core components: Button, Input, Select, Tabs, Dialog, Card, Badge, Progress, Checkbox, Textarea\n5. Configure Tailwind CSS integration\n6. Verify installation works\n\n**Config choices:**\n- TypeScript: Yes\n- Style: New York (or Default)\n- Base color: Slate\n- CSS variables: Yes\n- Tailwind prefix: (none)\n- components.json location: apps/rapid-desktop/frontend/\n\n**Required components for migrations:**\n- Button, Input, Select, Tabs, Textarea, Checkbox (Config page)\n- Button, Badge, Card, Input, Textarea, Dialog, Select, Progress (Knowledge page)\n- Button, Badge, Card, Progress, Textarea (Suggestions page)\n- Button, Badge, Card (Approvals page)\n\n**Acceptance Criteria:**\n- shadcn/ui installed and configured\n- components.json present\n- src/components/ui directory exists with components\n- Can import and use Button component in a test file",
+    "status": "pending",
+    "priority": "urgent",
+    "createdAt": "2026-01-22T18:06:12.152Z",
+    "updatedAt": "2026-01-22T18:51:44.552Z",
+    "createdBy": "orchestrator-orchestrator-057389",
+    "tags": [
+      "ui-migration",
+      "shadcn",
+      "prerequisite",
+      "setup"
+    ],
+    "metadata": {
+      "progressPercentage": 0.75,
+      "lastProgressMessage": "All 11 shadcn/ui components installed, verifying installation"
+    },
+    "claimedAt": "2026-01-22T18:45:33.214Z",
+    "claimDeadline": "2026-01-22T18:50:33.214Z",
+    "lastProgressAt": "2026-01-22T18:47:58.050Z",
     "requiredCapabilities": [
       "typescript",
       "react",
@@ -3627,23 +3821,59 @@
     "attemptNumber": 1
   },
   {
-    "id": "9c99ded2-70be-497b-8819-ba134a04895c",
-    "title": "Dashboard Foundation: Stat Card Component",
-    "description": "Create reusable StatCard component for KPI display:\n- Large numeric value with formatting (currency, percentage, number)\n- Label text\n- Trend indicator (up/down arrow with percentage)\n- Optional sparkline\n- Loading skeleton state\n- Consistent sizing and styling\n\nProps: value, label, trend, trendDirection, format, loading",
-    "status": "pending",
+    "id": "7930c0a5-2236-4734-b53c-35db8c54b0a1",
+    "title": "Fix metrics_agent_report outputSchema Zod wrapper",
+    "description": "The metrics_agent_report tool in packages/rapid-mcp/src/tools/metrics.ts has a bug where the outputSchema is missing the z.object() wrapper.\n\n**Current (line ~518):**\n```typescript\noutputSchema: {\n  agents: z.array(...),\n  topPerformer: z.string().optional(),\n}\n```\n\n**Should be:**\n```typescript\noutputSchema: z.object({\n  agents: z.array(...),\n  topPerformer: z.string().optional(),\n})\n```\n\nThis causes a \"Cannot read properties of undefined (reading '_zod')\" error when calling metrics_get or metrics_agent_report.\n\nQuick fix required - 1 line change to wrap the object with z.object().",
+    "status": "completed",
     "priority": "high",
-    "createdAt": "2026-01-22T09:04:28.509Z",
-    "updatedAt": "2026-01-22T09:04:28.509Z",
-    "createdBy": "orchestrator",
+    "createdAt": "2026-01-22T18:29:26.502Z",
+    "updatedAt": "2026-01-22T18:31:33.221Z",
+    "createdBy": "orchestrator-orchestrator-573654",
+    "assignedTo": "orchestrator-orchestrator-573654",
     "tags": [
-      "dashboard",
-      "foundation",
-      "components"
+      "bug",
+      "rapid-mcp",
+      "metrics",
+      "zod"
     ],
+    "metadata": {
+      "completionSummary": "Fixed 3 outputSchema definitions in packages/rapid-mcp/src/tools/metrics.ts by wrapping them with z.object(). Fixed tools: metrics_record, metrics_agent_report, metrics_reset. This resolves the \"Cannot read properties of undefined (reading '_zod')\" error. Note: Similar issues exist in other tool files (found ~80 occurrences across the codebase) - a separate cleanup task should address those."
+    },
+    "claimedAt": "2026-01-22T18:29:30.983Z",
+    "claimDeadline": "2026-01-22T18:34:30.983Z",
+    "lastProgressAt": "2026-01-22T18:29:30.983Z",
     "requiredCapabilities": [
-      "typescript",
-      "react",
-      "tailwind"
+      "typescript"
+    ],
+    "attemptNumber": 1
+  },
+  {
+    "id": "99a954ce-801c-49cc-9fb9-3dec28cb2696",
+    "title": "Fix outputSchema Zod wrapper across all MCP tools",
+    "description": "Multiple MCP tools have the same bug where outputSchema is defined as a plain object instead of being wrapped with z.object().\n\n**Pattern to fix:**\n```typescript\n// Wrong\noutputSchema: {\n  field: z.string(),\n}\n\n// Correct\noutputSchema: z.object({\n  field: z.string(),\n})\n```\n\n**Files affected (approximately 80 occurrences):**\n- audit-trail.ts (4 occurrences)\n- filesystem.ts (3 occurrences)\n- security.ts (1 occurrence)\n- worktree-merge.ts (4 occurrences)\n- tasks.ts (12 occurrences)\n- eventbus.ts (12 occurrences)\n- knowledge.ts (5 occurrences)\n- personas.ts (7 occurrences)\n- git-workflow.ts (4 occurrences)\n- capability-tools.ts (5 occurrences)\n- load-balancer.ts (7 occurrences)\n- dependencies.ts (7 occurrences)\n- budget-tracking.ts (4 occurrences)\n- approval.ts (4 occurrences)\n\n**Already fixed:**\n- metrics.ts (3 occurrences)\n\n**Approach:**\nUse a find/replace pattern to wrap each outputSchema with z.object().",
+    "status": "completed",
+    "priority": "normal",
+    "createdAt": "2026-01-22T18:31:46.233Z",
+    "updatedAt": "2026-01-22T18:36:40.600Z",
+    "createdBy": "orchestrator-orchestrator-573654",
+    "assignedTo": "orchestrator-orchestrator-573654",
+    "tags": [
+      "bug",
+      "rapid-mcp",
+      "zod",
+      "cleanup",
+      "refactor"
+    ],
+    "metadata": {
+      "progressPercentage": 0.7,
+      "lastProgressMessage": "Fixed 79 occurrences across 14 files. Verifying TypeScript compilation...",
+      "completionSummary": "Fixed 79 occurrences of outputSchema Zod wrapper bug across 14 MCP tool files. All outputSchema definitions now correctly use z.object() wrapper as required by the MCP SDK. Changes committed in two commits: 6e23803 (metrics.ts) and 96a9cf6 (remaining 14 files)."
+    },
+    "claimedAt": "2026-01-22T18:35:29.935Z",
+    "claimDeadline": "2026-01-22T18:40:29.935Z",
+    "lastProgressAt": "2026-01-22T18:36:08.297Z",
+    "requiredCapabilities": [
+      "typescript"
     ],
     "attemptNumber": 1
   }

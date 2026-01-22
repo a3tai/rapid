@@ -68,7 +68,7 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen bg-rapid-bg">
+    <div className="flex flex-col h-screen bg-rapid-bg">
       {/* Spawn Agent Modal */}
       <SpawnAgentModal
         isOpen={spawnAgentModal.isOpen}
@@ -86,64 +86,67 @@ function App() {
         }}
       />
 
-      {/* Sidebar navigation */}
-      <Sidebar />
+      {/* Unified top bar spanning full width */}
+      <Header />
 
-      {/* Main content area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header with title bar */}
-        <Header />
+      {/* Connection status banner */}
+      {isConnecting && (
+        <div className="bg-rapid-accent/20 border-b border-rapid-accent/30 px-4 py-2 text-sm text-rapid-accent">
+          Connecting to RAPID daemon...
+        </div>
+      )}
 
-        {/* Connection status banner */}
-        {isConnecting && (
-          <div className="bg-rapid-accent/20 border-b border-rapid-accent/30 px-4 py-2 text-sm text-rapid-accent">
-            Connecting to RAPID daemon...
-          </div>
-        )}
+      {daemonStatus && !daemonStatus.running && (
+        <div className="bg-rapid-warning/20 border-b border-rapid-warning/30 px-4 py-2 text-sm text-rapid-warning flex items-center gap-2">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
+          </svg>
+          Daemon is not running. Run{' '}
+          <code className="bg-rapid-bg px-1 rounded">rapid daemon start</code> to start it.
+        </div>
+      )}
 
-        {daemonStatus && !daemonStatus.running && (
-          <div className="bg-rapid-warning/20 border-b border-rapid-warning/30 px-4 py-2 text-sm text-rapid-warning flex items-center gap-2">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-              />
-            </svg>
-            Daemon is not running. Run{' '}
-            <code className="bg-rapid-bg px-1 rounded">rapid daemon start</code> to start it.
-          </div>
-        )}
+      {/* Main layout: Sidebar + Content */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar navigation */}
+        <Sidebar />
 
-        {/* Main content */}
-        <main className="flex-1 overflow-auto p-6">{renderView()}</main>
+        {/* Main content area */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Main content */}
+          <main className="flex-1 overflow-auto p-6">{renderView()}</main>
 
-        {/* Status bar */}
-        <div className="h-6 bg-rapid-surface border-t border-rapid-border px-4 flex items-center justify-between text-xs text-rapid-muted">
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1.5">
-              <span
-                className={`w-2 h-2 rounded-full ${daemonStatus?.running ? 'bg-green-400' : 'bg-red-400'}`}
-              />
-              {daemonStatus?.running ? 'Connected' : 'Offline'}
-            </span>
-          </div>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={commandPalette.open}
-              className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-rapid-elevated hover:bg-rapid-border transition-colors"
-            >
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          {/* Status bar */}
+          <div className="h-6 bg-rapid-surface border-t border-rapid-border px-4 flex items-center justify-between text-xs text-rapid-muted">
+            <div className="flex items-center gap-4">
+              <span className="flex items-center gap-1.5">
+                <span
+                  className={`w-2 h-2 rounded-full ${daemonStatus?.running ? 'bg-green-400' : 'bg-red-400'}`}
                 />
-              </svg>
-              <kbd className="text-[10px]">⌘K</kbd>
-            </button>
+                {daemonStatus?.running ? 'Connected' : 'Offline'}
+              </span>
+            </div>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={commandPalette.open}
+                className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-rapid-elevated hover:bg-rapid-border transition-colors"
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+                <kbd className="text-[10px]">⌘K</kbd>
+              </button>
+            </div>
           </div>
         </div>
       </div>

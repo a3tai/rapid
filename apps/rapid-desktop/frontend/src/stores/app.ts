@@ -106,6 +106,7 @@ interface AppState {
   selectedAgent: string | null;
   selectedTask: string | null;
   agentDetailTab: AgentDetailTab;
+  sidebarCollapsed: boolean;
 
   // Actions
   setDaemonStatus: (status: DaemonStatus | null) => void;
@@ -122,6 +123,8 @@ interface AppState {
   setSelectedAgent: (id: string | null) => void;
   setSelectedTask: (id: string | null) => void;
   setAgentDetailTab: (tab: AgentDetailTab) => void;
+  setSidebarCollapsed: (collapsed: boolean) => void;
+  toggleSidebar: () => void;
   setError: (error: string | null) => void;
   setConnecting: (connecting: boolean) => void;
 }
@@ -139,6 +142,7 @@ export const useAppStore = create<AppState>((set) => ({
   selectedAgent: null,
   selectedTask: null,
   agentDetailTab: 'overview',
+  sidebarCollapsed: false,
 
   // Actions
   setDaemonStatus: (status) => set({ daemonStatus: status }),
@@ -198,6 +202,8 @@ export const useAppStore = create<AppState>((set) => ({
   setSelectedAgent: (selectedAgent) => set({ selectedAgent }),
   setSelectedTask: (selectedTask) => set({ selectedTask }),
   setAgentDetailTab: (agentDetailTab) => set({ agentDetailTab }),
+  setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
+  toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
   setError: (lastError) => set({ lastError }),
   setConnecting: (isConnecting) => set({ isConnecting }),
 }));
@@ -209,3 +215,4 @@ export const useMessages = () => useAppStore((state) => state.messages);
 export const useSuggestions = () => useAppStore((state) => state.suggestions);
 export const useDaemonStatus = () => useAppStore((state) => state.daemonStatus);
 export const useActiveView = () => useAppStore((state) => state.activeView);
+export const useSidebarCollapsed = () => useAppStore((state) => state.sidebarCollapsed);

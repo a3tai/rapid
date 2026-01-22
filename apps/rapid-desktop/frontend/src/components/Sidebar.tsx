@@ -1,5 +1,5 @@
 import { clsx } from 'clsx';
-import { useAppStore, useActiveView, useDaemonStatus } from '../stores/app';
+import { useAppStore, useActiveView, useDaemonStatus, useSidebarCollapsed } from '../stores/app';
 
 const navItems = [
   {
@@ -140,52 +140,52 @@ export function Sidebar() {
   const activeView = useActiveView();
   const setActiveView = useAppStore((s) => s.setActiveView);
   const daemonStatus = useDaemonStatus();
+  const collapsed = useSidebarCollapsed();
 
   return (
-    <aside className="w-64 bg-rapid-surface border-r border-rapid-border flex flex-col">
-      {/* Logo - macOS traffic lights need ~52px clearance from top */}
-      <div className="pt-14 pb-4 px-4 border-b border-rapid-border wails-drag">
-        <div className="wails-no-drag flex items-center">
-          <span className="font-mono text-xl font-normal tracking-[0.1em] bg-gradient-to-br from-rapid-text to-rapid-accent bg-clip-text text-transparent">
-            RAPID
-          </span>
-          <span className="font-mono text-xl text-rapid-accent animate-cursor-blink">_</span>
-        </div>
-      </div>
-
+    <aside
+      className={clsx(
+        'bg-rapid-surface border-r border-rapid-border flex flex-col transition-all duration-200',
+        collapsed ? 'w-16' : 'w-56'
+      )}
+    >
       {/* Navigation */}
-      <nav className="flex-1 p-3 space-y-1">
+      <nav className={clsx('flex-1 pt-4 space-y-1', collapsed ? 'px-2' : 'px-3')}>
         {navItems.map((item) => (
           <button
             key={item.id}
             onClick={() => setActiveView(item.id)}
+            title={collapsed ? item.label : undefined}
             className={clsx(
-              'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+              'w-full flex items-center rounded-lg text-sm font-medium transition-colors',
+              collapsed ? 'justify-center p-2.5' : 'gap-3 px-3 py-2',
               activeView === item.id
                 ? 'bg-rapid-accent text-white'
                 : 'text-rapid-muted hover:text-rapid-text hover:bg-rapid-elevated'
             )}
           >
             {item.icon}
-            {item.label}
+            {!collapsed && <span>{item.label}</span>}
           </button>
         ))}
       </nav>
 
       {/* Status footer */}
-      <div className="p-4 border-t border-rapid-border">
-        <div className="flex items-center gap-2 text-sm">
+      <div className={clsx('border-t border-rapid-border', collapsed ? 'p-2' : 'p-4')}>
+        <div className={clsx('flex items-center text-sm', collapsed ? 'justify-center' : 'gap-2')}>
           <div
             className={clsx(
               'status-dot',
               daemonStatus?.running ? 'status-dot-active' : 'status-dot-offline'
             )}
           />
-          <span className="text-rapid-muted">
-            {daemonStatus?.running ? 'Daemon running' : 'Daemon offline'}
-          </span>
+          {!collapsed && (
+            <span className="text-rapid-muted">
+              {daemonStatus?.running ? 'Daemon running' : 'Daemon offline'}
+            </span>
+          )}
         </div>
-        {daemonStatus?.version && (
+        {!collapsed && daemonStatus?.version && (
           <div className="mt-1 text-xs text-rapid-muted">v{daemonStatus.version}</div>
         )}
       </div>
