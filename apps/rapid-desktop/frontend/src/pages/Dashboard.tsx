@@ -53,6 +53,7 @@ export function Dashboard() {
   }, [agents.length]);
 
   return (
+<<<<<<< HEAD
     <div className="space-y-6">
       {/* Top toolbar with export */}
       <div className="flex items-center justify-between">
@@ -62,6 +63,11 @@ export function Dashboard() {
 
       {/* Stats cards with sparklines */}
       <div className="grid grid-cols-4 gap-4">
+=======
+    <div className="space-y-4 md:space-y-6">
+      {/* Stats cards - responsive grid: 1 col on mobile, 2 on sm, 4 on lg */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+>>>>>>> 20a78b8 (feat(desktop): add AgentFleetStatus, tests, and UI improvements)
         <StatCard
           label="Active Agents"
           value={agents.length}
@@ -94,10 +100,10 @@ export function Dashboard() {
         />
       </div>
 
-      {/* Main content grid */}
-      <div className="grid grid-cols-4 gap-6">
+      {/* Main content grid - stacks on mobile, 2 cols on lg */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Left column - Agents and Tasks */}
-        <div className="col-span-2 space-y-6">
+        <div className="space-y-4 md:space-y-6">
           {/* Agents panel */}
           <Card
             className="cursor-pointer hover:border-primary/50 transition-colors"
@@ -170,9 +176,9 @@ export function Dashboard() {
         </div>
 
         {/* Right column - Activity Feed and Suggestions */}
-        <div className="col-span-2 space-y-6">
+        <div className="space-y-4 md:space-y-6">
           {/* Activity feed - real-time timeline */}
-          <div className="h-80">
+          <div className="h-64 md:h-80">
             <ActivityFeed />
           </div>
 
@@ -212,9 +218,10 @@ export function Dashboard() {
         </CardContent>
       </Card>
 
-      {/* Bottom grid: Connection status and Performance monitor */}
-      <div className="grid grid-cols-3 gap-6">
+      {/* Bottom grid: Connection status and Performance monitor - stacks on mobile */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         {/* Connection status */}
+<<<<<<< HEAD
         <Card>
           <CardContent className="p-4">
             <h2 className="font-semibold mb-4">Real-time Connection</h2>
@@ -228,6 +235,17 @@ export function Dashboard() {
             <PerformanceMonitor />
           </CardContent>
         </Card>
+=======
+        <div>
+          <h2 className="font-semibold mb-3 md:mb-4">Real-time Connection</h2>
+          <ConnectionStatus variant="full" showDataSource showLastUpdate />
+        </div>
+
+        {/* Performance monitor */}
+        <div className="md:col-span-2">
+          <PerformanceMonitor />
+        </div>
+>>>>>>> 20a78b8 (feat(desktop): add AgentFleetStatus, tests, and UI improvements)
       </div>
     </div>
   );

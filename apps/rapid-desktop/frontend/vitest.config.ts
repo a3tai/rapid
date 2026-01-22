@@ -4,17 +4,14 @@ import path from 'node:path';
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    'process.env.NODE_ENV': '"test"',
+  },
   test: {
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/__tests__/setup.ts'],
     exclude: ['node_modules/', 'src/__tests__/e2e/**', 'dist/**'],
-    pool: 'forks',
-    poolOptions: {
-      forks: {
-        singleFork: true,
-      },
-    },
     sequence: {
       shuffle: false,
     },

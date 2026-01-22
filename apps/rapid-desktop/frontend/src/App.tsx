@@ -2,9 +2,12 @@ import { useEffect, useState } from 'react';
 import { useAppStore, useActiveView, useDaemonStatus } from './stores/app';
 import { useData, useDataPolling } from './hooks/useData';
 import { useWailsEvents } from './hooks/useWailsEvents';
-import { Sidebar } from './components/Sidebar';
+import { useEventStream } from './hooks/useEventStream';
+import { useKeyboardShortcuts, useKeyboardHelp } from './hooks/useKeyboardShortcuts';
+import { Sidebar, MobileMenuButton } from './components/Sidebar';
 import { Header } from './components/Header';
 import { CommandPalette, useCommandPalette } from './components/CommandPalette';
+import { KeyboardShortcutsHelp } from './components/KeyboardShortcutsHelp';
 import { SpawnAgentModal } from './components/SpawnAgentModal';
 import { Dashboard } from './pages/Dashboard';
 import { AgentsPage } from './pages/Agents';
@@ -23,10 +26,29 @@ function App() {
   const isConnecting = useAppStore((s) => s.isConnecting);
   const { initialize } = useData();
   const commandPalette = useCommandPalette();
+  const keyboardHelp = useKeyboardHelp();
   const [spawnAgentModal, setSpawnAgentModal] = useState<{
     isOpen: boolean;
     type?: 'worker' | 'orchestrator';
   }>({ isOpen: false });
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Global keyboard shortcuts (number keys for view switching, ? for help)
+  useKeyboardShortcuts({
+    onShowHelp: keyboardHelp.open,
+    onCloseModal: () => {
+      // Close modals in priority order
+      if (commandPalette.isOpen) {
+        commandPalette.close();
+      } else if (keyboardHelp.isOpen) {
+        keyboardHelp.close();
+      } else if (spawnAgentModal.isOpen) {
+        setSpawnAgentModal({ isOpen: false });
+      } else if (mobileMenuOpen) {
+        setMobileMenuOpen(false);
+      }
+    },
+  });
 
   // Enable Wails event listening
   useWailsEvents();
@@ -39,6 +61,15 @@ function App() {
   // Poll for updates
   useDataPolling(5000);
 
+<<<<<<< HEAD
+=======
+  // Sync WebSocket events to store (for non-Wails environments)
+  useWebSocketSync();
+
+  // Connect to SSE event stream for real-time message updates
+  const eventStream = useEventStream();
+
+>>>>>>> 20a78b8 (feat(desktop): add AgentFleetStatus, tests, and UI improvements)
   // Render active view
   const renderView = () => {
     switch (activeView) {
@@ -86,6 +117,7 @@ function App() {
         }}
       />
 
+<<<<<<< HEAD
       {/* Unified top bar spanning full width */}
       <Header />
 
@@ -95,6 +127,21 @@ function App() {
           Connecting to RAPID daemon...
         </div>
       )}
+=======
+      {/* Keyboard Shortcuts Help Modal */}
+      <KeyboardShortcutsHelp isOpen={keyboardHelp.isOpen} onClose={keyboardHelp.close} />
+
+      {/* Sidebar navigation - responsive with mobile toggle */}
+      <Sidebar isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
+
+      {/* Main content area */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header with title bar */}
+        <Header
+          onMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
+          mobileMenuOpen={mobileMenuOpen}
+        />
+>>>>>>> 20a78b8 (feat(desktop): add AgentFleetStatus, tests, and UI improvements)
 
       {daemonStatus && !daemonStatus.running && (
         <div className="bg-rapid-warning/20 border-b border-rapid-warning/30 px-4 py-2 text-sm text-rapid-warning flex items-center gap-2">
@@ -116,6 +163,7 @@ function App() {
         {/* Sidebar navigation */}
         <Sidebar />
 
+<<<<<<< HEAD
         {/* Main content area */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Main content */}
@@ -127,6 +175,40 @@ function App() {
               <span className="flex items-center gap-1.5">
                 <span
                   className={`w-2 h-2 rounded-full ${daemonStatus?.running ? 'bg-green-400' : 'bg-red-400'}`}
+=======
+        {/* Main content */}
+        <main className="flex-1 overflow-auto p-4 md:p-6">{renderView()}</main>
+
+        {/* Status bar */}
+        <div className="h-6 bg-rapid-surface border-t border-rapid-border px-4 flex items-center justify-between text-xs text-rapid-muted">
+          <div className="flex items-center gap-4">
+            <span className="flex items-center gap-1.5">
+              <span
+                className={`w-2 h-2 rounded-full ${mcpStatus?.connected ? 'bg-green-400' : 'bg-red-400'}`}
+              />
+              {isWails ? 'Wails' : mcpStatus?.connected ? 'MCP' : 'Mock Data'}
+            </span>
+            {mcpStatus?.connected && <span>{mcpStatus.toolCount} tools available</span>}
+            <span className="flex items-center gap-1.5">
+              <span
+                className={`w-2 h-2 rounded-full ${eventStream.connected ? 'bg-green-400 animate-pulse' : 'bg-yellow-400'}`}
+              />
+              {eventStream.connected ? 'Live' : 'Polling'}
+            </span>
+          </div>
+          <div className="flex items-center gap-4">
+            {!isWails && <span className="font-mono text-[10px] opacity-60">{mcpEndpoint}</span>}
+            <button
+              onClick={commandPalette.open}
+              className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-rapid-elevated hover:bg-rapid-border transition-colors"
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+>>>>>>> 20a78b8 (feat(desktop): add AgentFleetStatus, tests, and UI improvements)
                 />
                 {daemonStatus?.running ? 'Connected' : 'Offline'}
               </span>
