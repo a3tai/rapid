@@ -22,6 +22,7 @@ import type {
   RunnerEvents,
 } from './types.js';
 import { getAdapter } from './adapters/index.js';
+import { ResourceMonitor, type TokenUsageRecord } from './resource-monitor.js';
 import type {
   EvaluationLogger,
   EvaluationLogBuilder,
@@ -61,6 +62,16 @@ export interface AgentRunnerOptions {
   promptVersion?: string;
   /** Experiment variant for A/B testing */
   experimentVariant?: string;
+  /** Callback for resource limit alerts */
+  onLimitAlert?: (
+    type: 'warning' | 'violation',
+    violation: {
+      type: string;
+      limit: number;
+      current: number;
+      message: string;
+    }
+  ) => void;
 }
 
 export class AgentRunner extends EventEmitter {
@@ -72,6 +83,7 @@ export class AgentRunner extends EventEmitter {
   private options: AgentRunnerOptions;
   private metricsTimer: NodeJS.Timeout | null = null;
   private eventBuffer: StreamEvent[] = [];
+  private resourceMonitor: ResourceMonitor;
 
   // Evaluation tracking
   private currentLogBuilder: EvaluationLogBuilder | null = null;
@@ -80,7 +92,12 @@ export class AgentRunner extends EventEmitter {
   private iterationToolCalls: ToolCallRecord[] = [];
   private iterationContent = '';
   private iterationThinking = '';
-  private currentToolUse: { id: string; name: string; input: Record<string, unknown>; startTime: number } | null = null;
+  private currentToolUse: {
+    id: string;
+    name: string;
+    input: Record<string, unknown>;
+    startTime: number;
+  } | null = null;
 
   constructor(config: AgentConfig, options: AgentRunnerOptions = {}) {
     super();
@@ -91,6 +108,8 @@ export class AgentRunner extends EventEmitter {
       metricsInterval: 5000,
       ...options,
     };
+
+    this.resourceMonitor = new ResourceMonitor(config.limits);
 
     this.metrics = {
       agentId: config.agentId,
@@ -116,7 +135,9 @@ export class AgentRunner extends EventEmitter {
     // Check if tool is available
     const available = await this.adapter.isAvailable();
     if (!available) {
-      throw new Error(`Tool ${this.config.tool} is not available on this system`);
+      throw new Error(
+        `Tool ${this.config.tool} is not available on this system`
+      );
     }
 
     this.setStatus('starting');
@@ -147,7 +168,8 @@ export class AgentRunner extends EventEmitter {
 
     // Complete any pending evaluation log
     if (this.currentLogBuilder) {
-      const outcome: EvaluationOutcome = reason === 'error_limit' ? 'failure' : 'partial';
+      const outcome: EvaluationOutcome =
+        reason === 'error_limit' ? 'failure' : 'partial';
       await this.completeEvaluationLog(outcome);
     }
 
@@ -205,6 +227,13 @@ export class AgentRunner extends EventEmitter {
     return [...this.eventBuffer];
   }
 
+  /**
+   * Get resource monitor for detailed metrics
+   */
+  getResourceMonitor(): ResourceMonitor {
+    return this.resourceMonitor;
+  }
+
   private async spawnProcess(): Promise<void> {
     const args = this.adapter.buildArgs(this.config);
     const command = this.config.tool;
@@ -249,6 +278,7 @@ export class AgentRunner extends EventEmitter {
     });
 
     this.process.on('error', (error) => {
+      this.resourceMonitor.trackError();
       this.metrics.errorCount++;
       this.emitTyped('error', error);
     });
@@ -290,6 +320,18 @@ export class AgentRunner extends EventEmitter {
       this.metrics.totalOutputTokens += event.usage.outputTokens;
       this.updateCostEstimate();
 
+      // Track in resource monitor
+      const usage: TokenUsageRecord = {
+        inputTokens: event.usage.inputTokens,
+        outputTokens: event.usage.outputTokens,
+        cacheCreationInputTokens: event.usage.cacheCreationInputTokens,
+        cacheReadInputTokens: event.usage.cacheReadInputTokens,
+      };
+      this.resourceMonitor.trackTokens(
+        usage,
+        this.config.model || 'sonnet'
+      );
+
       // Track for evaluation
       this.iterationTokens.input += event.usage.inputTokens;
       this.iterationTokens.output += event.usage.outputTokens;
@@ -300,9 +342,15 @@ export class AgentRunner extends EventEmitter {
 
     // Track errors
     if (event.isError) {
+      this.resourceMonitor.trackError();
       this.metrics.errorCount++;
       this.checkErrorLimit();
+    } else {
+      this.resourceMonitor.trackApiCall(true);
     }
+
+    // Check resource limits and emit alerts
+    this.checkResourceLimits();
 
     // Buffer event
     this.eventBuffer.push(event);
@@ -318,6 +366,40 @@ export class AgentRunner extends EventEmitter {
 
     // Stream to Redis
     this.streamToRedis(event);
+  }
+
+  /**
+   * Check resource limits and emit alerts if needed
+   */
+  private checkResourceLimits(): void {
+    const limitStatus = this.resourceMonitor.checkLimits();
+
+    // Emit warnings
+    for (const warning of limitStatus.warnings) {
+      this.options.onLimitAlert?.('warning', {
+        type: warning.type,
+        limit: warning.limit,
+        current: warning.current,
+        message: warning.message,
+      });
+    }
+
+    // Stop if hard limits exceeded
+    if (!limitStatus.withinLimits) {
+      for (const violation of limitStatus.violations) {
+        this.options.onLimitAlert?.('violation', {
+          type: violation.type,
+          limit: violation.limit,
+          current: violation.current,
+          message: violation.message,
+        });
+
+        // Stop agent immediately for cost/memory/error limits
+        if (['cost', 'memory', 'errors'].includes(violation.type)) {
+          this.stop(`limit_exceeded:${violation.type}`);
+        }
+      }
+    }
   }
 
   /**
@@ -368,7 +450,9 @@ export class AgentRunner extends EventEmitter {
             output: event.content,
             success: !event.isError,
             durationMs: Date.now() - this.currentToolUse.startTime,
-            startedAt: new Date(this.currentToolUse.startTime).toISOString(),
+            startedAt: new Date(
+              this.currentToolUse.startTime
+            ).toISOString(),
             completedAt: new Date().toISOString(),
           };
           this.iterationToolCalls.push(toolCall);
@@ -411,7 +495,10 @@ export class AgentRunner extends EventEmitter {
     // Set model and prompt version if configured
     this.currentLogBuilder.setModel(this.config.model || 'sonnet');
     if (this.options.promptVersion) {
-      this.currentLogBuilder.setPromptVersion(this.options.promptVersion, this.options.experimentVariant);
+      this.currentLogBuilder.setPromptVersion(
+        this.options.promptVersion,
+        this.options.experimentVariant
+      );
     }
 
     // Set the task/prompt
@@ -432,12 +519,17 @@ export class AgentRunner extends EventEmitter {
   /**
    * Complete the current evaluation log
    */
-  private async completeEvaluationLog(outcome: EvaluationOutcome): Promise<void> {
+  private async completeEvaluationLog(
+    outcome: EvaluationOutcome
+  ): Promise<void> {
     if (!this.currentLogBuilder || !this.options.evaluationLogger) return;
 
     try {
       // Set response content
-      this.currentLogBuilder.setResponse(this.iterationContent, this.iterationThinking || undefined);
+      this.currentLogBuilder.setResponse(
+        this.iterationContent,
+        this.iterationThinking || undefined
+      );
 
       // Add all tool calls
       for (const toolCall of this.iterationToolCalls) {
@@ -446,7 +538,8 @@ export class AgentRunner extends EventEmitter {
 
       // Set outcome
       const hasErrors = this.iterationToolCalls.some((tc) => !tc.success);
-      const finalOutcome = hasErrors && outcome === 'success' ? 'partial' : outcome;
+      const finalOutcome =
+        hasErrors && outcome === 'success' ? 'partial' : outcome;
       this.currentLogBuilder.setOutcome(finalOutcome);
 
       // Calculate and set metrics
@@ -508,7 +601,10 @@ export class AgentRunner extends EventEmitter {
     }
   }
 
-  private handleExit(code: number | null, signal: NodeJS.Signals | null): void {
+  private handleExit(
+    code: number | null,
+    signal: NodeJS.Signals | null
+  ): void {
     this.stopMetricsTimer();
     const reason = signal ? `signal:${signal}` : `exit:${code}`;
 
@@ -551,6 +647,8 @@ export class AgentRunner extends EventEmitter {
 
   private startMetricsTimer(): void {
     this.metricsTimer = setInterval(() => {
+      const resourceMetrics = this.resourceMonitor.getMetrics();
+      this.metrics.memoryMb = resourceMetrics.memoryMb;
       this.metrics.lastHeartbeat = new Date().toISOString();
       this.emitTyped('metrics', this.metrics);
     }, this.options.metricsInterval);

@@ -8,6 +8,7 @@
 import { useMemo } from 'react';
 import { clsx } from 'clsx';
 import { format } from 'date-fns';
+import { Markdown } from '../ui/markdown';
 import type { ConversationMessage } from '../../hooks/useConversation';
 import type { Agent } from '../../stores/app';
 
@@ -63,22 +64,10 @@ function getMessageTypeBadge(type?: string): { className: string; label: string 
   }
 }
 
-/** Highlight @mentions in text */
-function renderContentWithMentions(content: string): React.ReactNode {
-  const parts = content.split(/(@\w+)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith('@')) {
-      return (
-        <span
-          key={i}
-          className="bg-rapid-accent/15 text-rapid-accent font-medium px-0.5 rounded"
-        >
-          {part}
-        </span>
-      );
-    }
-    return part;
-  });
+/** Pre-process content to highlight @mentions in markdown-friendly way */
+function preprocessMentions(content: string): string {
+  // Convert @mentions to bold markdown so they stand out
+  return content.replace(/(@\w+[-\w]*)/g, '**$1**');
 }
 
 export function MessageGroup({ messages, showAvatar = true }: MessageGroupProps) {
@@ -154,9 +143,9 @@ export function MessageGroup({ messages, showAvatar = true }: MessageGroupProps)
               <div className="font-medium text-rapid-text mb-1">{msg.title}</div>
             )}
 
-            {/* Message content */}
-            <div className="text-rapid-text text-sm leading-relaxed whitespace-pre-wrap">
-              {renderContentWithMentions(msg.content)}
+            {/* Message content - render as markdown */}
+            <div className="text-rapid-text text-sm leading-relaxed">
+              <Markdown>{preprocessMentions(msg.content)}</Markdown>
             </div>
 
             {/* Rich embeds would go here */}

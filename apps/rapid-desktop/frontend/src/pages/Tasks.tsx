@@ -75,10 +75,10 @@ import { cn } from '@/lib/utils';
 type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'blocked' | 'cancelled';
 
 const COLUMNS: { id: TaskStatus; label: string; color: string; icon: React.ReactNode }[] = [
-  { id: 'pending', label: 'Pending', color: 'bg-muted', icon: <Clock className="w-3 h-3" /> },
-  { id: 'in_progress', label: 'In Progress', color: 'bg-yellow-400', icon: <Zap className="w-3 h-3" /> },
-  { id: 'completed', label: 'Completed', color: 'bg-green-400', icon: <CheckCircle className="w-3 h-3" /> },
-  { id: 'blocked', label: 'Blocked', color: 'bg-red-400', icon: <AlertCircle className="w-3 h-3" /> },
+  { id: 'pending', label: 'Pending', color: 'bg-muted', icon: <Clock className="w-3 h-3" aria-hidden="true" /> },
+  { id: 'in_progress', label: 'In Progress', color: 'bg-yellow-400', icon: <Zap className="w-3 h-3" aria-hidden="true" /> },
+  { id: 'completed', label: 'Completed', color: 'bg-green-400', icon: <CheckCircle className="w-3 h-3" aria-hidden="true" /> },
+  { id: 'blocked', label: 'Blocked', color: 'bg-red-400', icon: <AlertCircle className="w-3 h-3" aria-hidden="true" /> },
 ];
 
 type SortBy = 'date' | 'priority' | 'status' | 'assignee';
@@ -305,18 +305,20 @@ export function TasksPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold">Task Board</h2>
-          <p className="text-muted-foreground text-sm mt-1">{tasks.length} tasks total</p>
+          <p className="text-muted-foreground text-sm mt-1" aria-label={`${tasks.length} total tasks`}>{tasks.length} tasks total</p>
         </div>
         <div className="flex items-center gap-3">
           {/* View toggle */}
-          <div className="flex bg-muted rounded-lg p-1">
+          <div className="flex bg-muted rounded-lg p-1" role="group" aria-label="View mode toggle">
             <Button
               variant={viewMode === 'board' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('board')}
               className="gap-1"
+              aria-pressed={viewMode === 'board'}
+              aria-label="Board view"
             >
-              <LayoutGrid className="w-4 h-4" />
+              <LayoutGrid className="w-4 h-4" aria-hidden="true" />
               Board
             </Button>
             <Button
@@ -324,13 +326,15 @@ export function TasksPage() {
               size="sm"
               onClick={() => setViewMode('list')}
               className="gap-1"
+              aria-pressed={viewMode === 'list'}
+              aria-label="List view"
             >
-              <List className="w-4 h-4" />
+              <List className="w-4 h-4" aria-hidden="true" />
               List
             </Button>
           </div>
-          <Button onClick={() => setShowCreateModal(true)}>
-            <Plus className="w-4 h-4 mr-2" />
+          <Button onClick={() => setShowCreateModal(true)} aria-label="Create a new task">
+            <Plus className="w-4 h-4 mr-2" aria-hidden="true" />
             New Task
           </Button>
         </div>
@@ -353,6 +357,7 @@ export function TasksPage() {
                   setSortOrder('desc');
                 }}
                 className="text-xs h-auto p-0"
+                aria-label="Reset all filters and sorting"
               >
                 Reset
               </Button>
@@ -365,7 +370,7 @@ export function TasksPage() {
                   value={filterStatus}
                   onValueChange={(v) => setFilterStatus(v as TaskStatus | 'all')}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger aria-label="Filter by task status">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -385,7 +390,7 @@ export function TasksPage() {
                   value={filterPriority}
                   onValueChange={(v) => setFilterPriority(v as any)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger aria-label="Filter by task priority">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -402,7 +407,7 @@ export function TasksPage() {
               <div className="space-y-1">
                 <Label className="text-xs">Assignee</Label>
                 <Select value={filterAssignee} onValueChange={setFilterAssignee}>
-                  <SelectTrigger>
+                  <SelectTrigger aria-label="Filter by task assignee">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -421,7 +426,7 @@ export function TasksPage() {
               <div className="space-y-1">
                 <Label className="text-xs">Sort By</Label>
                 <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortBy)}>
-                  <SelectTrigger>
+                  <SelectTrigger aria-label="Sort tasks by">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -440,14 +445,15 @@ export function TasksPage() {
                   variant="outline"
                   onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
                   className="w-full justify-center gap-1"
+                  aria-label={`Sort ${sortOrder === 'asc' ? 'descending' : 'ascending'}`}
                 >
                   {sortOrder === 'asc' ? (
                     <>
-                      <ArrowUp className="w-4 h-4" /> Ascending
+                      <ArrowUp className="w-4 h-4" aria-hidden="true" /> Ascending
                     </>
                   ) : (
                     <>
-                      <ArrowDown className="w-4 h-4" /> Descending
+                      <ArrowDown className="w-4 h-4" aria-hidden="true" /> Descending
                     </>
                   )}
                 </Button>
@@ -459,26 +465,26 @@ export function TasksPage() {
 
       {/* Bulk actions toolbar (list view only) */}
       {viewMode === 'list' && selectedTasks.size > 0 && (
-        <Card className="bg-primary/10 border-primary">
+        <Card className="bg-primary/10 border-primary" role="region" aria-label="Bulk task actions">
           <CardContent className="p-3 flex items-center justify-between">
             <div className="text-sm">
               <span className="font-medium">{selectedTasks.size}</span> task
               {selectedTasks.size !== 1 ? 's' : ''} selected
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={selectAll}>
+              <Button variant="ghost" size="sm" onClick={selectAll} aria-label="Select all tasks">
                 Select All
               </Button>
-              <Button variant="ghost" size="sm" onClick={deselectAll}>
+              <Button variant="ghost" size="sm" onClick={deselectAll} aria-label="Deselect all tasks">
                 Deselect
               </Button>
-              <div className="w-px h-4 bg-border mx-1" />
+              <div className="w-px h-4 bg-border mx-1" aria-hidden="true" />
               <Select
                 onValueChange={(v) => {
                   if (v) bulkChangeStatus(v as TaskStatus);
                 }}
               >
-                <SelectTrigger className="h-8 text-xs w-[140px]">
+                <SelectTrigger className="h-8 text-xs w-[140px]" aria-label="Change status for selected tasks">
                   <SelectValue placeholder="Change Status..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -493,6 +499,7 @@ export function TasksPage() {
                 size="sm"
                 onClick={bulkDelete}
                 className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                aria-label="Delete selected tasks"
               >
                 Delete Selected
               </Button>
@@ -510,7 +517,7 @@ export function TasksPage() {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex-1 grid grid-cols-4 gap-4 overflow-hidden">
+          <div className="flex-1 grid grid-cols-4 gap-4 overflow-hidden" role="region" aria-label="Task board columns">
             {COLUMNS.map((column) => (
               <TaskColumn
                 key={column.id}
@@ -577,9 +584,11 @@ function TaskColumn({ column, tasks, recentlyMoved }: TaskColumnProps) {
         'flex flex-col bg-card rounded-lg overflow-hidden border transition-all duration-200',
         isOver && 'ring-2 ring-primary ring-offset-2 ring-offset-background'
       )}
+      role="region"
+      aria-label={`${column.label} column with ${tasks.length} tasks`}
     >
       <div className="p-3 border-b flex items-center gap-2">
-        <div className={cn('w-2 h-2 rounded-full', column.color)} />
+        <div className={cn('w-2 h-2 rounded-full', column.color)} aria-hidden="true" />
         <span className="font-medium text-sm">{column.label}</span>
         <Badge variant="secondary" className="ml-auto">
           {tasks.length}
@@ -649,8 +658,9 @@ function SortableTaskCard({ task, isCelebrating }: { task: Task; isCelebrating?:
           'opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing',
           'text-muted-foreground hover:text-foreground'
         )}
+        aria-label="Drag task to reorder"
       >
-        <GripVertical className="w-4 h-4" />
+        <GripVertical className="w-4 h-4" aria-hidden="true" />
       </div>
 
       <TaskCardContent task={task} isDragging={isDragging} />
@@ -695,6 +705,15 @@ function TaskCardContent({ task, isDragging }: { task: Task; isDragging?: boolea
         isChangingStatus && 'opacity-75',
         isDragging && 'shadow-2xl ring-2 ring-primary'
       )}
+      role="button"
+      tabIndex={0}
+      aria-label={`Task: ${task.title}, Status: ${task.status}`}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          !isDragging && setSelectedTask(task.id);
+        }
+      }}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1">
@@ -715,7 +734,7 @@ function TaskCardContent({ task, isDragging }: { task: Task; isDragging?: boolea
               onValueChange={(v) => handleStatusChange(v as TaskStatus)}
               disabled={isChangingStatus}
             >
-              <SelectTrigger className="h-7 text-xs w-[110px]">
+              <SelectTrigger className="h-7 text-xs w-[110px]" aria-label={`Change status for ${task.title}`}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -732,7 +751,7 @@ function TaskCardContent({ task, isDragging }: { task: Task; isDragging?: boolea
       <div className="flex items-center justify-between mt-3">
         {task.assignedTo ? (
           <div className="flex items-center gap-1.5">
-            <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center">
+            <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center" aria-hidden="true">
               <span className="text-xs text-primary font-medium">
                 {task.assignedTo[0].toUpperCase()}
               </span>
@@ -765,15 +784,17 @@ function TaskCardContent({ task, isDragging }: { task: Task; isDragging?: boolea
   );
 }
 
-function TaskList({
-  tasks,
-  selectedTasks,
-  onToggleSelect,
-}: {
-  tasks: Task[];
-  selectedTasks?: Set<string>;
-  onToggleSelect?: (id: string) => void;
-}) {
+function TaskList(
+  {
+    tasks,
+    selectedTasks,
+    onToggleSelect,
+  }: {
+    tasks: Task[];
+    selectedTasks?: Set<string>;
+    onToggleSelect?: (id: string) => void;
+  }
+) {
   const [statusChanging, setStatusChanging] = useState<Set<string>>(new Set());
   const toast = useToast();
   const { updateTaskStatus } = useData();
@@ -823,6 +844,7 @@ function TaskList({
                       tasks.forEach((t) => selectedTasks?.has(t.id) && onToggleSelect(t.id));
                     }
                   }}
+                  aria-label="Select all tasks in current view"
                 />
               </TableHead>
             )}
@@ -847,6 +869,7 @@ function TaskList({
                   <Checkbox
                     checked={selectedTasks?.has(task.id) ?? false}
                     onCheckedChange={() => onToggleSelect(task.id)}
+                    aria-label={`Select ${task.title}`}
                   />
                 </TableCell>
               )}
@@ -868,7 +891,7 @@ function TaskList({
                   onValueChange={(v) => handleStatusChange(task.id, v as TaskStatus)}
                   disabled={statusChanging.has(task.id)}
                 >
-                  <SelectTrigger className="h-7 text-xs w-[110px]">
+                  <SelectTrigger className="h-7 text-xs w-[110px]" aria-label={`Change status for ${task.title}`}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -952,6 +975,7 @@ function CreateTaskModal({ open, onOpenChange, onCreate }: CreateTaskModalProps)
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Task title"
               autoFocus
+              aria-label="Task title"
             />
           </div>
 
@@ -964,13 +988,14 @@ function CreateTaskModal({ open, onOpenChange, onCreate }: CreateTaskModalProps)
               placeholder="Task description (optional)"
               rows={3}
               className="resize-none"
+              aria-label="Task description"
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="priority">Priority</Label>
             <Select value={priority} onValueChange={setPriority}>
-              <SelectTrigger id="priority">
+              <SelectTrigger id="priority" aria-label="Task priority">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -989,6 +1014,7 @@ function CreateTaskModal({ open, onOpenChange, onCreate }: CreateTaskModalProps)
               value={tagsInput}
               onChange={(e) => setTagsInput(e.target.value)}
               placeholder="feature, bug, auth (comma separated)"
+              aria-label="Task tags"
             />
           </div>
         </div>
@@ -1000,7 +1026,7 @@ function CreateTaskModal({ open, onOpenChange, onCreate }: CreateTaskModalProps)
           <Button onClick={handleCreate} disabled={!title.trim() || isCreating}>
             {isCreating ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />
                 Creating...
               </>
             ) : (
@@ -1094,11 +1120,11 @@ function TaskDetailPanel({ task, onClose, onStatusChange }: TaskDetailPanelProps
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b bg-muted/50">
           <div className="flex items-center gap-3">
-            <div className={cn('w-3 h-3 rounded-full', priorityColors[task.priority])} />
+            <div className={cn('w-3 h-3 rounded-full', priorityColors[task.priority])} aria-hidden="true" />
             <h3 className="font-semibold text-lg">Task Details</h3>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="w-5 h-5" />
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close task details panel">
+            <X className="w-5 h-5" aria-hidden="true" />
           </Button>
         </div>
 
@@ -1118,7 +1144,7 @@ function TaskDetailPanel({ task, onClose, onStatusChange }: TaskDetailPanelProps
               <Label className="text-xs text-muted-foreground uppercase tracking-wider">
                 Status
               </Label>
-              <div className="flex flex-wrap gap-2 mt-2">
+              <div className="flex flex-wrap gap-2 mt-2" role="group" aria-label="Task status options">
                 {Object.entries(statusConfig).map(([key, config]) => (
                   <Button
                     key={key}
@@ -1127,6 +1153,7 @@ function TaskDetailPanel({ task, onClose, onStatusChange }: TaskDetailPanelProps
                     onClick={() => handleStatusChange(key as TaskStatus)}
                     disabled={isChangingStatus}
                     className="gap-2"
+                    aria-pressed={task.status === key}
                   >
                     {config.icon}
                     {config.label}
@@ -1153,7 +1180,7 @@ function TaskDetailPanel({ task, onClose, onStatusChange }: TaskDetailPanelProps
                 Priority
               </Label>
               <div className="flex items-center gap-2 mt-2">
-                <div className={cn('w-3 h-3 rounded-full', priorityColors[task.priority])} />
+                <div className={cn('w-3 h-3 rounded-full', priorityColors[task.priority])} aria-hidden="true" />
                 <span className="font-medium capitalize">{task.priority}</span>
               </div>
             </div>
@@ -1169,8 +1196,9 @@ function TaskDetailPanel({ task, onClose, onStatusChange }: TaskDetailPanelProps
                   type="button"
                   className="flex items-center gap-3 mt-2 group cursor-pointer hover:bg-muted/50 -mx-2 px-2 py-1 rounded-lg transition-colors text-left w-full"
                   title={`View ${getDisplayName()} logs`}
+                  aria-label={`Navigate to ${getDisplayName()} agent details`}
                 >
-                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
+                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors" aria-hidden="true">
                     <span className="text-primary font-medium">
                       {getDisplayName()[0]?.toUpperCase() || '?'}
                     </span>
@@ -1183,6 +1211,7 @@ function TaskDetailPanel({ task, onClose, onStatusChange }: TaskDetailPanelProps
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
+                    aria-hidden="true"
                   >
                     <path
                       strokeLinecap="round"

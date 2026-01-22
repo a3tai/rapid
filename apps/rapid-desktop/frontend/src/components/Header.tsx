@@ -87,16 +87,13 @@ export function Header() {
             onClick={toggleSidebar}
             className="p-1.5 rounded-md text-rapid-muted hover:text-rapid-text hover:bg-rapid-elevated transition-colors"
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-expanded={!collapsed}
           >
-            {collapsed ? (
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            ) : (
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-              </svg>
-            )}
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 4h18v16H3V4z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 4v16" />
+            </svg>
           </button>
 
           {/* Logo */}
@@ -127,12 +124,14 @@ export function Header() {
           <button
             onClick={() => setActiveView('agents')}
             className="flex items-center gap-2 px-2 py-1 rounded hover:bg-rapid-elevated transition-colors"
+            aria-label={`View agents (${activeAgents} active)`}
           >
             <div
               className={clsx(
                 'status-dot',
                 activeAgents > 0 ? 'status-dot-active' : 'status-dot-offline'
               )}
+              aria-hidden="true"
             />
             <span className="text-rapid-muted">
               <span className="text-rapid-text font-medium">{activeAgents}</span> agent
@@ -143,12 +142,14 @@ export function Header() {
           <button
             onClick={() => setActiveView('tasks')}
             className="flex items-center gap-2 px-2 py-1 rounded hover:bg-rapid-elevated transition-colors"
+            aria-label={`View tasks (${inProgressTasks} active tasks)`}
           >
             <svg
               className="w-4 h-4 text-yellow-400"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"
@@ -162,11 +163,11 @@ export function Header() {
             </span>
           </button>
 
-          {pendingTasks > 0 && <span className="badge badge-neutral">{pendingTasks} pending</span>}
+          {pendingTasks > 0 && <span className="badge badge-neutral" aria-label={`${pendingTasks} pending tasks`}>{pendingTasks} pending</span>}
         </div>
 
         {/* Divider */}
-        <div className="h-6 w-px bg-rapid-border" />
+        <div className="h-6 w-px bg-rapid-border" aria-hidden="true" />
 
         {/* Quick actions dropdown */}
         <div className="relative" ref={dropdownRef}>
@@ -176,8 +177,11 @@ export function Header() {
               'btn btn-primary text-sm flex items-center gap-1.5',
               showQuickActions && 'bg-blue-600'
             )}
+            aria-label="Quick actions"
+            aria-haspopup="menu"
+            aria-expanded={showQuickActions}
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -191,6 +195,7 @@ export function Header() {
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"
@@ -203,7 +208,7 @@ export function Header() {
 
           {/* Dropdown menu */}
           {showQuickActions && (
-            <div className="absolute right-0 top-full mt-2 w-48 bg-rapid-surface border border-rapid-border rounded-lg shadow-xl overflow-hidden animate-fade-in z-50">
+            <div className="absolute right-0 top-full mt-2 w-48 bg-rapid-surface border border-rapid-border rounded-lg shadow-xl overflow-hidden animate-fade-in z-50" role="menu">
               {quickActions.map((action) => (
                 <button
                   key={action.label}
@@ -212,8 +217,9 @@ export function Header() {
                     setShowQuickActions(false);
                   }}
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-rapid-elevated transition-colors"
+                  role="menuitem"
                 >
-                  <span className="text-rapid-muted">{action.icon}</span>
+                  <span className="text-rapid-muted" aria-hidden="true">{action.icon}</span>
                   {action.label}
                 </button>
               ))}
@@ -227,7 +233,7 @@ export function Header() {
 
 function TaskIcon() {
   return (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -240,7 +246,7 @@ function TaskIcon() {
 
 function AgentIcon() {
   return (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -253,7 +259,7 @@ function AgentIcon() {
 
 function ShieldIcon() {
   return (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -266,7 +272,7 @@ function ShieldIcon() {
 
 function BookIcon() {
   return (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"

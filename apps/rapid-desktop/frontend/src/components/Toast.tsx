@@ -84,15 +84,17 @@ export function useToast() {
 }
 
 // Toast container - renders all active toasts
-function ToastContainer({
-  toasts,
-  removeToast,
-}: {
-  toasts: Toast[];
-  removeToast: (id: string) => void;
-}) {
+function ToastContainer(
+  {
+    toasts,
+    removeToast,
+  }: {
+    toasts: Toast[];
+    removeToast: (id: string) => void;
+  }
+) {
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none" role="region" aria-live="polite" aria-label="Notifications">
       {toasts.map((toast) => (
         <ToastItem key={toast.id} toast={toast} onDismiss={() => removeToast(toast.id)} />
       ))}
@@ -159,11 +161,12 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
         style.bg,
         isVisible && !isLeaving ? 'translate-x-0 opacity-100' : 'translate-x-4 opacity-0'
       )}
+      role="alert"
     >
       <div className="p-4">
         <div className="flex items-start gap-3">
           {/* Icon */}
-          <div className={clsx('p-1.5 rounded-lg flex-shrink-0', style.iconBg)}>
+          <div className={clsx('p-1.5 rounded-lg flex-shrink-0', style.iconBg)} aria-hidden="true">
             <ToastIcon type={toast.type} className={style.icon} />
           </div>
 
@@ -185,8 +188,9 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
           <button
             onClick={handleDismiss}
             className="flex-shrink-0 text-rapid-muted hover:text-rapid-text transition-colors"
+            aria-label={`Dismiss ${toast.title}`}
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -206,6 +210,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
             style={{
               animation: `shrink ${toast.duration}ms linear forwards`,
             }}
+            aria-hidden="true"
           />
         </div>
       )}
@@ -229,6 +234,7 @@ function ToastIcon({ type, className }: { type: ToastType; className?: string })
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
+          aria-hidden="true"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
         </svg>
@@ -240,6 +246,7 @@ function ToastIcon({ type, className }: { type: ToastType; className?: string })
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
+          aria-hidden="true"
         >
           <path
             strokeLinecap="round"
@@ -256,6 +263,7 @@ function ToastIcon({ type, className }: { type: ToastType; className?: string })
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
+          aria-hidden="true"
         >
           <path
             strokeLinecap="round"
@@ -273,6 +281,7 @@ function ToastIcon({ type, className }: { type: ToastType; className?: string })
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
+          aria-hidden="true"
         >
           <path
             strokeLinecap="round"

@@ -119,18 +119,18 @@ export function AgentsPage() {
           {/* Stats */}
           <div className="flex items-center gap-6 mr-4">
             <div className="text-center">
-              <div className="text-2xl font-mono">{agents.length}</div>
+              <div className="text-2xl font-mono" aria-label={`${agents.length} active agents`}>{agents.length}</div>
               <div className="text-xs text-muted-foreground uppercase tracking-wider">Active</div>
             </div>
-            <div className="w-px h-8 bg-border" />
+            <div className="w-px h-8 bg-border" aria-hidden="true" />
             <div className="text-center">
-              <div className="text-2xl font-mono text-success">{agents.filter(a => a.session).length}</div>
+              <div className="text-2xl font-mono text-success" aria-label={`${agents.filter(a => a.session).length} running agents`}>{agents.filter(a => a.session).length}</div>
               <div className="text-xs text-muted-foreground uppercase tracking-wider">Running</div>
             </div>
           </div>
 
-          <Button onClick={() => setShowSpawnModal(true)} className="gap-2">
-            <Plus className="w-4 h-4" />
+          <Button onClick={() => setShowSpawnModal(true)} className="gap-2" aria-label="Spawn a new agent">
+            <Plus className="w-4 h-4" aria-hidden="true" />
             Spawn Agent
           </Button>
         </div>
@@ -141,7 +141,7 @@ export function AgentsPage() {
         {agents.length === 0 ? (
           <EmptyState onSpawn={() => setShowSpawnModal(true)} />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" role="region" aria-label="Active agents">
             {agents.map((agent) => (
               <AgentCard
                 key={agent.id}
@@ -191,9 +191,9 @@ function EmptyState({ onSpawn }: { onSpawn: () => void }) {
       <div className="text-center max-w-md">
         {/* Animated icon */}
         <div className="relative w-24 h-24 mx-auto mb-6">
-          <div className="absolute inset-0 bg-primary/20 rounded-2xl blur-xl animate-pulse" />
+          <div className="absolute inset-0 bg-primary/20 rounded-2xl blur-xl animate-pulse" aria-hidden="true" />
           <div className="relative w-full h-full bg-card border rounded-2xl flex items-center justify-center">
-            <Monitor className="w-10 h-10 text-primary" />
+            <Monitor className="w-10 h-10 text-primary" aria-hidden="true" />
           </div>
         </div>
 
@@ -202,8 +202,8 @@ function EmptyState({ onSpawn }: { onSpawn: () => void }) {
           Spawn an agent to start autonomous development
         </p>
 
-        <Button onClick={onSpawn} className="gap-2">
-          <Plus className="w-4 h-4" />
+        <Button onClick={onSpawn} className="gap-2" aria-label="Spawn the first agent">
+          <Plus className="w-4 h-4" aria-hidden="true" />
           Spawn First Agent
         </Button>
       </div>
@@ -259,6 +259,15 @@ function AgentCard({ agent, isSelected, onSelect, onStop, onViewOutput }: AgentC
         'cursor-pointer transition-all duration-200 hover:bg-muted/50',
         isSelected && 'ring-2 ring-primary border-primary/50'
       )}
+      role="button"
+      tabIndex={0}
+      aria-label={`${agent.name} agent, ${isSelected ? 'selected' : 'not selected'}`}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
     >
       <CardContent className="p-4">
         {/* Header */}
@@ -268,7 +277,7 @@ function AgentCard({ agent, isSelected, onSelect, onStop, onViewOutput }: AgentC
             <div className={cn(
               'w-12 h-12 rounded-xl flex items-center justify-center bg-muted',
               config.color
-            )}>
+            )} aria-hidden="true">
               {config.icon}
             </div>
 
@@ -282,7 +291,7 @@ function AgentCard({ agent, isSelected, onSelect, onStop, onViewOutput }: AgentC
 
           {/* Status indicator */}
           <Badge variant="success" className="gap-1">
-            <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+            <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" aria-hidden="true" />
             Live
           </Badge>
         </div>
@@ -291,14 +300,14 @@ function AgentCard({ agent, isSelected, onSelect, onStop, onViewOutput }: AgentC
         <div className="space-y-2 mb-4">
           {agent.worktree && (
             <div className="flex items-center gap-2 text-xs">
-              <FolderGit2 className="w-3.5 h-3.5 text-muted-foreground" />
+              <FolderGit2 className="w-3.5 h-3.5 text-muted-foreground" aria-hidden="true" />
               <span className="text-muted-foreground">Worktree:</span>
               <span className={cn('font-mono truncate', config.color)}>{agent.worktree}</span>
             </div>
           )}
           {agent.session && (
             <div className="flex items-center gap-2 text-xs">
-              <Terminal className="w-3.5 h-3.5 text-muted-foreground" />
+              <Terminal className="w-3.5 h-3.5 text-muted-foreground" aria-hidden="true" />
               <span className="text-muted-foreground">Session:</span>
               <span className="font-mono truncate">{agent.session}</span>
             </div>
@@ -312,8 +321,9 @@ function AgentCard({ agent, isSelected, onSelect, onStop, onViewOutput }: AgentC
             size="sm"
             onClick={(e) => { e.stopPropagation(); onViewOutput(); }}
             className="flex-1 gap-1.5"
+            aria-label={`View output for ${agent.name}`}
           >
-            <Terminal className="w-3.5 h-3.5" />
+            <Terminal className="w-3.5 h-3.5" aria-hidden="true" />
             Output
           </Button>
           <Button
@@ -321,8 +331,9 @@ function AgentCard({ agent, isSelected, onSelect, onStop, onViewOutput }: AgentC
             size="sm"
             onClick={(e) => { e.stopPropagation(); onStop(); }}
             className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
+            aria-label={`Stop ${agent.name}`}
           >
-            <Square className="w-3.5 h-3.5" />
+            <Square className="w-3.5 h-3.5" aria-hidden="true" />
             Stop
           </Button>
         </div>
@@ -376,7 +387,7 @@ function SpawnModal({ open, onOpenChange, onSpawn, personas }: SpawnModalProps) 
           {/* Persona Grid */}
           <div>
             <Label className="text-xs uppercase tracking-wider mb-3 block">Persona</Label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2" role="group" aria-label="Agent personas">
               {personas.map((persona) => (
                 <button
                   key={persona.id}
@@ -387,6 +398,9 @@ function SpawnModal({ open, onOpenChange, onSpawn, personas }: SpawnModalProps) 
                       ? 'border-primary bg-primary/10'
                       : 'border-border bg-muted/30 hover:border-muted-foreground/50 hover:bg-muted/50'
                   )}
+                  role="radio"
+                  aria-checked={selectedPersona === persona.id}
+                  aria-label={`${persona.name} persona: ${persona.description}`}
                 >
                   <div className="font-mono text-sm capitalize">{persona.name}</div>
                   <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{persona.description}</div>
@@ -410,6 +424,7 @@ function SpawnModal({ open, onOpenChange, onSpawn, personas }: SpawnModalProps) 
               placeholder="Describe what you want the agent to accomplish..."
               rows={4}
               className="resize-none"
+              aria-label="Task description for the spawned agent"
             />
           </div>
         </div>
@@ -421,10 +436,11 @@ function SpawnModal({ open, onOpenChange, onSpawn, personas }: SpawnModalProps) 
           <Button
             onClick={handleSpawn}
             disabled={!selectedPersona || !task.trim() || isSpawning}
+            aria-label={isSpawning ? 'Spawning agent' : 'Spawn agent with selected persona and task'}
           >
             {isSpawning ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />
                 Spawning...
               </>
             ) : (
@@ -436,4 +452,3 @@ function SpawnModal({ open, onOpenChange, onSpawn, personas }: SpawnModalProps) 
     </Dialog>
   );
 }
-

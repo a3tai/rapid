@@ -6,7 +6,7 @@ const navItems = [
     id: 'dashboard' as const,
     label: 'Dashboard',
     icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -20,7 +20,7 @@ const navItems = [
     id: 'agents' as const,
     label: 'Agents',
     icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -34,7 +34,7 @@ const navItems = [
     id: 'tasks' as const,
     label: 'Tasks',
     icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -48,7 +48,7 @@ const navItems = [
     id: 'events' as const,
     label: 'Event Bus',
     icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -62,7 +62,7 @@ const navItems = [
     id: 'chat' as const,
     label: 'Chat',
     icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -76,7 +76,7 @@ const navItems = [
     id: 'approvals' as const,
     label: 'Approvals',
     icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -90,7 +90,7 @@ const navItems = [
     id: 'knowledge' as const,
     label: 'Knowledge',
     icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -104,7 +104,7 @@ const navItems = [
     id: 'suggestions' as const,
     label: 'Suggestions',
     icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -118,7 +118,7 @@ const navItems = [
     id: 'config' as const,
     label: 'Config',
     icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -150,12 +150,14 @@ export function Sidebar() {
       )}
     >
       {/* Navigation */}
-      <nav className={clsx('flex-1 pt-4 space-y-1', collapsed ? 'px-2' : 'px-3')}>
+      <nav className={clsx('flex-1 pt-4 space-y-1', collapsed ? 'px-2' : 'px-3')} aria-label="Main navigation">
         {navItems.map((item) => (
           <button
             key={item.id}
             onClick={() => setActiveView(item.id)}
             title={collapsed ? item.label : undefined}
+            aria-label={item.label}
+            aria-current={activeView === item.id ? 'page' : undefined}
             className={clsx(
               'w-full flex items-center rounded-lg text-sm font-medium transition-colors',
               collapsed ? 'justify-center p-2.5' : 'gap-3 px-3 py-2',
@@ -171,13 +173,14 @@ export function Sidebar() {
       </nav>
 
       {/* Status footer */}
-      <div className={clsx('border-t border-rapid-border', collapsed ? 'p-2' : 'p-4')}>
+      <div className={clsx('border-t border-rapid-border', collapsed ? 'p-2' : 'p-4')} role="status" aria-live="polite">
         <div className={clsx('flex items-center text-sm', collapsed ? 'justify-center' : 'gap-2')}>
           <div
             className={clsx(
               'status-dot',
               daemonStatus?.running ? 'status-dot-active' : 'status-dot-offline'
             )}
+            aria-hidden="true"
           />
           {!collapsed && (
             <span className="text-rapid-muted">

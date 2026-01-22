@@ -3,37 +3,129 @@ import { useAsyncOperation } from './useAsyncOperation';
 import { AppError } from '../utils/errorHandling';
 import * as AppService from '@bindings/rapid-desktop/appservice';
 
+// Agent configuration
+export interface AgentConfig {
+  cli: string;
+  instructionFile?: string;
+  yolo?: boolean;
+  envVars?: string[];
+  args?: string[];
+  readsInstructionFiles?: boolean;
+}
+
+// Secrets configuration
+export interface SecretsConfig {
+  provider: '1password' | 'vault' | 'env';
+  vault?: string;
+  items?: Record<string, string>;
+}
+
+// MCP server configuration
+export interface McpServerConfig {
+  enabled?: boolean;
+  type: 'stdio' | 'remote';
+  command?: string;
+  args?: string[];
+  url?: string;
+  headers?: Record<string, string>;
+}
+
+// Security configuration
+export interface SecurityConfig {
+  trustLevel?: 'development' | 'staging' | 'production';
+  strictMode?: boolean;
+  humanApproval?: {
+    enabled: boolean;
+    timeout?: number;
+    timeoutBehavior?: 'deny' | 'allow';
+    actions?: Array<{
+      pattern: string;
+      requireApproval: boolean;
+      exemptRoles?: string[];
+      description?: string;
+    }>;
+    notify?: {
+      eventBus?: boolean;
+      desktop?: boolean;
+    };
+  };
+  toolAcls?: Array<{
+    tool: string;
+    allowedRoles: string[];
+    alwaysRequireApproval?: boolean;
+    requireApprovalFor?: string[];
+    rateLimit?: number;
+  }>;
+  audit?: {
+    enabled: boolean;
+    events?: string[];
+    destination?: 'file' | 'redis' | 'both';
+    logFile?: string;
+    retentionDays?: number;
+  };
+  perAgentBudget?: number;
+  perSessionBudget?: number;
+  sandbox?: {
+    enabled: boolean;
+    mode?: 'auto' | 'strict' | 'permissive';
+    network?: {
+      enabled: boolean;
+      allowedDomains?: string[];
+      proxyPort?: number;
+      socksPort?: number;
+    };
+    filesystem?: {
+      readOnlyRoot?: boolean;
+      writePaths?: string[];
+    };
+  };
+  budgets?: {
+    enabled: boolean;
+    alerts?: number[];
+  };
+}
+
+// Full rapid.json configuration
 export interface RapidConfig {
   $schema?: string;
-  project: {
-    name: string;
-    root: string;
+  version?: string;
+  name?: string;
+  agents?: {
+    default?: string;
+    available?: Record<string, AgentConfig>;
+  };
+  secrets?: SecretsConfig;
+  context?: {
+    files?: string[];
+    generateAgentFiles?: boolean;
+  };
+  gateway?: {
+    enabled?: boolean;
+    mode?: 'managed' | 'proxy' | 'disabled';
+  };
+  mcp?: {
+    configFile?: string;
+    servers?: Record<string, McpServerConfig>;
+  };
+  eventBus?: {
+    enabled?: boolean;
+  };
+  security?: SecurityConfig;
+  // Legacy fields for backward compatibility
+  project?: {
+    name?: string;
+    root?: string;
     description?: string;
   };
-  sandbox: {
-    enabled: boolean;
-    preset: 'strict' | 'balanced' | 'permissive' | 'none';
-    allowNetwork: boolean;
+  sandbox?: {
+    enabled?: boolean;
+    preset?: 'strict' | 'balanced' | 'permissive' | 'none';
+    allowNetwork?: boolean;
   };
-  secrets?: {
-    provider: string;
-  };
-  personas?: Record<
-    string,
-    {
-      systemPrompt: string;
-      capabilities: string[];
-    }
-  >;
-  mcp?: {
-    servers?: Record<
-      string,
-      {
-        command: string;
-        args?: string[];
-      }
-    >;
-  };
+  personas?: Record<string, {
+    systemPrompt?: string;
+    capabilities?: string[];
+  }>;
 }
 
 /**
@@ -61,39 +153,9 @@ export function useConfig() {
     { maxAttempts: 2, initialDelayMs: 500 }
   );
 
-  // Transform raw config to typed config
-  const config: RapidConfig | null = configData
-    ? {
-        $schema: configData.$schema as string | undefined,
-        project: {
-          name: (configData.project as Record<string, unknown>)?.name as string,
-          root: (configData.project as Record<string, unknown>)?.root as string,
-          description: (configData.project as Record<string, unknown>)?.description as
-            | string
-            | undefined,
-        },
-        sandbox: {
-          enabled: ((configData.sandbox as Record<string, unknown>)?.enabled as boolean) ?? false,
-          preset:
-            ((configData.sandbox as Record<string, unknown>)?.preset as
-              | 'strict'
-              | 'balanced'
-              | 'permissive'
-              | 'none') ?? 'balanced',
-          allowNetwork:
-            ((configData.sandbox as Record<string, unknown>)?.allowNetwork as boolean) ?? false,
-        },
-        secrets: configData.secrets as { provider: string } | undefined,
-        personas:
-          (configData.personas as Record<
-            string,
-            { systemPrompt: string; capabilities: string[] }
-          >) || undefined,
-        mcp:
-          (configData.mcp as { servers?: Record<string, { command: string; args?: string[] }> }) ||
-          undefined,
-      }
-    : null;
+  // The raw config from Go backend is already the correct shape
+  // Just cast it to our typed interface
+  const config: RapidConfig | null = configData as RapidConfig | null;
 
   // Load config on mount
   useEffect(() => {
@@ -145,22 +207,16 @@ export function useConfigValidation() {
 
     if (!config) return errors;
 
-    // Project validation
-    if (!config.project?.name?.trim()) {
-      errors['project.name'] = 'Project name is required';
-    }
-    if (!config.project?.root?.trim()) {
-      errors['project.root'] = 'Project root directory is required';
+    // Name validation
+    if (!config.name?.trim()) {
+      errors['name'] = 'Project name is required';
     }
 
-    // Persona validation
-    if (config.personas) {
-      Object.entries(config.personas).forEach(([name, persona]) => {
-        if (!persona.systemPrompt?.trim()) {
-          errors[`personas.${name}.systemPrompt`] = 'System prompt is required';
-        }
-        if (!persona.capabilities || persona.capabilities.length === 0) {
-          errors[`personas.${name}.capabilities`] = 'At least one capability is required';
+    // Agents validation
+    if (config.agents?.available) {
+      Object.entries(config.agents.available).forEach(([name, agent]) => {
+        if (!agent.cli?.trim()) {
+          errors[`agents.available.${name}.cli`] = 'CLI command is required';
         }
       });
     }
@@ -168,10 +224,21 @@ export function useConfigValidation() {
     // MCP validation
     if (config.mcp?.servers) {
       Object.entries(config.mcp.servers).forEach(([name, server]) => {
-        if (!server.command?.trim()) {
-          errors[`mcp.servers.${name}.command`] = 'Command is required';
+        if (server.type === 'stdio' && !server.command?.trim()) {
+          errors[`mcp.servers.${name}.command`] = 'Command is required for stdio servers';
+        }
+        if (server.type === 'remote' && !server.url?.trim()) {
+          errors[`mcp.servers.${name}.url`] = 'URL is required for remote servers';
         }
       });
+    }
+
+    // Security validation
+    if (config.security?.perAgentBudget !== undefined && config.security.perAgentBudget < 0) {
+      errors['security.perAgentBudget'] = 'Budget must be positive';
+    }
+    if (config.security?.perSessionBudget !== undefined && config.security.perSessionBudget < 0) {
+      errors['security.perSessionBudget'] = 'Budget must be positive';
     }
 
     return errors;
