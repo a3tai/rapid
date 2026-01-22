@@ -13,7 +13,7 @@ Get a RAPID-enabled project running in 5 minutes.
 ## Installation
 
 ```bash
-npm install -g @rapid-dev/cli
+npm install -g @a3t/rapid
 ```
 
 Verify installation:
@@ -31,15 +31,21 @@ cd your-project
 rapid init
 ```
 
-This creates:
+You'll be prompted to configure your setup, including optional multi-agent team support. This creates:
 
 ```
 your-project/
 ├── rapid.json              # RAPID configuration
 ├── AGENTS.md               # AI agent instructions (template)
 ├── CLAUDE.md               # Claude-specific instructions (template)
-└── .devcontainer/          # Dev container config (if not present)
-    └── devcontainer.json
+├── .devcontainer/          # Dev container config (if not present)
+│   └── devcontainer.json
+└── .rapid/                 # RAPID internal files
+    ├── personas/           # Team persona definitions (if enabled)
+    │   ├── orchestrator.yaml
+    │   ├── worker.yaml
+    │   └── ...
+    └── skills/             # Team skills configuration
 ```
 
 ## Configure Your AI Provider
@@ -112,6 +118,32 @@ rapid dev
 You're now in an AI-assisted coding session inside your container.
 
 ## Common Workflows
+
+### Multi-Agent Team Coordination
+
+If you enabled team personas during `rapid init`, you can run a coordinated team of agents:
+
+```bash
+# Start RAPID with team agents auto-spawning
+rapid start
+
+# This starts:
+# - Event Bus (for agent communication)
+# - MCP Server (for tool access)
+# - Team agents (if autoSpawn is enabled)
+```
+
+To manually configure team spawning, edit `rapid.json`:
+
+```json
+{
+  "personas": {
+    "autoSpawn": true,
+    "team": ["orchestrator", "worker", "critic"],
+    "orchestrator": "orchestrator"
+  }
+}
+```
 
 ### Switch AI Agents
 

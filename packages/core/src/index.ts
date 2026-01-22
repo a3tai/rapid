@@ -65,6 +65,23 @@ export {
 // Logger
 export { logger, setLogLevel, getLogLevel, type LogLevel } from './logger.js';
 
+// Errors - Standardized error types with context enrichment
+export {
+  RAPIDError,
+  ConfigError,
+  ContainerError,
+  CommandError,
+  ValidationError,
+  FileError,
+  NetworkError,
+  TimeoutError,
+  AuthError,
+  isRAPIDError,
+  toRAPIDError,
+  type ErrorSeverity,
+  type ErrorContext,
+} from './errors.js';
+
 // Container
 export {
   hasDevcontainerCli,
@@ -194,3 +211,44 @@ export {
   type BudgetConfig,
   type LiteLLMConfig,
 } from './gateway.js';
+
+// Context Engine
+export {
+  ContextEngine,
+  createContextEngine,
+  type ContextEntry,
+  type ContextEngineConfig,
+  type ContextFilter,
+  type MemoryType,
+} from './context-engine.js';
+
+// Docs Indexer
+export {
+  DocsIndexer,
+  createDocsIndexer,
+  type DocumentEntry,
+  type DocsIndexerConfig,
+} from './docs-indexer.js';
+
+// Hybrid Search
+export {
+  HybridSearchEngine,
+  createHybridSearchEngine,
+  type HybridSearchConfig,
+  type HybridSearchResult,
+} from './hybrid-search.js';
+
+// Knowledge Base Schema
+export {
+  FactDecayCalculator,
+  KnowledgeBaseValidator,
+  KnowledgeBaseFactory,
+  DEFAULT_TAXONOMY,
+  KnowledgeCategory,
+  type KnowledgeSource,
+  type Fact,
+  type DecisionRecord,
+  type DiscoveryRecord,
+  type VersionHistoryEntry,
+  type TaxonomyConfig,
+} from './knowledge-base-schema.js';

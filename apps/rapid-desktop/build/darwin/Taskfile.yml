@@ -1,0 +1,25 @@
+version: '3'
+
+vars:
+  APP_NAME: 'rapid-desktop'
+  BIN_DIR: 'bin'
+
+tasks:
+  build:
+    summary: Build the application for macOS
+    dir: '{{.ROOT_DIR}}'
+    cmds:
+      - cd frontend && pnpm install && pnpm run build
+      - go build -tags desktop -o {{.BIN_DIR}}/{{.APP_NAME}} .
+
+  run:
+    summary: Run the macOS application
+    dir: '{{.ROOT_DIR}}'
+    cmds:
+      - ./{{.BIN_DIR}}/{{.APP_NAME}}
+
+  package:
+    summary: Package the macOS application as .app bundle
+    dir: '{{.ROOT_DIR}}'
+    cmds:
+      - echo "macOS packaging not yet implemented"

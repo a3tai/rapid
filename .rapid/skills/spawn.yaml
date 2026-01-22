@@ -1,0 +1,38 @@
+name: spawn
+description: Spawn an AI agent with a custom persona
+
+type: spawn
+
+# Usage: /spawn <persona-name> [task-description]
+# Examples:
+#   /spawn security-reviewer Review PR #123 for vulnerabilities
+#   /spawn architect Design the new authentication system
+#   /spawn test-writer Write tests for the user service
+
+args:
+  - name: persona
+    description: Name of the persona to spawn (e.g., security-reviewer, architect, test-writer)
+    required: true
+  - name: task
+    description: Task or context for the spawned agent
+    required: false
+
+# Available personas (loaded from .rapid/personas/)
+availablePersonas:
+  - security-reviewer
+  - architect
+  - test-writer
+
+# Spawn configuration
+spawnConfig:
+  # Connect spawned agent to event bus
+  connectToBus: true
+
+  # Share context with parent agent
+  inheritContext: true
+
+  # Notify parent when complete
+  notifyOnComplete: true
+
+  # Auto-terminate after maxTurns
+  autoTerminate: true

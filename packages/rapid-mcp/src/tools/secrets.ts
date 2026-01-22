@@ -9,6 +9,9 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { loadConfig } from '@a3t/rapid-core';
 import type { ServerContext } from '../server.js';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('secrets');
 
 /**
  * Input schema for get_secret tool
@@ -136,10 +139,10 @@ export function registerGetSecretTool(server: McpServer, context: ServerContext)
       };
 
       if (context.verbose) {
-        console.error(`[get_secret] Key: ${key}`);
-        console.error(`[get_secret] Found: ${!!value}, Source: ${source}`);
+        logger.error(`[get_secret] Key: ${key}`);
+        logger.error(`[get_secret] Found: ${!!value}, Source: ${source}`);
         if (value) {
-          console.error(`[get_secret] Masked: ${output.masked}`);
+          logger.error(`[get_secret] Masked: ${output.masked}`);
         }
       }
 

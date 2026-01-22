@@ -12,9 +12,11 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from 'node:http';
-import { mkdir, unlink, writeFile, readFile, rm } from 'node:fs/promises';
+import { mkdir, unlink, writeFile, readFile, rm, stat, open } from 'node:fs/promises';
+import { watch } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
+import { Redis } from 'ioredis';
 import type { RapidConfig } from '@a3t/rapid-core';
 import { SessionManager } from './session-manager.js';
 import { ConfigWatcher } from './config-watcher.js';
@@ -22,6 +24,7 @@ import { SecretsCache } from './secrets-cache.js';
 import { LocalProvider } from './providers/local.js';
 import { DevcontainerProvider } from './providers/devcontainer.js';
 import { LimaProvider } from './providers/lima.js';
+import { DockerProvider } from './providers/docker.js';
 import type {
   DaemonConfig,
   DaemonStatus,
@@ -37,11 +40,13 @@ const VERSION = '0.1.0';
 export class DaemonServer {
   private socketServer: NetServer | null = null;
   private httpServer: HttpServer | null = null;
+  private redis: Redis | null = null;
   private sessionManager: SessionManager;
   private configWatcher: ConfigWatcher;
   private secretsCache: SecretsCache;
   private config: DaemonConfig;
   private startTime: Date | null = null;
+  private staleCleanupInterval: NodeJS.Timeout | null = null;
 
   constructor(config?: Partial<DaemonConfig>) {
     const daemonConfig: DaemonConfig = {
@@ -76,6 +81,7 @@ export class DaemonServer {
   private registerProviders(): void {
     this.sessionManager.registerProvider(new LocalProvider());
     this.sessionManager.registerProvider(new DevcontainerProvider());
+    this.sessionManager.registerProvider(new DockerProvider());
     this.sessionManager.registerProvider(new LimaProvider());
   }
 
@@ -90,6 +96,24 @@ export class DaemonServer {
     // Create directories
     await mkdir(dirname(this.config.socketPath), { recursive: true });
     await mkdir(this.config.cacheDir, { recursive: true });
+
+    // Connect to Redis event bus
+    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+    try {
+      this.redis = new Redis(redisUrl, {
+        maxRetriesPerRequest: 3,
+        lazyConnect: true,
+      });
+      await this.redis.connect();
+      if (this.config.verbose) {
+        console.log(`Connected to Redis at ${redisUrl}`);
+      }
+    } catch (err) {
+      if (this.config.verbose) {
+        console.warn(`Warning: Could not connect to Redis at ${redisUrl}: ${err}`);
+      }
+      this.redis = null;
+    }
 
     // Remove stale socket file
     try {
@@ -128,6 +152,20 @@ export class DaemonServer {
 
     this.startTime = new Date();
 
+    // Start stale agent cleanup and recovery job (runs every 30 seconds)
+    this.staleCleanupInterval = setInterval(() => {
+      this.cleanupStaleAgents().catch((err) => {
+        if (this.config.verbose) {
+          console.error('Error in stale agent cleanup:', err);
+        }
+      });
+      this.recoverOrphanedTasks().catch((err) => {
+        if (this.config.verbose) {
+          console.error('Error in task recovery:', err);
+        }
+      });
+    }, 30000);
+
     if (this.config.verbose) {
       console.log(`Daemon started on ${this.config.socketPath}`);
       if (this.config.httpPort) {
@@ -137,9 +175,153 @@ export class DaemonServer {
   }
 
   /**
+   * Cleanup stale agents from Redis registry
+   * Agents without heartbeat for 60+ seconds are checked against Docker
+   * and removed if their containers are no longer running
+   */
+  private async cleanupStaleAgents(): Promise<void> {
+    if (!this.redis) return;
+
+    const now = Date.now();
+    const staleThreshold = 120000; // 2 minutes - more forgiving for long Claude iterations
+
+    try {
+      // Get all agents from the active sorted set
+      const agents = await this.redis.zrangebyscore(
+        'rapid:agents:active',
+        '-inf',
+        '+inf',
+        'WITHSCORES'
+      );
+
+      for (let i = 0; i < agents.length; i += 2) {
+        const agentId = agents[i];
+        const scoreStr = agents[i + 1];
+        if (!agentId || !scoreStr) continue;
+
+        const lastSeen = parseInt(scoreStr, 10);
+
+        if (now - lastSeen > staleThreshold) {
+          // Agent is stale - check if session/container is still running
+          const session = this.sessionManager.getSession(agentId);
+
+          if (session && session.state === 'running') {
+            // Container still running but no heartbeat - update timestamp
+            await this.redis.zadd('rapid:agents:active', String(now), agentId);
+            if (this.config.verbose) {
+              console.log(`[cleanup] Agent ${agentId} is stale but container running, refreshed timestamp`);
+            }
+          } else {
+            // Container stopped or doesn't exist - clean up registry
+            await this.redis.zrem('rapid:agents:active', agentId);
+            await this.redis.del(`rapid:agents:${agentId}`);
+
+            // Also clean from app-specific sorted set
+            const appAgents = await this.redis.zrangebyscore('rapid:agents:app', '-inf', '+inf');
+            for (const entry of appAgents) {
+              try {
+                const parsed = JSON.parse(entry);
+                if (parsed.id === agentId) {
+                  await this.redis.zrem('rapid:agents:app', entry);
+                }
+              } catch {
+                // Skip invalid entries
+              }
+            }
+
+            if (this.config.verbose) {
+              console.log(`[cleanup] Removed stale agent ${agentId} from registry`);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      if (this.config.verbose) {
+        console.error('Error during stale agent cleanup:', err);
+      }
+    }
+  }
+
+  /**
+   * Recover orphaned tasks from dead agents
+   * Tasks assigned to agents that are no longer active are unassigned
+   * so they can be claimed by other workers
+   */
+  private async recoverOrphanedTasks(): Promise<void> {
+    if (!this.redis) return;
+
+    try {
+      // Get all in-progress tasks
+      const taskKeys = await this.redis.keys('rapid:*:tasks');
+
+      for (const key of taskKeys) {
+        const tasks = await this.redis.hgetall(key);
+
+        for (const [taskId, taskData] of Object.entries(tasks)) {
+          try {
+            const task = JSON.parse(String(taskData));
+
+            // Only check tasks that are in_progress and assigned
+            if (task.status !== 'in_progress' || !task.assignedTo) {
+              continue;
+            }
+
+            // Check if the assigned agent is still active
+            const agentScore = await this.redis.zscore('rapid:agents:active', task.assignedTo);
+            const now = Date.now();
+            const staleThreshold = 120000; // 2 minutes - more forgiving for long Claude iterations
+
+            // Agent is dead if no score or score is too old
+            const agentIsDead = !agentScore || (now - parseFloat(agentScore)) > staleThreshold;
+
+            if (agentIsDead) {
+              // Unassign the task so it can be claimed by another agent
+              const updatedTask = {
+                ...task,
+                status: 'pending',
+                assignedTo: null,
+                notes: `Auto-unassigned from dead agent ${task.assignedTo} at ${new Date().toISOString()}`,
+                updatedAt: new Date().toISOString(),
+              };
+
+              await this.redis.hset(key, taskId, JSON.stringify(updatedTask));
+
+              // Publish recovery event
+              await this.redis.publish('rapid:events', JSON.stringify({
+                type: 'task_recovered',
+                taskId,
+                title: task.title,
+                previousAgent: task.assignedTo,
+                message: `Task unassigned from dead agent, ready for claiming`,
+                timestamp: new Date().toISOString(),
+              }));
+
+              if (this.config.verbose) {
+                console.log(`[recovery] Unassigned task ${taskId} from dead agent ${task.assignedTo}`);
+              }
+            }
+          } catch {
+            // Skip invalid task entries
+          }
+        }
+      }
+    } catch (err) {
+      if (this.config.verbose) {
+        console.error('Error during task recovery:', err);
+      }
+    }
+  }
+
+  /**
    * Stop the daemon server
    */
   async stop(): Promise<void> {
+    // Stop stale agent cleanup
+    if (this.staleCleanupInterval) {
+      clearInterval(this.staleCleanupInterval);
+      this.staleCleanupInterval = null;
+    }
+
     // Stop all sessions
     await this.sessionManager.cleanup();
 
@@ -148,6 +330,12 @@ export class DaemonServer {
 
     // Clear secrets cache
     this.secretsCache.clearAll();
+
+    // Disconnect from Redis
+    if (this.redis) {
+      await this.redis.quit();
+      this.redis = null;
+    }
 
     // Close servers
     if (this.socketServer) {
@@ -218,6 +406,45 @@ export class DaemonServer {
    * Handle HTTP request
    */
   private async handleHttpRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const url = new URL(req.url || '/', `http://localhost`);
+
+    // Handle SSE events endpoint
+    if (url.pathname === '/events' && req.method === 'GET') {
+      await this.handleSSEConnection(req, res);
+      return;
+    }
+
+    // Handle SSE log streaming endpoint: /logs/:agentName
+    const logsMatch = url.pathname.match(/^\/logs\/([^/]+)$/);
+    if (logsMatch && logsMatch[1] && req.method === 'GET') {
+      await this.handleLogStream(req, res, logsMatch[1]);
+      return;
+    }
+
+    // Handle SSE agent stream endpoint: /agents/stream/:agentId (alias for /logs)
+    const agentStreamMatch = url.pathname.match(/^\/agents\/stream\/([^/]+)$/);
+    if (agentStreamMatch && agentStreamMatch[1] && req.method === 'GET') {
+      await this.handleLogStream(req, res, agentStreamMatch[1]);
+      return;
+    }
+
+    // Handle task dependency graph endpoint: /api/dependencies
+    if (url.pathname === '/api/dependencies' && req.method === 'GET') {
+      await this.handleDependencyGraph(req, res);
+      return;
+    }
+
+    // Handle CORS preflight
+    if (req.method === 'OPTIONS') {
+      res.writeHead(200, {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      });
+      res.end();
+      return;
+    }
+
     if (req.method !== 'POST') {
       res.writeHead(405, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Method not allowed' }));
@@ -231,9 +458,261 @@ export class DaemonServer {
 
     req.on('end', async () => {
       const response = await this.handleMessage(body);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      });
       res.end(JSON.stringify(response));
     });
+  }
+
+  /**
+   * Handle SSE connection for real-time event streaming
+   */
+  private async handleSSEConnection(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+    });
+
+    // Send initial connection event
+    res.write(`event: connected\ndata: ${JSON.stringify({ status: 'connected', timestamp: Date.now() })}\n\n`);
+
+    if (!this.redis) {
+      res.write(`event: error\ndata: ${JSON.stringify({ error: 'Redis not connected' })}\n\n`);
+      return;
+    }
+
+    // Create subscriber for Redis pub/sub
+    const subscriber = this.redis.duplicate();
+    try {
+      await subscriber.subscribe('rapid:events');
+
+      subscriber.on('message', (_channel: string, message: string) => {
+        try {
+          // Forward event to SSE client
+          res.write(`event: message\ndata: ${message}\n\n`);
+        } catch {
+          // Connection may be closed
+        }
+      });
+
+      // Send heartbeat every 30 seconds to keep connection alive
+      const heartbeat = setInterval(() => {
+        try {
+          res.write(`event: heartbeat\ndata: ${JSON.stringify({ timestamp: Date.now() })}\n\n`);
+        } catch {
+          clearInterval(heartbeat);
+        }
+      }, 30000);
+
+      // Cleanup on connection close
+      req.on('close', () => {
+        clearInterval(heartbeat);
+        subscriber.unsubscribe().catch(() => {});
+        subscriber.quit().catch(() => {});
+        if (this.config.verbose) {
+          console.log('[SSE] Client disconnected');
+        }
+      });
+
+      if (this.config.verbose) {
+        console.log('[SSE] Client connected');
+      }
+    } catch (err) {
+      res.write(`event: error\ndata: ${JSON.stringify({ error: String(err) })}\n\n`);
+      subscriber.quit().catch(() => {});
+    }
+  }
+
+  /**
+   * Handle log streaming via SSE for a specific agent
+   * Streams log file updates in real-time using file watching
+   */
+  private async handleLogStream(
+    req: IncomingMessage,
+    res: ServerResponse,
+    agentName: string
+  ): Promise<void> {
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+    });
+
+    // Log files are in /project/.rapid/logs/ inside daemon container
+    const projectDir = process.env.RAPID_PROJECT_DIR || '/project';
+    const logFile = join(projectDir, '.rapid', 'logs', `agent-${agentName}.log`);
+
+    // Send initial connection event
+    res.write(
+      `event: connected\ndata: ${JSON.stringify({ agentName, logFile, timestamp: Date.now() })}\n\n`
+    );
+
+    let fileOffset = 0;
+    let watcher: ReturnType<typeof watch> | null = null;
+
+    // Function to read new content from log file
+    const readNewContent = async () => {
+      try {
+        const stats = await stat(logFile);
+        if (stats.size > fileOffset) {
+          // Read new content
+          const fd = await open(logFile, 'r');
+          const buffer = Buffer.alloc(stats.size - fileOffset);
+          await fd.read(buffer, 0, buffer.length, fileOffset);
+          await fd.close();
+
+          const newContent = buffer.toString('utf-8');
+          fileOffset = stats.size;
+
+          // Split into lines and send each as an event
+          const lines = newContent.split('\n').filter((line) => line.length > 0);
+          for (const line of lines) {
+            res.write(`event: log\ndata: ${JSON.stringify({ line, timestamp: Date.now() })}\n\n`);
+          }
+        }
+      } catch (err) {
+        // File may not exist yet - that's ok
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+          res.write(`event: error\ndata: ${JSON.stringify({ error: String(err) })}\n\n`);
+        }
+      }
+    };
+
+    // Initial read of existing content
+    await readNewContent();
+
+    // Watch for file changes
+    try {
+      const logDir = dirname(logFile);
+      await mkdir(logDir, { recursive: true });
+
+      watcher = watch(logDir, { persistent: false }, (_eventType, filename) => {
+        if (filename === `agent-${agentName}.log`) {
+          readNewContent().catch(() => {});
+        }
+      });
+    } catch (err) {
+      res.write(
+        `event: warning\ndata: ${JSON.stringify({ warning: 'Could not watch log directory', error: String(err) })}\n\n`
+      );
+    }
+
+    // Fallback polling in case watch doesn't work reliably
+    const pollInterval = setInterval(() => {
+      readNewContent().catch(() => {});
+    }, 1000);
+
+    // Send heartbeat every 30 seconds
+    const heartbeat = setInterval(() => {
+      try {
+        res.write(`event: heartbeat\ndata: ${JSON.stringify({ timestamp: Date.now() })}\n\n`);
+      } catch {
+        clearInterval(heartbeat);
+      }
+    }, 30000);
+
+    // Cleanup on connection close
+    req.on('close', () => {
+      clearInterval(pollInterval);
+      clearInterval(heartbeat);
+      if (watcher) {
+        watcher.close();
+      }
+      if (this.config.verbose) {
+        console.log(`[LogStream] Client disconnected for agent ${agentName}`);
+      }
+    });
+
+    if (this.config.verbose) {
+      console.log(`[LogStream] Client connected for agent ${agentName}, watching ${logFile}`);
+    }
+  }
+
+  /**
+   * Handle task dependency graph visualization endpoint
+   * Returns nodes and edges for visualizing task dependencies
+   */
+  private async handleDependencyGraph(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    try {
+      const url = new URL(req.url || '/', `http://localhost`);
+      const status = url.searchParams.get('status') || 'all';
+
+      // Call task_execution_order tool to get dependency data
+      const isDocker = process.env.DOCKER_ENV === 'true' || process.env.HOSTNAME?.includes('rapid');
+      const mcpUrl = process.env.MCP_URL || (isDocker ? 'http://rapid-mcp:3100/mcp' : 'http://localhost:3100/mcp');
+
+      const response = await fetch(mcpUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: Date.now(),
+          method: 'tools/call',
+          params: {
+            name: 'task_execution_order',
+            arguments: { includeCompleted: false },
+          },
+        }),
+      });
+
+      const result = await response.json() as {
+        result?: { structuredContent?: { order?: Array<{ taskId: string; title: string; status: string; dependsOn: string[] }> } };
+      };
+
+      const tasks = result.result?.structuredContent?.order || [];
+
+      // Build nodes and edges for visualization
+      const nodes = tasks.map((task) => ({
+        id: task.taskId,
+        label: task.title,
+        status: task.status,
+      }));
+
+      const edges: Array<{ source: string; target: string }> = [];
+      for (const task of tasks) {
+        for (const dep of task.dependsOn || []) {
+          edges.push({ source: dep, target: task.taskId });
+        }
+      }
+
+      // Filter by status if needed
+      let filteredNodes = nodes;
+      let filteredEdges = edges;
+
+      if (status !== 'all') {
+        const validIds = new Set(nodes.filter((n) => n.status === status).map((n) => n.id));
+        filteredNodes = nodes.filter((n) => validIds.has(n.id));
+        filteredEdges = edges.filter((e) => validIds.has(e.source) && validIds.has(e.target));
+      }
+
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      });
+
+      const graph = {
+        nodes: filteredNodes,
+        edges: filteredEdges,
+        stats: {
+          totalTasks: tasks.length,
+          nodeCount: filteredNodes.length,
+          edgeCount: filteredEdges.length,
+        },
+      };
+
+      res.end(JSON.stringify(graph));
+    } catch (err) {
+      res.writeHead(500, {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      });
+      res.end(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }));
+    }
   }
 
   /**
@@ -279,7 +758,7 @@ export class DaemonServer {
           agent: typedParams.agent as string,
         };
         if (typeof typedParams.provider === 'string') {
-          opts.provider = typedParams.provider as 'local' | 'devcontainer' | 'lima' | 'remote-ssh';
+          opts.provider = typedParams.provider as 'local' | 'devcontainer' | 'docker' | 'lima' | 'remote-ssh';
         }
         if (typedParams.env && typeof typedParams.env === 'object') {
           opts.env = typedParams.env as Record<string, string>;
@@ -298,6 +777,182 @@ export class DaemonServer {
 
       case 'session.get':
         return this.sessionManager.getSession(typedParams.sessionId as string) || null;
+
+      case 'session.execute': {
+        const sessionId = typedParams.sessionId as string;
+        const command = typedParams.command as string[];
+        const execOpts = typedParams.options as Record<string, unknown> | undefined;
+        return this.sessionManager.execute(sessionId, command, execOpts);
+      }
+
+      // Agent spawning (combines session creation + execution)
+      case 'agent.spawn': {
+        const projectDir = typedParams.projectDir as string;
+        const persona = typedParams.persona as string;
+        const task = typedParams.task as string;
+        // Note: systemPrompt is passed but agent-loop.sh handles prompting via event bus
+        let yoloMode = typedParams.yoloMode as boolean | undefined;
+        const model = typedParams.model as string | undefined;
+        let env = (typedParams.env as Record<string, string>) || {};
+
+        // Load secrets from project config and add to environment
+        let config = this.configWatcher.getConfig(projectDir);
+        if (!config) {
+          // Try to load config directly if not already watched
+          const configPath = join(projectDir, 'rapid.json');
+          config = await this.configWatcher.watchProject(projectDir, configPath);
+          if (this.config.verbose) {
+            console.log(`[agent.spawn] Loaded config from ${configPath}`);
+          }
+        }
+        if (config?.secrets) {
+          try {
+            const secrets = await this.secretsCache.loadSecretsForProject(projectDir, config);
+            // Merge env with secrets, but non-empty env values take precedence over empty secrets
+            // This ensures OAuth tokens passed from MCP server aren't overwritten by empty secrets
+            const merged: Record<string, string> = {};
+            // Start with non-empty secrets
+            for (const [key, value] of Object.entries(secrets)) {
+              if (value) merged[key] = value;
+            }
+            // Env values override (they're already non-empty from personas.ts filtering)
+            for (const [key, value] of Object.entries(env)) {
+              if (value) merged[key] = value;
+            }
+            env = merged;
+            if (this.config.verbose) {
+              const secretKeys = Object.keys(secrets).filter(k => secrets[k]);
+              console.log(`[agent.spawn] Loaded ${secretKeys.length} secrets: ${secretKeys.join(', ')}`);
+            }
+          } catch (err) {
+            if (this.config.verbose) {
+              console.warn(`[agent.spawn] Failed to load secrets: ${err}`);
+            }
+          }
+        }
+
+        // Use yolo mode from rapid.json config if not explicitly passed
+        // rapid.json: agents.available.claude.yolo = true
+        if (yoloMode === undefined && config) {
+          const agents = config as { agents?: { available?: { claude?: { yolo?: boolean } } } };
+          yoloMode = agents.agents?.available?.claude?.yolo ?? false;
+          if (this.config.verbose) {
+            console.log(`[agent.spawn] Yolo mode from config: ${yoloMode}`);
+          }
+        }
+
+        // Generate a session ID for pre-registration
+        const preSessionId = `agent-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+        // Pre-register agent in Redis BEFORE creating container
+        // This ensures the agent appears in UI immediately on spawn
+        if (this.redis) {
+          const agentData = {
+            id: preSessionId,
+            name: persona,
+            status: 'starting',
+            type: persona,
+            registeredAt: new Date().toISOString(),
+            lastHeartbeat: new Date().toISOString(),
+            task: task.slice(0, 200),
+          };
+          await this.redis.hset(`rapid:agents:${preSessionId}`, agentData);
+          await this.redis.zadd('rapid:agents:active', Date.now(), preSessionId);
+          // Also add to the app-specific sorted set for bus_agents compatibility
+          await this.redis.zadd(
+            'rapid:agents:app',
+            Date.now(),
+            JSON.stringify({ id: preSessionId, name: persona, status: 'starting' })
+          );
+          if (this.config.verbose) {
+            console.log(`[agent.spawn] Pre-registered agent ${preSessionId} in Redis`);
+          }
+        }
+
+        // Create session with docker provider
+        const session = await this.sessionManager.createSession({
+          projectDir,
+          agent: persona,
+          provider: 'docker',
+          env: { ...env, RAPID_PRE_SESSION_ID: preSessionId },
+        });
+
+        // Start the session (creates the container)
+        await this.sessionManager.startSession(session.id);
+
+        // Use agent-loop.sh for Ralph-style continuous operation
+        // State persists in event bus, agents coordinate through orchestrator
+        const worktreeName = session.env?.RAPID_WORKTREE || `agent-${session.id.slice(0, 8)}`;
+
+        // Build agent-loop.sh command args
+        // Usage: agent-loop.sh "AGENT_NAME" "WORKTREE" "INITIAL_TASK" [MODEL] [--yolo]
+        const agentLoopArgs = [
+          '/usr/local/bin/agent-loop.sh',
+          persona,
+          worktreeName,
+          task,
+        ];
+
+        // Add model if specified
+        // Model selection: opus (orchestrators), haiku (workers), sonnet (thinking)
+        if (model) {
+          agentLoopArgs.push(model);
+          if (this.config.verbose) {
+            console.log(`[agent.spawn] Using model '${model}' for ${persona}`);
+          }
+        }
+
+        // Add yolo flag if enabled
+        if (yoloMode) {
+          agentLoopArgs.push('--yolo');
+          if (this.config.verbose) {
+            console.log(`[agent.spawn] Yolo mode enabled for ${persona}`);
+          }
+        } else {
+          // HITL mode: permission prompts will surface in UI via output streaming
+          if (this.config.verbose) {
+            console.log(`[agent.spawn] HITL mode enabled for ${persona} - approvals will surface in UI`);
+          }
+        }
+
+        if (this.config.verbose) {
+          console.log(`[agent.spawn] Starting agent loop: ${agentLoopArgs.join(' ')}`);
+        }
+
+        // Execute the agent loop in background with TTY for interactive mode
+        // Don't await - let it run asynchronously (the loop runs forever)
+        // NOTE: With TTY mode, the docker exec stream ends immediately but the process keeps running
+        // We do NOT stop the session when the exec "finishes" - agent-loop.sh runs continuously
+        // The container will be stopped by explicit user action or shutdown handler
+        this.sessionManager.execute(session.id, agentLoopArgs, {
+          stdout: 'pipe',
+          stderr: 'pipe',
+          tty: true,  // Enable TTY for interactive/continuous operation
+        }).then(() => {
+          // Note: With TTY, this fires when the exec starts, not when agent-loop.sh exits
+          // The actual loop continues running in the container
+          if (this.config.verbose) {
+            console.log(`[agent.spawn] Agent ${session.id} exec stream ended (loop continues in container)`);
+          }
+          // Do NOT stop the session - agent-loop.sh is still running
+          // Session cleanup happens via:
+          // 1. persona_stop tool call
+          // 2. daemon.shutdown
+          // 3. staleCleanupInterval detecting dead containers
+        }).catch((err) => {
+          console.error(`[agent.spawn] Agent ${session.id} exec failed:`, err);
+          // Only stop session on actual exec errors (e.g., container not found)
+          this.sessionManager.stopSession(session.id).catch(() => {});
+        });
+
+        return {
+          sessionId: session.id,
+          persona,
+          task,
+          model: model || 'default',
+          status: 'running',
+        };
+      }
 
       // Daemon management
       case 'daemon.status':
@@ -326,6 +981,95 @@ export class DaemonServer {
       // Gateway (placeholder for now)
       case 'gateway.status':
         return this.getGatewayStatus();
+
+      // Agents (from Redis event bus)
+      case 'agents.list': {
+        if (!this.redis) {
+          return { agents: [], count: 0 };
+        }
+        const maxAge = typedParams.maxAgeSeconds !== undefined ? (typedParams.maxAgeSeconds as number) : 300;
+        const agents = await this.getAgentsFromRedis(maxAge);
+        return { agents, count: agents.length };
+      }
+
+      // Tasks (from Redis)
+      case 'tasks.list': {
+        if (!this.redis) {
+          return { tasks: [], count: 0 };
+        }
+        const status = typedParams.status as string | undefined;
+        const tasks = await this.getTasksFromRedis(status);
+        return { tasks, count: tasks.length };
+      }
+
+      // Agent logs (from container)
+      case 'agent.logs': {
+        const sessionId = typedParams.sessionId as string;
+        const tail = typedParams.tail as number | undefined;
+        const since = typedParams.since as number | undefined;
+        const timestamps = typedParams.timestamps as boolean | undefined;
+
+        if (!sessionId) {
+          throw new Error('sessionId is required');
+        }
+
+        try {
+          const logOptions = {
+            tail: tail ?? 200,
+            timestamps: timestamps ?? false,
+            ...(since !== undefined && { since }),
+          };
+          const logs = await this.sessionManager.getSessionLogs(sessionId, logOptions);
+          return { sessionId, logs };
+        } catch (err) {
+          return { sessionId, logs: '', error: err instanceof Error ? err.message : String(err) };
+        }
+      }
+
+      // Stop agent container
+      case 'agent.stop': {
+        const agentId = typedParams.agentId as string;
+
+        if (!agentId) {
+          throw new Error('agentId is required');
+        }
+
+        try {
+          // Try to stop the session (container)
+          const result = await this.sessionManager.stopSession(agentId);
+
+          // Also clean up from Redis registry
+          if (this.redis) {
+            await this.redis.zrem('rapid:agents:active', agentId);
+            await this.redis.del(`rapid:agents:${agentId}`);
+
+            // Clean from app-specific sorted set
+            const appAgents = await this.redis.zrangebyscore('rapid:agents:app', '-inf', '+inf');
+            for (const entry of appAgents) {
+              try {
+                const parsed = JSON.parse(entry);
+                if (parsed.id === agentId) {
+                  await this.redis.zrem('rapid:agents:app', entry);
+                }
+              } catch {
+                // Skip invalid entries
+              }
+            }
+          }
+
+          if (this.config.verbose) {
+            console.log(`[agent.stop] Stopped agent ${agentId}`);
+          }
+
+          return { agentId, stopped: true, result };
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          if (this.config.verbose) {
+            console.error(`[agent.stop] Failed to stop agent ${agentId}: ${errorMsg}`);
+          }
+          return { agentId, stopped: false, error: errorMsg };
+        }
+      }
 
       default:
         throw new Error(`Unknown method: ${method}`);
@@ -408,6 +1152,143 @@ export class DaemonServer {
    */
   get isRunning(): boolean {
     return this.socketServer !== null;
+  }
+
+  /**
+   * Get active agents from Redis event bus
+   * Agents are stored in sorted sets like rapid:agents:app, rapid:agents:cli
+   * with score = timestamp and value = JSON
+   */
+  private async getAgentsFromRedis(maxAgeSeconds: number): Promise<Array<{
+    id: string;
+    name: string;
+    worktree?: string;
+    session?: string;
+    lastSeen?: number;
+  }>> {
+    if (!this.redis) return [];
+
+    try {
+      // Get all agent sorted set keys
+      const keys = await this.redis.keys('rapid:agents:*');
+      const agents: Array<{
+        id: string;
+        name: string;
+        worktree?: string;
+        session?: string;
+        lastSeen?: number;
+      }> = [];
+
+      const now = Date.now();
+      // If maxAgeSeconds <= 0, get all agents (no time filter)
+      const cutoff = maxAgeSeconds > 0 ? now - (maxAgeSeconds * 1000) : 0;
+      const minScore = maxAgeSeconds > 0 ? String(cutoff) : '-inf';
+
+      for (const key of keys) {
+        // Get all entries from the sorted set with scores (timestamps)
+        const entries = await this.redis.zrangebyscore(key, minScore, '+inf', 'WITHSCORES');
+
+        // Entries come as [value, score, value, score, ...]
+        for (let i = 0; i < entries.length; i += 2) {
+          const value = entries[i];
+          const score = Number(entries[i + 1]);
+
+          if (!value) continue;
+
+          try {
+            const parsed = JSON.parse(value);
+            agents.push({
+              id: parsed.id || `agent-${score}`,
+              name: parsed.name || 'unknown',
+              worktree: parsed.worktree,
+              session: parsed.session,
+              lastSeen: score,
+            });
+          } catch {
+            // Skip invalid JSON entries
+          }
+        }
+      }
+
+      // Sort by lastSeen descending (most recent first)
+      agents.sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
+
+      return agents;
+    } catch (err) {
+      if (this.config.verbose) {
+        console.error('Error getting agents from Redis:', err);
+      }
+      return [];
+    }
+  }
+
+  /**
+   * Get tasks from Redis
+   */
+  private async getTasksFromRedis(statusFilter?: string): Promise<Array<{
+    id: string;
+    title: string;
+    description?: string;
+    status: string;
+    priority: string;
+    assignedTo?: string;
+    createdAt: string;
+    updatedAt: string;
+    tags?: string[];
+  }>> {
+    if (!this.redis) return [];
+
+    try {
+      // Get all project task keys
+      const keys = await this.redis.keys('rapid:*:tasks');
+      const tasks: Array<{
+        id: string;
+        title: string;
+        description?: string;
+        status: string;
+        priority: string;
+        assignedTo?: string;
+        createdAt: string;
+        updatedAt: string;
+        tags?: string[];
+      }> = [];
+
+      for (const key of keys) {
+        const taskData = await this.redis.hgetall(key);
+        for (const [taskId, data] of Object.entries(taskData)) {
+          try {
+            const parsed = JSON.parse(String(data));
+            // Filter by status if specified
+            if (statusFilter && parsed.status !== statusFilter) {
+              continue;
+            }
+            tasks.push({
+              id: taskId,
+              title: parsed.title || 'Untitled',
+              description: parsed.description,
+              status: parsed.status || 'pending',
+              priority: parsed.priority || 'normal',
+              assignedTo: parsed.assignedTo,
+              createdAt: parsed.createdAt || new Date().toISOString(),
+              updatedAt: parsed.updatedAt || parsed.createdAt || new Date().toISOString(),
+              tags: parsed.tags,
+            });
+          } catch {
+            // Skip invalid entries
+          }
+        }
+      }
+
+      // Sort by updatedAt descending
+      tasks.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+      return tasks;
+    } catch (err) {
+      if (this.config.verbose) {
+        console.error('Error getting tasks from Redis:', err);
+      }
+      return [];
+    }
   }
 }
 

@@ -10,6 +10,8 @@ import { z } from 'zod';
 import { loadConfig } from '@a3t/rapid-core';
 import { isDomainAllowed, extractHostname } from '@a3t/rapid-runtime';
 import type { ServerContext } from '../server.js';
+import { FETCH_DEFAULT_TIMEOUT } from '../constants.js';
+import { createLogger } from '../utils/logger.js';
 
 /**
  * Input schema for fetch_via_proxy tool
@@ -22,7 +24,7 @@ const inputSchema = {
     .describe('HTTP method'),
   headers: z.record(z.string()).optional().describe('HTTP headers'),
   body: z.string().optional().describe('Request body'),
-  timeout: z.number().default(30000).describe('Timeout in milliseconds'),
+  timeout: z.number().default(FETCH_DEFAULT_TIMEOUT).describe('Timeout in milliseconds'),
 };
 
 /**
@@ -99,6 +101,7 @@ function maskHeaders(headers: Record<string, string>): Record<string, string> {
  * Register the fetch_via_proxy tool with the MCP server
  */
 export function registerFetchViaProxyTool(server: McpServer, context: ServerContext): void {
+const logger = createLogger('fetch_via_proxy');
   server.registerTool(
     'fetch_via_proxy',
     {
@@ -146,8 +149,8 @@ export function registerFetchViaProxyTool(server: McpServer, context: ServerCont
         };
 
         if (context.verbose) {
-          console.error(`[fetch_via_proxy] BLOCKED: ${method} ${url}`);
-          console.error(`[fetch_via_proxy] Domain "${domain}" not in allowlist`);
+          logger.error(`[fetch_via_proxy] BLOCKED: ${method} ${url}`);
+          logger.error(`[fetch_via_proxy] Domain "${domain}" not in allowlist`);
         }
 
         return {
@@ -198,9 +201,9 @@ export function registerFetchViaProxyTool(server: McpServer, context: ServerCont
         };
 
         if (context.verbose) {
-          console.error(`[fetch_via_proxy] ${method} ${url} -> ${response.status}`);
-          console.error(`[fetch_via_proxy] Headers: ${JSON.stringify(maskHeaders(headers))}`);
-          console.error(`[fetch_via_proxy] Duration: ${durationMs}ms`);
+          logger.error(`[fetch_via_proxy] ${method} ${url} -> ${response.status}`);
+          logger.error(`[fetch_via_proxy] Headers: ${JSON.stringify(maskHeaders(headers))}`);
+          logger.error(`[fetch_via_proxy] Duration: ${durationMs}ms`);
         }
 
         return {
@@ -222,8 +225,8 @@ export function registerFetchViaProxyTool(server: McpServer, context: ServerCont
         };
 
         if (context.verbose) {
-          console.error(`[fetch_via_proxy] ERROR: ${method} ${url}`);
-          console.error(`[fetch_via_proxy] ${errorMessage}`);
+          logger.error(`[fetch_via_proxy] ERROR: ${method} ${url}`);
+          logger.error(`[fetch_via_proxy] ${errorMessage}`);
         }
 
         return {

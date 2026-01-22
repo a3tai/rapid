@@ -1,0 +1,45 @@
+# RAPID Desktop - Wails v3 Build Configuration
+version: '3'
+
+# Application information
+info:
+  companyName: 'RAPID'
+  productName: 'RAPID Dashboard'
+  productIdentifier: 'io.rapid.desktop'
+  description: 'Multi-agent AI development orchestration'
+  copyright: '(c) 2025, RAPID'
+  comments: 'Control your AI agents from a single dashboard'
+  version: '0.1.0'
+
+# Dev mode configuration
+dev_mode:
+  root_path: .
+  log_level: warn
+  debounce: 1000
+  ignore:
+    dir:
+      - .git
+      - node_modules
+      - frontend
+      - bin
+    file:
+      - .DS_Store
+      - .gitignore
+      - .gitkeep
+    watched_extension:
+      - '*.go'
+    git_ignore: true
+  executes:
+    - cmd: go build -tags desktop -o bin/rapid-desktop .
+      type: blocking
+    - cmd: cd frontend && pnpm run dev --port 9245
+      type: background
+    - cmd: ./bin/rapid-desktop
+      type: primary
+
+# File Associations (optional)
+fileAssociations: []
+
+# Other data
+other:
+  - name: RAPID Desktop

@@ -85,6 +85,7 @@ rapid start [options]
 | `--no-cache`        | `false` | Build without Docker cache |
 | `--reinstall-tools` | `false` | Reinstall AI CLI tools     |
 | `--skip-secrets`    | `false` | Skip secret loading        |
+| `--no-agents`       | `false` | Skip spawning team agents  |
 | `--detach`, `-d`    | `false` | Run in background          |
 
 ### Examples
@@ -98,6 +99,9 @@ rapid start --rebuild --no-cache
 
 # Start without loading secrets
 rapid start --skip-secrets
+
+# Start services without spawning team agents
+rapid start --no-agents
 
 # Start in background
 rapid start -d
@@ -172,11 +176,11 @@ rapid stop [options]
 
 ### Options
 
-| Option      | Default | Description                 |
-| ----------- | ------- | --------------------------- |
-| `--remove`  | `false` | Remove container after stop |
-| `--volumes` | `false` | Also remove volumes         |
-| `--force`   | `false` | Force stop (SIGKILL)        |
+| Option              | Default | Description                               |
+| ------------------- | ------- | ----------------------------------------- |
+| `--remove`          | `false` | Remove containers and volumes             |
+| `--services-only`   | `false` | Only stop services, not the dev container |
+| `--prune-worktrees` | `false` | Automatically clean up merged worktrees   |
 
 ### Examples
 
@@ -184,14 +188,97 @@ rapid stop [options]
 # Normal stop
 rapid stop
 
-# Stop and remove container
+# Stop and remove containers
 rapid stop --remove
 
-# Stop, remove container and volumes
-rapid stop --remove --volumes
+# Stop only services, keep container
+rapid stop --services-only
 
-# Force stop
-rapid stop --force
+# Stop and clean up merged worktrees
+rapid stop --prune-worktrees
+```
+
+---
+
+## rapid approve
+
+Handle human-in-the-loop (HITL) approval requests from agents.
+
+```bash
+rapid approve <subcommand> [options]
+```
+
+### Subcommands
+
+| Subcommand | Description                    |
+| ---------- | ------------------------------ |
+| `list`     | List pending approval requests |
+| `approve`  | Approve a specific request     |
+| `reject`   | Reject a request               |
+| `defer`    | Defer a decision               |
+
+### Options
+
+| Option         | Description                 |
+| -------------- | --------------------------- |
+| `-r, --reason` | Provide reason for decision |
+
+### Examples
+
+```bash
+# List pending approvals
+rapid approve list
+
+# Approve a request
+rapid approve abc123 approve
+
+# Reject with reason
+rapid approve abc123 reject --reason "Security concern"
+
+# Defer decision
+rapid approve abc123 defer --reason "Awaiting more context"
+```
+
+---
+
+## rapid worktree
+
+Manage git worktrees for isolated agent environments.
+
+```bash
+rapid worktree <subcommand> [options]
+```
+
+### Subcommands
+
+| Subcommand | Description           |
+| ---------- | --------------------- |
+| `list`     | List active worktrees |
+| `spawn`    | Create a new worktree |
+| `remove`   | Remove a worktree     |
+
+### Options
+
+| Option          | Description                         |
+| --------------- | ----------------------------------- |
+| `--json`        | Output in JSON format               |
+| `--no-checkout` | Create branch without checkout      |
+| `--force`       | Force removal without safety checks |
+
+### Examples
+
+```bash
+# List all worktrees
+rapid worktree list
+
+# Create a worktree for test-writer persona
+rapid worktree spawn test-writer feat/tests
+
+# Remove a worktree
+rapid worktree remove feat/tests
+
+# List worktrees as JSON
+rapid worktree list --json
 ```
 
 ---
@@ -417,6 +504,30 @@ Regenerate `.mcp.json` and `opencode.json` from `rapid.json`.
 rapid mcp sync
 ```
 
+#### rapid mcp serve
+
+Start the RAPID MCP server for secure command execution and inter-agent communication.
+
+```bash
+rapid mcp serve [--http] [--port <port>] [--project <dir>] [--verbose]
+```
+
+| Option            | Default | Description                         |
+| ----------------- | ------- | ----------------------------------- |
+| `--http`          | `false` | Use HTTP transport instead of stdio |
+| `--port <port>`   | `3100`  | HTTP port (when using `--http`)     |
+| `--project <dir>` | `.`     | Project directory for MCP context   |
+| `--verbose`       | `false` | Enable verbose logging              |
+
+**Features:**
+
+- Secure sandboxed command execution (`secure_exec`)
+- File operations with path access controls
+- Secrets retrieval from configured providers
+- Event bus integration for agent coordination
+- Task management (create, track, update)
+- Persona spawning and agent management
+
 ### Examples
 
 ```bash
@@ -428,6 +539,9 @@ rapid mcp add playwright
 
 # Add custom server
 rapid mcp add myapi --type remote --url https://api.example.com/mcp
+
+# Start MCP server with HTTP transport
+rapid mcp serve --http --port 3100
 
 # Check status
 rapid mcp status
@@ -514,6 +628,190 @@ Uptime:     2h 34m
 Agent:      claude (active)
 Secrets:    loaded (3 items)
 MCP:        2 servers connected
+```
+
+---
+
+## rapid bus
+
+Interact with the event bus for inter-agent communication.
+
+```bash
+rapid bus <subcommand> [options]
+```
+
+### Subcommands
+
+#### rapid bus register
+
+Register the current agent on the event bus.
+
+```bash
+rapid bus register [--agent <name>] [--session <id>]
+```
+
+#### rapid bus send
+
+Send a message to all agents on the event bus.
+
+```bash
+rapid bus send <type> <title> [--content <msg>] [--to <agent>] [--priority <level>]
+```
+
+Message types: `coordination`, `discovery`, `completion`, `error`, `learning`, `question`
+
+#### rapid bus messages
+
+Retrieve messages from the event bus with optional filtering.
+
+```bash
+rapid bus messages [--type <type>] [--from <agent>] [--limit <n>] [--json]
+```
+
+#### rapid bus agents
+
+List active agents on the event bus.
+
+```bash
+rapid bus agents [--json]
+```
+
+#### rapid bus status
+
+Show event bus health and statistics.
+
+```bash
+rapid bus status [--json]
+```
+
+### Examples
+
+```bash
+# Register agent
+rapid bus register --agent claude
+
+# Send coordination message
+rapid bus send coordination "Task assigned" --content "Please review PR #42"
+
+# List recent messages
+rapid bus messages --limit 10
+
+# Show all active agents
+rapid bus agents
+
+# Check bus health
+rapid bus status
+```
+
+---
+
+## rapid checkpoint
+
+Save project state snapshots.
+
+```bash
+rapid checkpoint [--message <msg>]
+rapid checkpoint list [--json]
+rapid checkpoint show <id> [--diff]
+```
+
+| Option            | Description                |
+| ----------------- | -------------------------- |
+| `--message <msg>` | Checkpoint description     |
+| `--json`          | Output as JSON             |
+| `--diff`          | Show changes from previous |
+
+---
+
+## rapid rewind
+
+Restore project to a previous checkpoint.
+
+```bash
+rapid rewind <checkpoint-id> [--force]
+```
+
+| Option    | Description              |
+| --------- | ------------------------ |
+| `--force` | Skip confirmation prompt |
+
+### Examples
+
+```bash
+# Create checkpoint
+rapid checkpoint --message "Before refactoring"
+
+# List checkpoints
+rapid checkpoint list
+
+# Show checkpoint details
+rapid checkpoint show abc123 --diff
+
+# Restore to checkpoint
+rapid rewind abc123
+```
+
+---
+
+## rapid plugin
+
+Manage Claude Code plugins and integrations.
+
+```bash
+rapid plugin <subcommand> [options]
+```
+
+### Subcommands
+
+#### rapid plugin list
+
+List installed plugins.
+
+```bash
+rapid plugin list [--available] [--json]
+```
+
+#### rapid plugin install
+
+Install a plugin.
+
+```bash
+rapid plugin install <plugin> [--version <ver>]
+```
+
+#### rapid plugin remove
+
+Remove a plugin.
+
+```bash
+rapid plugin remove <plugin>
+```
+
+#### rapid plugin config
+
+Configure a plugin.
+
+```bash
+rapid plugin config <plugin> [options]
+```
+
+### Examples
+
+```bash
+# List installed plugins
+rapid plugin list
+
+# Show available plugins
+rapid plugin list --available
+
+# Install a plugin
+rapid plugin install code-runner
+
+# Remove plugin
+rapid plugin remove code-runner
+
+# Configure plugin
+rapid plugin config formatter --option "style=prettier"
 ```
 
 ---

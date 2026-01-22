@@ -70,8 +70,8 @@ describe('@a3t/rapid-schema', () => {
       expect(DEFAULT_CONFIG.mcp!.servers).toBeDefined();
       expect(DEFAULT_CONFIG.mcp!.servers!.rapid).toBeDefined();
       expect(DEFAULT_CONFIG.mcp!.servers!.rapid!.enabled).toBe(true);
-      expect(DEFAULT_CONFIG.mcp!.servers!.rapid!.type).toBe('stdio');
-      expect(DEFAULT_CONFIG.mcp!.servers!.rapid!.command).toBe('rapid');
+      expect(DEFAULT_CONFIG.mcp!.servers!.rapid!.type).toBe('remote');
+      expect(DEFAULT_CONFIG.mcp!.servers!.rapid!.url).toBe('http://localhost:3100/mcp');
     });
   });
 

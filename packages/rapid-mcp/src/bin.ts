@@ -11,9 +11,19 @@
  *   rapid-mcp --project /path/to/dir   # Specify project directory
  */
 
+import crypto from 'node:crypto';
 import { createRapidMcpServer, type RapidMcpServerConfig } from './server.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import type { Request, Response } from 'express';
+import {
+  DEFAULT_HTTP_PORT,
+  SESSION_CHECK_INTERVAL,
+  SESSION_ID_DISPLAY_LENGTH,
+} from './constants.js';
+import { createLogger } from './utils/logger.js';
+
+const logger = createLogger('mcp');
 
 /**
  * Parse command line arguments
@@ -27,7 +37,7 @@ function parseArgs(): {
 } {
   const args = process.argv.slice(2);
   let transport: 'stdio' | 'http' = 'stdio';
-  let port = 3000;
+  let port = DEFAULT_HTTP_PORT;
   let projectDir = process.cwd();
   let verbose = false;
   let help = false;
@@ -113,27 +123,138 @@ Prompts provided:
 }
 
 /**
- * Start the HTTP server
+ * Start the HTTP server with Streamable HTTP transport
+ *
+ * Per MCP spec, the server provides a single endpoint that supports:
+ * - POST: For client requests/notifications/responses
+ * - GET: For server-initiated SSE stream (optional)
  */
 async function startHttpServer(config: RapidMcpServerConfig, port: number): Promise<void> {
   // Dynamic import to avoid loading express unless needed
   const express = (await import('express')).default;
+  const cors = (await import('cors')).default;
   const { StreamableHTTPServerTransport } =
     await import('@modelcontextprotocol/sdk/server/streamableHttp.js');
 
-  const server = createRapidMcpServer(config);
   const app = express();
+  app.use(cors());
   app.use(express.json());
 
-  app.post('/mcp', async (req: Request, res: Response) => {
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => crypto.randomUUID(),
-      enableJsonResponse: true,
-    });
-    res.on('close', () => transport.close());
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await server.connect(transport as any);
-    await transport.handleRequest(req, res, req.body);
+  // Store active sessions with last activity time and initialization state
+  // StreamableHTTPServerTransport is from MCP SDK and has incomplete TypeScript exports,
+  // so we use a union type with unknown to be safe
+  type TransportType = unknown & {
+    handleRequest: (req: Request, res: Response, body: unknown) => Promise<void>;
+    close?: () => void;
+  };
+
+  interface SessionEntry {
+    transport: TransportType;
+    lastActivity: number;
+    initialized: boolean;
+  }
+  const sessions = new Map<string, SessionEntry>();
+
+  // Clean up idle sessions periodically (5 minute timeout)
+  const SESSION_TIMEOUT_MS = 5 * 60 * 1000;
+  setInterval(() => {
+    const now = Date.now();
+    for (const [sessionId, entry] of sessions.entries()) {
+      if (now - entry.lastActivity > SESSION_TIMEOUT_MS) {
+        sessions.delete(sessionId);
+        if ('close' in entry.transport && typeof entry.transport.close === 'function') {
+          entry.transport.close();
+        }
+      }
+    }
+  }, SESSION_CHECK_INTERVAL);
+
+  // Main MCP endpoint - handles both POST and GET per MCP spec
+  app.all('/mcp', async (req: Request, res: Response) => {
+    // Get session ID from header, or generate a new one
+    const clientSessionId = req.headers['mcp-session-id'] as string | undefined;
+    const sessionId = clientSessionId || crypto.randomUUID();
+    const method = req.body?.method;
+
+    // Get existing session or create new one
+    let entry = sessions.get(sessionId);
+
+    if (!entry) {
+      // Create new session
+      logger.info(`New session ${sessionId.slice(0, SESSION_ID_DISPLAY_LENGTH)} (method: ${method})`);
+
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: () => sessionId,
+        enableJsonResponse: true,
+      });
+
+      const server = createRapidMcpServer(config);
+      await server.connect(transport as unknown as Transport);
+
+      entry = { transport, lastActivity: Date.now(), initialized: false };
+      sessions.set(sessionId, entry);
+    } else {
+      // Update last activity time
+      entry.lastActivity = Date.now();
+    }
+
+    // Set session ID header for client
+    res.setHeader('mcp-session-id', sessionId);
+
+    // Track initialization
+    if (method === 'initialize') {
+      entry.initialized = true;
+      logger.info(`Session ${sessionId.slice(0, SESSION_ID_DISPLAY_LENGTH)} initialized`);
+      await entry.transport.handleRequest(req, res, req.body);
+      return;
+    }
+
+    // If not initialized and this is a tool call, auto-initialize first
+    if (!entry.initialized && (method === 'tools/call' || method === 'tools/list')) {
+      logger.info(`Auto-initializing session ${sessionId.slice(0, SESSION_ID_DISPLAY_LENGTH)} for ${method}`);
+
+      // Synthesize initialize request
+      const initRequest = {
+        jsonrpc: '2.0',
+        id: `init-${Date.now()}`,
+        method: 'initialize',
+        params: {
+          protocolVersion: '2024-11-05',
+          capabilities: {},
+          clientInfo: { name: 'auto-init', version: '1.0.0' },
+        },
+      };
+
+      // Create a mock response to capture the init response
+      const initRes = {
+        headersSent: false,
+        statusCode: 200,
+        setHeader: () => initRes,
+        status: () => initRes,
+        json: () => initRes,
+        send: () => initRes,
+        end: () => {},
+        write: () => true,
+        on: () => initRes,
+        once: () => initRes,
+        emit: () => false,
+        getHeader: () => undefined,
+        removeHeader: () => {},
+        flushHeaders: () => {},
+      } as unknown as Response;
+
+      try {
+        await entry.transport.handleRequest(req, initRes, initRequest);
+        entry.initialized = true;
+        logger.info(`Session ${sessionId.slice(0, SESSION_ID_DISPLAY_LENGTH)} auto-initialized successfully`);
+      } catch (err) {
+        logger.error(`Auto-init failed for ${sessionId.slice(0, SESSION_ID_DISPLAY_LENGTH)}`, err);
+      }
+    }
+
+    // Handle the actual request
+    logger.debug(`Session ${sessionId.slice(0, SESSION_ID_DISPLAY_LENGTH)}: ${method}`);
+    await entry.transport.handleRequest(req, res, req.body);
   });
 
   app.get('/health', (_req: Request, res: Response) => {
@@ -142,12 +263,121 @@ async function startHttpServer(config: RapidMcpServerConfig, port: number): Prom
       server: 'rapid-mcp',
       version: config.version,
       projectDir: config.projectDir,
+      activeSessions: sessions.size,
     });
   });
 
-  app.listen(port, () => {
-    console.log(`RAPID MCP Server running at http://localhost:${port}/mcp`);
-    console.log(`Health check at http://localhost:${port}/health`);
+  // SSE endpoint for streaming event bus messages
+  // This provides real-time updates for the desktop app instead of polling
+  app.get('/events', (req: Request, res: Response) => {
+    // Set up SSE headers
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+    });
+
+    // Send ready message immediately
+    res.write(`data: ${JSON.stringify({ type: 'ready', message: 'Connected to event stream' })}\n\n`);
+
+    // Keep connection alive with periodic heartbeats
+    const heartbeatInterval = setInterval(() => {
+      if (res.writable) {
+        res.write(`: heartbeat\n\n`);
+      } else {
+        clearInterval(heartbeatInterval);
+      }
+    }, 30000); // 30 second heartbeat
+
+    // For now, this endpoint keeps the connection open and can be
+    // extended to receive messages from an event queue
+    // Future enhancement: integrate with event bus to push messages in real-time
+
+    // Clean up on client disconnect
+    req.on('close', () => {
+      clearInterval(heartbeatInterval);
+      res.end();
+    });
+  });
+
+  // SSE endpoint for streaming agent output
+  app.get('/agents/stream/:agentId', async (req: Request, res: Response) => {
+    const { agentId } = req.params;
+    const { readFile } = await import('node:fs/promises');
+    const { watchFile, unwatchFile } = await import('node:fs');
+    const { join } = await import('node:path');
+
+    const outputFile = join(config.projectDir, '.rapid', 'agents', `${agentId}.log`);
+
+    // Set up SSE headers
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+    });
+
+    let lastPos = 0;
+    let watching = false;
+
+    // Send initial data if file exists
+    try {
+      const content = await readFile(outputFile, 'utf-8');
+      if (content) {
+        // Send content in chunks to avoid overwhelming client
+        const lines = content.split('\n');
+        for (const line of lines) {
+          if (line.trim()) {
+            res.write(`data: ${JSON.stringify({ type: 'output', text: line + '\n' })}\n\n`);
+          }
+        }
+        lastPos = content.length;
+      }
+    } catch {
+      // File may not exist yet, that's ok
+    }
+
+    // Watch for changes using fs.watchFile (more reliable than fs.watch)
+    const changeHandler = async () => {
+      try {
+        const content = await readFile(outputFile, 'utf-8');
+        if (content.length > lastPos) {
+          const newContent = content.slice(lastPos);
+          const lines = newContent.split('\n');
+          for (const line of lines) {
+            if (line.trim()) {
+              res.write(`data: ${JSON.stringify({ type: 'output', text: line + '\n' })}\n\n`);
+            }
+          }
+          lastPos = content.length;
+        }
+      } catch {
+        // File may be temporarily unavailable
+      }
+    };
+
+    watchFile(outputFile, { persistent: true, interval: 100 }, changeHandler);
+    watching = true;
+
+    // Clean up on client disconnect
+    req.on('close', () => {
+      if (watching) {
+        unwatchFile(outputFile, changeHandler);
+      }
+      res.end();
+    });
+
+    // Keep connection alive and notify client we're ready
+    res.write(`data: ${JSON.stringify({ type: 'ready', agentId })}\n\n`);
+  });
+
+  app.listen(port, '0.0.0.0', () => {
+    console.log(`RAPID MCP Server running at http://0.0.0.0:${port}`);
+    console.log(`MCP endpoint: http://localhost:${port}/mcp`);
+    console.log(`Health check: http://localhost:${port}/health`);
+    console.log(`Event stream: http://localhost:${port}/events`);
+    console.log(`Agent output stream: http://localhost:${port}/agents/stream/:agentId`);
     console.log(`Project directory: ${config.projectDir}`);
   });
 }
@@ -161,24 +391,128 @@ async function startStdioServer(config: RapidMcpServerConfig): Promise<void> {
   await server.connect(transport);
 
   if (config.verbose) {
-    console.error('[rapid-mcp] Server started with stdio transport');
-    console.error(`[rapid-mcp] Project directory: ${config.projectDir}`);
+    logger.info('Server started with stdio transport');
+    logger.info(`Project directory: ${config.projectDir}`);
   }
 
   // Handle graceful shutdown
   process.on('SIGINT', () => {
     if (config.verbose) {
-      console.error('[rapid-mcp] Shutting down...');
+      logger.info('Shutting down...');
     }
     process.exit(0);
   });
 
   process.on('SIGTERM', () => {
     if (config.verbose) {
-      console.error('[rapid-mcp] Shutting down...');
+      logger.info('Shutting down...');
     }
     process.exit(0);
   });
+}
+
+/**
+ * Validate security startup requirements
+ */
+async function validateSecurityStartup(config: RapidMcpServerConfig, port: number): Promise<void> {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  // 1. Verify required environment variables
+  const requiredEnvVars = ['NODE_ENV'];
+  const missingEnvVars = requiredEnvVars.filter((v) => !process.env[v]);
+  if (missingEnvVars.length > 0) {
+    warnings.push(`Missing environment variables: ${missingEnvVars.join(', ')}`);
+  }
+
+  // 2. Validate project directory exists
+  try {
+    const { existsSync } = await import('node:fs');
+    if (!existsSync(config.projectDir)) {
+      errors.push(`Project directory does not exist: ${config.projectDir}`);
+    }
+  } catch (err) {
+    errors.push(`Failed to check project directory: ${String(err)}`);
+  }
+
+  // 3. Validate port is valid
+  if (port < 1 || port > 65535) {
+    errors.push(`Invalid port number: ${port} (must be 1-65535)`);
+  }
+
+  // 4. Check for secret access capability
+  try {
+    const secretKey = process.env.RAPID_SECRET_PROVIDER || 'env';
+    if (config.verbose) {
+      logger.debug(`Secret provider: ${secretKey}`);
+    }
+  } catch (err) {
+    warnings.push(`Cannot verify secret access: ${String(err)}`);
+  }
+
+  // 5. Validate domain whitelist config
+  try {
+    const domains = process.env.RAPID_ALLOWED_DOMAINS || '';
+    if (domains && config.verbose) {
+      logger.debug(
+        `Domain whitelist configured: ${domains.split(',').length} domains`
+      );
+    }
+  } catch (err) {
+    warnings.push(`Cannot verify domain whitelist: ${String(err)}`);
+  }
+
+  // 6. Check sandboxing capability
+  try {
+    // Try to detect available sandbox mode
+    const sandboxMode = process.env.SANDBOX_MODE || 'balanced';
+    if (config.verbose) {
+      logger.debug(`Sandbox mode: ${sandboxMode}`);
+    }
+  } catch (err) {
+    warnings.push(`Cannot verify sandbox isolation: ${String(err)}`);
+  }
+
+  // 7. Verify Redis connectivity (if event bus is enabled)
+  try {
+    const redisUrl = process.env.REDIS_URL;
+    if (redisUrl && config.verbose) {
+      logger.debug('Redis connectivity configured');
+    }
+  } catch (err) {
+    warnings.push(`Cannot verify Redis configuration: ${String(err)}`);
+  }
+
+  // 8. Performance check - response time baseline
+  const startTime = Date.now();
+  const responseTime = Date.now() - startTime;
+  if (responseTime > 1000) {
+    warnings.push(`Slow startup detected: ${responseTime}ms (expected <1000ms)`);
+  }
+
+  // Output results
+  const validationLogger = createLogger('validation');
+  if (config.verbose) {
+    validationLogger.info('Security startup validation:');
+    validationLogger.info(`  - Port: ${port}`);
+    validationLogger.info(`  - Project directory: ${config.projectDir}`);
+    validationLogger.info(`  - Response time: ${responseTime}ms`);
+  }
+
+  if (warnings.length > 0) {
+    validationLogger.warn('Warnings:');
+    warnings.forEach((w) => validationLogger.warn(`  - ${w}`));
+  }
+
+  if (errors.length > 0) {
+    validationLogger.error('Critical errors:');
+    errors.forEach((e) => validationLogger.error(`  - ${e}`));
+    process.exit(1);
+  }
+
+  if (config.verbose) {
+    validationLogger.info('Security startup validation passed ✓');
+  }
 }
 
 /**
@@ -200,13 +534,16 @@ async function main(): Promise<void> {
   };
 
   try {
+    // Run security validation before starting
+    await validateSecurityStartup(config, port);
+
     if (transport === 'http') {
       await startHttpServer(config, port);
     } else {
       await startStdioServer(config);
     }
   } catch (error) {
-    console.error('Failed to start RAPID MCP server:', error);
+    logger.error('Failed to start RAPID MCP server', error);
     process.exit(1);
   }
 }

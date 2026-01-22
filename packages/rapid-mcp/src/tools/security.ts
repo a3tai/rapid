@@ -11,6 +11,9 @@ import { execa } from 'execa';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { ServerContext } from '../server.js';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('security');
 
 /**
  * Security issue severity
@@ -237,6 +240,147 @@ async function runNpmAudit(projectDir: string): Promise<SecurityIssue[]> {
 }
 
 /**
+ * Common security anti-patterns for SAST
+ */
+const SAST_PATTERNS = [
+  // SQL Injection risks
+  {
+    pattern: /(?:sql\s*|query\s*|execute\s*)\(\s*[`"'].*\$\{.*\}.*[`"']/gi,
+    message: 'Potential SQL injection: string interpolation in database query',
+    severity: 'high' as Severity,
+  },
+  // Eval/exec risks
+  {
+    pattern: /\beval\s*\(|Function\s*\(\s*[`"']/gi,
+    message: 'Use of eval() or Function() constructor detected - security risk',
+    severity: 'critical' as Severity,
+  },
+  // Hardcoded credentials
+  {
+    pattern: /(?:password|apikey|secret)\s*[:=]\s*[`"'](?!.*\$|.*#)/gi,
+    message: 'Hardcoded credentials detected',
+    severity: 'critical' as Severity,
+  },
+  // Insecure random
+  {
+    pattern: /\bMath\.random\s*\(\)\s*\*/g,
+    message: 'Using Math.random() for security purposes - use crypto instead',
+    severity: 'high' as Severity,
+  },
+  // XXE/XML risks (simplified)
+  {
+    pattern: /new\s+XMLHttpRequest\(\)|DOMParser|parseXML/gi,
+    message: 'XML parsing detected - ensure XXE prevention is in place',
+    severity: 'medium' as Severity,
+  },
+];
+
+/**
+ * Perform static analysis security testing
+ */
+async function performStaticAnalysis(
+  projectDir: string,
+  verbose: boolean = false
+): Promise<SecurityIssue[]> {
+  const issues: SecurityIssue[] = [];
+
+  try {
+    // Scan TypeScript/JavaScript files
+    const tsFiles = await scanDirectory(projectDir, [/\.[jt]sx?$/], SKIP_PATTERNS);
+
+    for (const filePath of tsFiles.slice(0, 100)) {
+      // Limit to first 100 files for performance
+      try {
+        const content = await readFile(filePath, 'utf-8');
+        const lines = content.split('\n');
+        const relativePath = filePath.replace(projectDir + '/', '');
+
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          if (line === undefined) continue;
+
+          for (const { pattern, message, severity } of SAST_PATTERNS) {
+            pattern.lastIndex = 0;
+            if (pattern.test(line)) {
+              issues.push({
+                type: 'code',
+                severity,
+                message,
+                file: relativePath,
+                line: i + 1,
+              });
+            }
+          }
+        }
+      } catch {
+        // Skip files that can't be read
+      }
+    }
+
+    if (verbose && issues.length > 0) {
+      logger.error(`[check_security] SAST found ${issues.length} potential issue(s)`);
+    }
+  } catch (error) {
+    if (verbose) {
+      logger.error(`[check_security] SAST analysis failed: ${error}`);
+    }
+  }
+
+  return issues;
+}
+
+/**
+ * Scan directory for files matching patterns
+ */
+async function scanDirectory(
+  dir: string,
+  includePatterns: RegExp[],
+  excludePatterns: RegExp[],
+  maxDepth: number = 10,
+  currentDepth: number = 0
+): Promise<string[]> {
+  const files: string[] = [];
+
+  if (currentDepth >= maxDepth) {
+    return files;
+  }
+
+  try {
+    const entries = await readdir(dir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const fullPath = join(dir, entry.name);
+      const relPath = fullPath.replace(dir + '/', '');
+
+      // Check exclude patterns
+      if (excludePatterns.some((p) => p.test(relPath))) {
+        continue;
+      }
+
+      if (entry.isDirectory()) {
+        const subFiles = await scanDirectory(
+          dir,
+          includePatterns,
+          excludePatterns,
+          maxDepth,
+          currentDepth + 1
+        );
+        files.push(...subFiles);
+      } else if (entry.isFile()) {
+        // Check include patterns
+        if (includePatterns.some((p) => p.test(fullPath))) {
+          files.push(fullPath);
+        }
+      }
+    }
+  } catch {
+    // Directory doesn't exist or can't be read
+  }
+
+  return files;
+}
+
+/**
  * Register security tools with the MCP server
  */
 export function registerSecurityTools(server: McpServer, context: ServerContext): void {
@@ -285,7 +429,7 @@ export function registerSecurityTools(server: McpServer, context: ServerContext)
       if (checks.includes('secrets')) {
         checksRun.push('secrets');
         if (context.verbose) {
-          console.error('[check_security] Running secret scan...');
+          logger.error('[check_security] Running secret scan...');
         }
         await scanDirectoryForSecrets(context.projectDir, context.projectDir, issues);
       }
@@ -294,18 +438,17 @@ export function registerSecurityTools(server: McpServer, context: ServerContext)
       if (checks.includes('dependencies')) {
         checksRun.push('dependencies');
         if (context.verbose) {
-          console.error('[check_security] Running dependency audit...');
+          logger.error('[check_security] Running dependency audit...');
         }
         const depIssues = await runNpmAudit(context.projectDir);
         issues.push(...depIssues);
       }
 
-      // SAST (placeholder - would integrate with tools like semgrep)
+      // SAST (Static Analysis Security Testing)
       if (checks.includes('sast')) {
         checksRun.push('sast');
-        if (context.verbose) {
-          console.error('[check_security] SAST check not yet implemented');
-        }
+        const sastIssues = await performStaticAnalysis(context.projectDir, context.verbose);
+        issues.push(...sastIssues);
       }
 
       // Calculate summary
@@ -327,7 +470,7 @@ export function registerSecurityTools(server: McpServer, context: ServerContext)
       };
 
       if (context.verbose) {
-        console.error(
+        logger.error(
           `[check_security] Complete: ${summary.total} issues (${summary.critical} critical, ${summary.high} high)`
         );
       }

@@ -10,6 +10,9 @@ import { z } from 'zod';
 import { readFile, writeFile, mkdir, stat } from 'node:fs/promises';
 import { dirname, join, resolve, relative } from 'node:path';
 import type { ServerContext } from '../server.js';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('filesystem');
 
 /**
  * Validate that a path is within the project directory
@@ -151,7 +154,7 @@ export function registerFilesystemTools(server: McpServer, context: ServerContex
         };
 
         if (context.verbose) {
-          console.error(`[read_file] ${relativePath} (${stats.size} bytes)`);
+          logger.error(`[read_file] ${relativePath} (${stats.size} bytes)`);
         }
 
         return {
@@ -236,7 +239,7 @@ export function registerFilesystemTools(server: McpServer, context: ServerContex
         };
 
         if (context.verbose) {
-          console.error(`[write_file] ${relativePath} (${buffer.length} bytes)`);
+          logger.error(`[write_file] ${relativePath} (${buffer.length} bytes)`);
         }
 
         return {
@@ -369,7 +372,7 @@ export function registerFilesystemTools(server: McpServer, context: ServerContex
         };
 
         if (context.verbose) {
-          console.error(`[list_files] ${requestedPath} (${files.length} entries)`);
+          logger.error(`[list_files] ${requestedPath} (${files.length} entries)`);
         }
 
         return {

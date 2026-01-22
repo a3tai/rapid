@@ -15,6 +15,7 @@ import type {
   EventListener,
   ExecuteOptions,
   ExecuteResult,
+  GetLogsOptions,
 } from './types.js';
 
 export class SessionManager {
@@ -315,6 +316,33 @@ export class SessionManager {
         session.error = error;
       }
     }
+  }
+
+  /**
+   * Get logs from a session's environment
+   */
+  async getSessionLogs(sessionId: string, options?: GetLogsOptions): Promise<string> {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      throw new Error(`Session not found: ${sessionId}`);
+    }
+
+    const handle = this.handles.get(sessionId);
+    if (!handle) {
+      throw new Error(`No environment handle for session: ${sessionId}`);
+    }
+
+    const provider = this.providers.get(session.provider);
+    if (!provider) {
+      throw new Error(`Provider not found: ${session.provider}`);
+    }
+
+    // Check if provider supports getLogs
+    if (!provider.getLogs) {
+      throw new Error(`Provider ${session.provider} does not support getLogs`);
+    }
+
+    return provider.getLogs(handle, options);
   }
 
   /**

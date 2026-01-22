@@ -10,6 +10,8 @@ import { z } from 'zod';
 import { execa } from 'execa';
 import { SandboxManager, type SandboxManagerOptions } from '@a3t/rapid-runtime';
 import type { ServerContext } from '../server.js';
+import { SECURE_EXEC_DEFAULT_TIMEOUT } from '../constants.js';
+import { createLogger } from '../utils/logger.js';
 
 /**
  * Sandbox preset mapping from our API to runtime API
@@ -28,7 +30,7 @@ const inputSchema = {
   command: z.string().describe('Command to execute'),
   args: z.array(z.string()).optional().describe('Command arguments'),
   cwd: z.string().optional().describe('Working directory (relative to project)'),
-  timeout: z.number().default(120000).describe('Timeout in milliseconds'),
+  timeout: z.number().default(SECURE_EXEC_DEFAULT_TIMEOUT).describe('Timeout in milliseconds'),
   allowNetwork: z.boolean().default(false).describe('Allow network access'),
   sandbox: z
     .enum(['strict', 'balanced', 'permissive', 'none'])
@@ -53,6 +55,7 @@ const outputSchema = {
  * Register the secure_exec tool with the MCP server
  */
 export function registerSecureExecTool(server: McpServer, context: ServerContext): void {
+const logger = createLogger('secure_exec');
   server.registerTool(
     'secure_exec',
     {
@@ -175,10 +178,10 @@ export function registerSecureExecTool(server: McpServer, context: ServerContext
 
       // Log if verbose
       if (context.verbose) {
-        console.error(`[secure_exec] ${command} ${cmdArgs.join(' ')}`);
-        console.error(`[secure_exec] Exit code: ${exitCode}, Duration: ${durationMs}ms`);
+        logger.error(`[secure_exec] ${command} ${cmdArgs.join(' ')}`);
+        logger.error(`[secure_exec] Exit code: ${exitCode}, Duration: ${durationMs}ms`);
         if (blockedDomains.length > 0) {
-          console.error(`[secure_exec] Blocked domains: ${blockedDomains.join(', ')}`);
+          logger.error(`[secure_exec] Blocked domains: ${blockedDomains.join(', ')}`);
         }
       }
 
