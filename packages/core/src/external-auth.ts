@@ -11,6 +11,8 @@
 import { readFile, access } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
 import type { DetectedCredential, ExternalAuthConfig, AuthStatus } from './types.js';
 import { logger } from './logger.js';
 
@@ -42,6 +44,61 @@ async function readJsonFile<T>(path: string): Promise<T | null> {
     const content = await readFile(path, 'utf-8');
     return JSON.parse(content) as T;
   } catch {
+    return null;
+  }
+}
+
+const execAsync = promisify(exec);
+
+/**
+ * Keychain credentials structure (from macOS Keychain)
+ */
+interface KeychainCredentials {
+  accessToken?: string;
+  refreshToken?: string;
+  expiresAt?: number;
+}
+
+/**
+ * Read Claude Code credentials from macOS Keychain
+ *
+ * Claude Code stores OAuth tokens in macOS Keychain under "Claude Code-credentials"
+ * The value is JSON: {"claudeAiOauth":{"accessToken":"...","refreshToken":"...","expiresAt":...}}
+ */
+async function readMacOSKeychain(): Promise<KeychainCredentials | null> {
+  if (process.platform !== 'darwin') {
+    return null;
+  }
+
+  try {
+    // Read the credential from macOS Keychain
+    // -s: service name, -w: output only the password (no metadata)
+    const { stdout } = await execAsync(
+      'security find-generic-password -s "Claude Code-credentials" -w',
+      { encoding: 'utf-8' }
+    );
+
+    if (!stdout || !stdout.trim()) {
+      return null;
+    }
+
+    // Parse the JSON stored in the keychain
+    const data = JSON.parse(stdout.trim());
+
+    // Claude Code stores credentials under claudeAiOauth key
+    const oauth = data?.claudeAiOauth;
+    if (!oauth) {
+      return null;
+    }
+
+    return {
+      accessToken: oauth.accessToken,
+      refreshToken: oauth.refreshToken,
+      expiresAt: oauth.expiresAt,
+    };
+  } catch (error) {
+    // Keychain access failed (item doesn't exist, locked, etc.)
+    logger.debug('Failed to read from macOS Keychain:', error);
     return null;
   }
 }
@@ -159,7 +216,38 @@ export async function detectClaudeCodeAuth(): Promise<DetectedCredential | null>
     return cred;
   }
 
-  // 3. Check ~/.claude/.credentials.json (Linux/Windows storage)
+  // 3. Check macOS Keychain for Claude Code credentials
+  if (process.platform === 'darwin') {
+    try {
+      const keychainCreds = await readMacOSKeychain();
+      if (keychainCreds?.accessToken) {
+        const expiresAt = keychainCreds.expiresAt ? new Date(keychainCreds.expiresAt) : undefined;
+
+        if (expiresAt && expiresAt < new Date()) {
+          logger.debug('Claude Code Keychain token expired');
+        } else {
+          logger.debug('Found token in macOS Keychain');
+          const cred: DetectedCredential = {
+            source: 'claude-code',
+            provider: 'anthropic',
+            authType: 'oauth',
+            value: keychainCreds.accessToken,
+          };
+          if (expiresAt) {
+            cred.expiresAt = expiresAt;
+          }
+          if (Object.keys(accountInfo).length > 0) {
+            cred.accountInfo = accountInfo;
+          }
+          return cred;
+        }
+      }
+    } catch (err) {
+      logger.debug('Could not read from macOS Keychain:', err);
+    }
+  }
+
+  // 4. Check ~/.claude/.credentials.json (Linux/Windows storage)
   if (await fileExists(credentialsPath)) {
     const credentials = await readJsonFile<ClaudeCredentialsFile>(credentialsPath);
     if (credentials?.accessToken) {
@@ -669,11 +757,10 @@ export async function getAuthEnvironment(
 
     switch (provider) {
       case 'anthropic':
-        // For OAuth tokens, set both ANTHROPIC_AUTH_TOKEN and CLAUDE_CODE_OAUTH_TOKEN
-        // ANTHROPIC_AUTH_TOKEN: Used as Bearer token in Authorization header
-        // CLAUDE_CODE_OAUTH_TOKEN: Official Claude Code env var (from `claude setup-token`)
+        // For OAuth tokens, only set CLAUDE_CODE_OAUTH_TOKEN
+        // NOTE: Do NOT set ANTHROPIC_AUTH_TOKEN - it conflicts with Claude Code's OAuth handling
+        // CLAUDE_CODE_OAUTH_TOKEN is the official env var for Claude Code OAuth authentication
         if (cred.authType === 'oauth') {
-          env['ANTHROPIC_AUTH_TOKEN'] = cred.value;
           env['CLAUDE_CODE_OAUTH_TOKEN'] = cred.value;
         } else {
           env['ANTHROPIC_API_KEY'] = cred.value;

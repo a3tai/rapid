@@ -1,0 +1,54 @@
+# RAPID Agent Container
+# Runs Claude Code CLI with RAPID MCP tools integration
+# Uses Ralph-style continuous loop for persistent agents
+
+FROM node:22-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    ca-certificates \
+    jq \
+    procps \
+    ripgrep \
+    gettext-base \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install pnpm, Claude Code, and Codex CLIs globally
+RUN corepack enable && corepack prepare pnpm@latest --activate \
+    && npm install -g @anthropic-ai/claude-code @openai/codex
+
+# Create non-root user for running Claude Code
+# (--dangerously-skip-permissions is blocked when running as root)
+RUN groupadd -r agent && useradd -r -g agent -m agent
+
+# Create agent working directory with proper permissions
+WORKDIR /workspace
+RUN chown -R agent:agent /workspace
+
+# Create Claude and Codex config directories for agent user
+RUN mkdir -p /home/agent/.config/claude-code /home/agent/.codex \
+    && chown -R agent:agent /home/agent
+
+# Copy the agent loop script
+COPY docker/agent-loop.sh /usr/local/bin/agent-loop.sh
+RUN chmod +x /usr/local/bin/agent-loop.sh
+
+# Environment variables (set at runtime)
+# ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN - Required for Claude CLI
+# REDIS_URL - Event bus connection
+# MCP_URL - MCP server URL
+# RAPID_AGENT_ID - Agent identifier
+# RAPID_PERSONA - Persona name
+# RAPID_PROJECT_DIR - Project directory path
+# RAPID_MODEL - Model to use (opus/haiku/sonnet)
+
+ENV NODE_ENV=production
+
+# Switch to non-root user
+USER agent
+
+# Keep container running - agent-loop.sh is executed via docker exec
+# This allows the daemon to control when and how the agent starts
+CMD ["tail", "-f", "/dev/null"]

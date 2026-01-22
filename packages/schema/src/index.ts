@@ -49,6 +49,15 @@ export interface RapidConfig {
 
   /** Inter-agent event bus configuration */
   eventBus?: EventBusConfig;
+
+  /** Agent personas configuration */
+  personas?: PersonasConfig;
+
+  /** Skills/commands configuration */
+  skills?: SkillsConfig;
+
+  /** Unified security configuration */
+  security?: SecurityConfig;
 }
 
 /**
@@ -515,6 +524,386 @@ export const SCHEMA_URL = 'https://getrapid.dev/schema/v1/rapid.json';
  */
 export const SCHEMA_VERSION = '1.0';
 
+// ============================================================================
+// PERSONA CONFIGURATION
+// ============================================================================
+
+/**
+ * Supported AI models for personas
+ */
+export type PersonaModel =
+  | 'fast'
+  | 'smart'
+  | 'thinking'
+  | 'opus'
+  | 'sonnet'
+  | 'haiku'
+  | 'gpt-4o'
+  | 'gpt-4o-mini'
+  | 'custom';
+
+/**
+ * Supported runtimes for personas
+ */
+export type PersonaRuntime = 'claude' | 'codex' | 'opencode' | 'aider' | 'custom';
+
+/**
+ * Personality traits that influence agent behavior
+ */
+export type PersonalityTrait =
+  | 'thorough'
+  | 'concise'
+  | 'cautious'
+  | 'bold'
+  | 'creative'
+  | 'analytical'
+  | 'friendly'
+  | 'formal'
+  | 'asks_clarifying_questions'
+  | 'autonomous';
+
+/**
+ * Event triggers that can spawn a persona
+ */
+export type PersonaTrigger =
+  | 'on_pr'
+  | 'on_commit'
+  | 'on_issue'
+  | 'on_error'
+  | 'on_request'
+  | 'manual';
+
+/**
+ * Tools available to personas
+ */
+export type PersonaTool =
+  | 'read'
+  | 'write'
+  | 'edit'
+  | 'grep'
+  | 'glob'
+  | 'bash'
+  | 'bus_send'
+  | 'bus_messages'
+  | 'bus_agents'
+  | 'web_search'
+  | 'web_fetch';
+
+/**
+ * Configuration for an AI persona/agent with custom prompt and personality
+ */
+export interface PersonaConfig {
+  /** Unique persona identifier */
+  name: string;
+
+  /** Human-readable description */
+  description?: string;
+
+  /** AI model to use (affects cost/capability) */
+  model?: PersonaModel;
+
+  /** Runtime/CLI to execute for this persona */
+  runtime?: PersonaRuntime;
+
+  /** Custom model ID when model is 'custom' */
+  customModel?: string;
+
+  /** System prompt that defines the persona's role and behavior */
+  systemPrompt: string;
+
+  /** Personality traits that influence behavior */
+  personality?: PersonalityTrait[];
+
+  /** MCP tools this persona can access */
+  tools?: PersonaTool[];
+
+  /** Events that can automatically spawn this persona */
+  triggers?: PersonaTrigger[];
+
+  /** Maximum conversation turns before auto-terminating */
+  maxTurns?: number;
+
+  /** Whether this persona can spawn other personas */
+  canSpawn?: boolean;
+
+  /** Parent persona to inherit settings from */
+  extends?: string;
+
+  /** Additional context files to include */
+  contextFiles?: string[];
+
+  /** Environment variables required by this persona */
+  envVars?: string[];
+
+  /** Custom metadata */
+  metadata?: Record<string, unknown>;
+
+  /**
+   * Security configuration for HITL controls
+   */
+  security?: PersonaSecurityConfig;
+}
+
+/**
+ * Per-persona security configuration for HITL controls
+ */
+export interface PersonaSecurityConfig {
+  /**
+   * Tool patterns that require human approval before execution.
+   * Supports wildcards: "file_*", "secure_exec", "persona_spawn"
+   */
+  approvalRequired?: string[];
+
+  /**
+   * Trust level for this persona: 'low', 'medium', 'high'
+   * - low: all sensitive operations require approval
+   * - medium: only high-risk operations require approval
+   * - high: operates autonomously (yolo mode)
+   */
+  trustLevel?: 'low' | 'medium' | 'high';
+
+  /**
+   * Maximum budget in USD for this persona's session.
+   * Operations exceeding this will be blocked.
+   */
+  budgetLimit?: number;
+
+  /**
+   * Whether this persona can approve requests from other agents.
+   * Only orchestrator-level personas should have this.
+   */
+  canApprove?: boolean;
+
+  /**
+   * Require approval for spawning other agents (default: true for low trust)
+   */
+  approveSpawn?: boolean;
+
+  /**
+   * Allowed file paths/patterns this persona can write to.
+   * Empty means no restrictions. Supports globs.
+   */
+  allowedPaths?: string[];
+}
+
+/**
+ * Collection of persona configurations
+ */
+export interface PersonasConfig {
+  /** Directory containing persona definition files */
+  directory?: string;
+
+  /** Default model for all personas */
+  defaultModel?: PersonaModel;
+
+  /** Default tools for all personas */
+  defaultTools?: PersonaTool[];
+
+  /** Inline persona definitions */
+  definitions?: Record<string, PersonaConfig>;
+
+  /** Team configuration for multi-agent spawning */
+  team?: string[];
+
+  /** Automatically spawn team agents on rapid start (default: false) */
+  autoSpawn?: boolean;
+
+  /** Orchestrator persona name (coordinates the team) */
+  orchestrator?: string;
+
+  /**
+   * Enable yolo mode: skip all permission prompts for spawned agents.
+   * When false (default), HITL approval requests surface in the UI.
+   * Use with caution - allows agents to execute without human approval.
+   */
+  yoloMode?: boolean;
+}
+
+/**
+ * Skill configuration for Claude Code integration
+ */
+export interface SkillConfig {
+  /** Skill name (used as /command) */
+  name: string;
+
+  /** Human-readable description */
+  description: string;
+
+  /** Skill implementation type */
+  type: 'spawn' | 'script' | 'mcp';
+
+  /** For spawn type: persona to spawn */
+  persona?: string;
+
+  /** For script type: command to execute */
+  command?: string;
+
+  /** Arguments passed to the skill */
+  args?: string[];
+}
+
+/**
+ * Skills configuration
+ */
+export interface SkillsConfig {
+  /** Directory containing skill definition files */
+  directory?: string;
+
+  /** Inline skill definitions */
+  definitions?: Record<string, SkillConfig>;
+}
+
+// ============================================================================
+// SECURITY CONFIGURATION
+// ============================================================================
+
+/**
+ * Agent roles for access control
+ */
+export type AgentRole = 'orchestrator' | 'worker' | 'designer' | 'reviewer' | 'devops' | 'admin';
+
+/**
+ * Human approval action patterns
+ */
+export interface ApprovalAction {
+  /** Action pattern (supports wildcards: *, ?) */
+  pattern: string;
+
+  /** Require human approval for this action */
+  requireApproval: boolean;
+
+  /** Roles that can perform this action without approval */
+  exemptRoles?: AgentRole[];
+
+  /** Description shown in approval request */
+  description?: string;
+}
+
+/**
+ * Human-in-the-loop approval configuration
+ */
+export interface HumanApprovalConfig {
+  /** Enable human approval workflow (default: false) */
+  enabled?: boolean;
+
+  /** Actions requiring human approval (patterns support wildcards) */
+  requiredActions?: string[];
+
+  /** Detailed action configurations */
+  actions?: ApprovalAction[];
+
+  /** Approval request timeout in seconds (default: 300) */
+  timeout?: number;
+
+  /** What happens on timeout: 'deny' or 'allow' (default: 'deny') */
+  timeoutBehavior?: 'deny' | 'allow';
+
+  /** Notification channels for approval requests */
+  notify?: ApprovalNotifyConfig;
+}
+
+/**
+ * Approval notification configuration
+ */
+export interface ApprovalNotifyConfig {
+  /** Send to event bus (default: true) */
+  eventBus?: boolean;
+
+  /** Send desktop notification via Wails (default: true) */
+  desktop?: boolean;
+
+  /** Webhook URL for external notifications */
+  webhook?: string;
+}
+
+/**
+ * Tool-level access control (TBAC - Task-Based Access Control)
+ */
+export interface ToolAclConfig {
+  /** Tool name or pattern */
+  tool: string;
+
+  /** Roles allowed to use this tool */
+  allowedRoles?: AgentRole[];
+
+  /** Roles denied from using this tool */
+  deniedRoles?: AgentRole[];
+
+  /** Patterns requiring approval (e.g., ['*.env', '*.key'] for write_file) */
+  requireApprovalFor?: string[];
+
+  /** Always require approval for this tool */
+  alwaysRequireApproval?: boolean;
+
+  /** Maximum calls per minute (rate limiting) */
+  rateLimit?: number;
+}
+
+/**
+ * Audit trail configuration
+ */
+export interface AuditConfig {
+  /** Enable audit logging (default: true) */
+  enabled?: boolean;
+
+  /** Events to log */
+  events?: AuditEventType[];
+
+  /** Log destination: file, eventBus, or both (default: 'both') */
+  destination?: 'file' | 'eventBus' | 'both';
+
+  /** Path to audit log file (default: '.rapid/audit.jsonl') */
+  logFile?: string;
+
+  /** Log retention in days (default: 30) */
+  retentionDays?: number;
+}
+
+/**
+ * Types of events to audit
+ */
+export type AuditEventType =
+  | 'tool_call'
+  | 'approval_request'
+  | 'approval_response'
+  | 'secret_access'
+  | 'sandbox_violation'
+  | 'budget_alert'
+  | 'agent_spawn'
+  | 'agent_terminate';
+
+/**
+ * Unified security configuration
+ */
+export interface SecurityConfig {
+  /** Human-in-the-loop approval configuration */
+  humanApproval?: HumanApprovalConfig;
+
+  /** Tool-level access control list */
+  toolAcls?: ToolAclConfig[];
+
+  /** Audit trail configuration */
+  audit?: AuditConfig;
+
+  /** Override sandbox settings (inherits from top-level sandbox if not set) */
+  sandbox?: SandboxConfig;
+
+  /** Override gateway budgets (inherits from top-level gateway if not set) */
+  budgets?: GatewayBudgetConfig;
+
+  /** Per-agent budget limits in USD */
+  perAgentBudget?: number;
+
+  /** Per-session budget limits in USD */
+  perSessionBudget?: number;
+
+  /** Block all network access by default (strict mode) */
+  strictMode?: boolean;
+
+  /** Trust level for the environment: 'development', 'staging', 'production' */
+  trustLevel?: 'development' | 'staging' | 'production';
+}
+
 /**
  * Default rapid.json configuration
  *
@@ -537,6 +926,10 @@ export const DEFAULT_CONFIG: RapidConfig = {
         cli: 'opencode',
         instructionFile: 'AGENTS.md',
       },
+      codex: {
+        cli: 'codex',
+        instructionFile: 'AGENTS.md',
+      },
     },
   },
   eventBus: {
@@ -547,9 +940,8 @@ export const DEFAULT_CONFIG: RapidConfig = {
     servers: {
       rapid: {
         enabled: true,
-        type: 'stdio',
-        command: 'rapid',
-        args: ['mcp', 'serve'],
+        type: 'remote',
+        url: 'http://localhost:3100/mcp',
       },
     },
   },

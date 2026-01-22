@@ -1,8 +1,36 @@
 /**
  * Agent Adapters - Specific integration patterns for supported AI agents
  *
- * This module provides adapters for different AI coding agents, enabling
- * RAPID to configure, launch, and manage them with consistent governance.
+ * This module provides adapters for different AI coding agents (Claude Code, OpenCode,
+ * Aider, Codex, Roo Code, GitHub Copilot), enabling RAPID to configure, launch, and manage
+ * them with consistent governance policies.
+ *
+ * @module agent-adapters
+ *
+ * ## Supported Agents
+ * - **Claude Code**: Full RAPID governance with hooks and MCP
+ * - **OpenCode**: MCP integration via opencode.json
+ * - **Aider**: System prompts and git controls
+ * - **Codex**: MCP integration via .codex/config.toml
+ * - **Roo Code**: VS Code extension with MCP
+ * - **GitHub Copilot**: VS Code extension with MCP
+ *
+ * @example
+ * ```typescript
+ * import { getAgentAdapter, configureAgent } from './agent-adapters';
+ *
+ * // Get adapter for Claude Code
+ * const adapter = getAgentAdapter('claude');
+ *
+ * // Configure the agent
+ * const config = await configureAgent('claude', {
+ *   projectDir: '/path/to/project',
+ *   rapidConfig: myRapidConfig,
+ * });
+ *
+ * // Files are written automatically
+ * console.log(config.instructions);
+ * ```
  */
 
 import { writeFile, mkdir } from 'node:fs/promises';
@@ -15,61 +43,156 @@ import { formatJson } from './format.js';
 import { logger } from './logger.js';
 
 /**
- * Agent adapter interface for consistent integration
+ * Agent adapter interface for consistent integration across different AI coding tools.
+ *
+ * Each adapter implements this interface to provide uniform configuration, environment setup,
+ * and launch parameters for its specific agent type.
  */
 export interface AgentAdapter {
+  /** Agent identifier (e.g., 'claude', 'opencode', 'aider') */
   name: string;
+
+  /** CLI command to launch the agent */
   cli: string;
+
+  /** Human-readable description of the agent's capabilities */
   description: string;
 
   /**
-   * Check if the agent is installed and available
+   * Check if the agent is installed and available on the system.
+   *
+   * @returns Promise resolving to true if the agent CLI is found in PATH
+   * @example
+   * ```typescript
+   * const adapter = getAgentAdapter('claude');
+   * if (await adapter.isAvailable()) {
+   *   console.log('Claude Code is installed');
+   * }
+   * ```
    */
   isAvailable(): Promise<boolean>;
 
   /**
-   * Generate agent-specific configuration files
+   * Generate agent-specific configuration files for RAPID integration.
+   *
+   * Creates config files like .mcp.json, CLAUDE.md, opencode.json, etc. based on
+   * the agent's configuration format and RAPID's governance policies.
+   *
+   * @param options - Configuration options including project path and RAPID config
+   * @returns Promise resolving to generated files and setup instructions
+   * @example
+   * ```typescript
+   * const config = await adapter.generateConfig({
+   *   projectDir: '/my/project',
+   *   rapidConfig: { governance: { budgetLimit: 10 } }
+   * });
+   * // Returns: { files: [...], instructions: [...] }
+   * ```
    */
   generateConfig(options: AgentConfigOptions): Promise<GeneratedAgentConfig>;
 
   /**
-   * Get environment variables needed to run the agent with RAPID
+   * Get environment variables needed to run the agent with RAPID governance.
+   *
+   * Includes API gateway routing, proxy settings, and authentication credentials.
+   *
+   * @param options - Environment configuration including gateway and proxy URLs
+   * @returns Record of environment variable names to values
+   * @example
+   * ```typescript
+   * const env = adapter.getEnvironment({
+   *   projectDir: '/my/project',
+   *   gatewayUrl: 'http://localhost:4000',
+   * });
+   * // Returns: { ANTHROPIC_BASE_URL: 'http://localhost:4000', ... }
+   * ```
    */
   getEnvironment(options: AgentEnvironmentOptions): Record<string, string>;
 
   /**
-   * Get command line arguments for launching the agent
+   * Get command line arguments for launching the agent with RAPID integration.
+   *
+   * @param options - Launch configuration including working directory and system prompts
+   * @returns Array of CLI arguments to pass to the agent
+   * @example
+   * ```typescript
+   * const args = adapter.getArgs({
+   *   workingDir: '/my/project',
+   *   systemPrompt: 'You are a helpful assistant',
+   * });
+   * // Returns: ['--cwd', '/my/project', '--append-system-prompt', '...']
+   * ```
    */
   getArgs(options: AgentLaunchOptions): string[];
 }
 
+/**
+ * Options for generating agent-specific configuration files.
+ */
 export interface AgentConfigOptions {
+  /** Absolute path to the project directory */
   projectDir: string;
+
+  /** RAPID configuration containing governance policies */
   rapidConfig: RapidConfig;
+
+  /** Optional gateway configuration for LLM request routing */
   gatewayConfig?: GatewayConfig;
+
+  /** Optional MCP server URL for remote connections */
   mcpServerUrl?: string;
+
+  /** Optional custom system prompt (overrides default RAPID methodology) */
   systemPrompt?: string;
 }
 
+/**
+ * Options for configuring the agent's runtime environment.
+ */
 export interface AgentEnvironmentOptions {
+  /** Absolute path to the project directory */
   projectDir: string;
+
+  /** Optional gateway URL for routing LLM API requests */
   gatewayUrl?: string;
+
+  /** Optional HTTP/HTTPS proxy URL for network requests */
   proxyUrl?: string;
+
+  /** Optional authentication environment variables (API keys, tokens, etc.) */
   authEnv?: Record<string, string>;
 }
 
+/**
+ * Options for launching an agent with specific runtime parameters.
+ */
 export interface AgentLaunchOptions {
+  /** Optional working directory for the agent (defaults to current directory) */
   workingDir?: string;
+
+  /** Optional system prompt to inject at runtime */
   systemPrompt?: string;
+
+  /** Whether to inject RAPID context into the agent's prompt */
   injectContext?: boolean;
+
+  /** Whether to route requests through the RAPID gateway */
   useGateway?: boolean;
 }
 
+/**
+ * Result of generating agent configuration files.
+ */
 export interface GeneratedAgentConfig {
+  /** Array of files to write to disk */
   files: Array<{
+    /** Absolute file path */
     path: string;
+    /** File content as string */
     content: string;
   }>;
+
+  /** Human-readable instructions for completing the setup */
   instructions: string[];
 }
 
@@ -100,17 +223,18 @@ export class OpenCodeAdapter implements AgentAdapter {
     const instructions: string[] = [];
 
     // Generate opencode.json with MCP server configuration
+    // OpenCode uses a different format: servers directly under mcp, type: local/remote,
+    // and command as an array (not separate command/args)
     const opencodeConfig = {
-      $schema: 'https://opencode.ai/schema/config.json',
+      $schema: 'https://opencode.ai/config.json',
       mcp: {
-        servers: {
-          rapid: {
-            command: 'rapid',
-            args: ['mcp', 'serve'],
-            env: {},
-          },
+        rapid: {
+          type: 'local',
+          command: ['rapid', 'mcp', 'serve'],
+          enabled: true,
+          environment: {},
         },
-      },
+      } as Record<string, unknown>,
       providers: {} as Record<string, { baseURL?: string }>,
       instructions:
         options.systemPrompt ??
@@ -295,6 +419,84 @@ export class AiderAdapter implements AgentAdapter {
     // Inject system prompt if configured
     if (options.systemPrompt || options.injectContext) {
       args.push('--system-prompt-file', '.aider.rapid-prompt.md');
+    }
+
+    return args;
+  }
+}
+
+/**
+ * Codex adapter
+ *
+ * Codex integration points:
+ * - ~/.codex/config.toml (or .codex/config.toml) for MCP servers
+ * - AGENTS.md → instruction file read automatically
+ */
+export class CodexAdapter implements AgentAdapter {
+  name = 'codex';
+  cli = 'codex';
+  description = 'OpenAI Codex CLI with RAPID MCP server configuration';
+
+  async isAvailable(): Promise<boolean> {
+    try {
+      await execa('which', ['codex']);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async generateConfig(options: AgentConfigOptions): Promise<GeneratedAgentConfig> {
+    const files: GeneratedAgentConfig['files'] = [];
+    const instructions: string[] = [];
+
+    const escapedProjectDir = options.projectDir.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    const mcpUrl = options.mcpServerUrl ?? 'http://localhost:3100/mcp';
+
+    const codexConfig = [
+      `[projects."${escapedProjectDir}"]`,
+      'trust_level = "trusted"',
+      '',
+      '[mcp_servers.rapid]',
+      `url = "${mcpUrl}"`,
+      '',
+    ].join('\n');
+
+    files.push({
+      path: join(options.projectDir, '.codex', 'config.toml'),
+      content: codexConfig,
+    });
+
+    instructions.push('Created .codex/config.toml with RAPID MCP server configuration');
+    instructions.push('Merge .codex/config.toml into ~/.codex/config.toml or use codex mcp add');
+
+    return { files, instructions };
+  }
+
+  getEnvironment(options: AgentEnvironmentOptions): Record<string, string> {
+    const env: Record<string, string> = {};
+
+    if (options.gatewayUrl) {
+      env.OPENAI_BASE_URL = options.gatewayUrl;
+    }
+
+    if (options.proxyUrl) {
+      env.HTTP_PROXY = options.proxyUrl;
+      env.HTTPS_PROXY = options.proxyUrl;
+    }
+
+    if (options.authEnv) {
+      Object.assign(env, options.authEnv);
+    }
+
+    return env;
+  }
+
+  getArgs(options: AgentLaunchOptions): string[] {
+    const args: string[] = [];
+
+    if (options.workingDir) {
+      args.push('-C', options.workingDir);
     }
 
     return args;
@@ -619,26 +821,69 @@ const adapters: Record<string, AgentAdapter> = {
   claude: new ClaudeCodeAdapter(),
   opencode: new OpenCodeAdapter(),
   aider: new AiderAdapter(),
+  codex: new CodexAdapter(),
   'roo-code': new RooCodeAdapter(),
   copilot: new CopilotAdapter(),
 };
 
 /**
- * Get an adapter by agent name
+ * Get an adapter by agent name.
+ *
+ * Looks up a registered adapter by its name (case-insensitive). Supported names:
+ * 'claude', 'opencode', 'aider', 'codex', 'roo-code', 'copilot'.
+ *
+ * @param name - Agent name to look up
+ * @returns The adapter instance if found, null otherwise
+ * @example
+ * ```typescript
+ * const adapter = getAgentAdapter('claude');
+ * if (adapter) {
+ *   console.log(adapter.description);
+ * }
+ * ```
  */
 export function getAgentAdapter(name: string): AgentAdapter | null {
   return adapters[name.toLowerCase()] || null;
 }
 
 /**
- * Get all available adapters
+ * Get all available agent adapters.
+ *
+ * Returns an array of all registered adapter instances. Useful for iteration
+ * or discovery of supported agents.
+ *
+ * @returns Array of all adapter instances
+ * @example
+ * ```typescript
+ * const allAdapters = getAllAdapters();
+ * allAdapters.forEach(adapter => {
+ *   console.log(`${adapter.name}: ${adapter.description}`);
+ * });
+ * ```
  */
 export function getAllAdapters(): AgentAdapter[] {
   return Object.values(adapters);
 }
 
 /**
- * Check which adapters are available on the system
+ * Check which agent adapters are installed and available on the system.
+ *
+ * Checks each registered adapter by running its isAvailable() method, which
+ * typically checks if the agent's CLI is in PATH.
+ *
+ * @returns Promise resolving to array of adapter names with availability status
+ * @example
+ * ```typescript
+ * const available = await checkAvailableAdapters();
+ * // [
+ * //   { name: 'claude', available: true },
+ * //   { name: 'opencode', available: false },
+ * //   ...
+ * // ]
+ *
+ * const installed = available.filter(a => a.available);
+ * console.log(`Found ${installed.length} installed agents`);
+ * ```
  */
 export async function checkAvailableAdapters(): Promise<
   Array<{ name: string; available: boolean }>
@@ -654,7 +899,30 @@ export async function checkAvailableAdapters(): Promise<
 }
 
 /**
- * Configure an agent with RAPID integration
+ * Configure a specific agent with RAPID integration.
+ *
+ * Generates agent-specific configuration files (.mcp.json, CLAUDE.md, opencode.json, etc.)
+ * and writes them to disk. This is the main entry point for setting up RAPID governance
+ * for a particular agent.
+ *
+ * @param agentName - Name of the agent to configure ('claude', 'opencode', etc.)
+ * @param options - Configuration options including project path and RAPID config
+ * @returns Promise resolving to generated config, or null if agent not found
+ * @throws May throw filesystem errors if unable to write files
+ * @example
+ * ```typescript
+ * const config = await configureAgent('claude', {
+ *   projectDir: '/my/project',
+ *   rapidConfig: {
+ *     governance: { budgetLimit: 10 }
+ *   }
+ * });
+ *
+ * if (config) {
+ *   console.log('Setup instructions:');
+ *   config.instructions.forEach(instruction => console.log(`- ${instruction}`));
+ * }
+ * ```
  */
 export async function configureAgent(
   agentName: string,
@@ -682,7 +950,27 @@ export async function configureAgent(
 }
 
 /**
- * Configure all available agents at once
+ * Configure all registered agents with RAPID integration in one operation.
+ *
+ * Iterates through all adapters and generates their configuration files. Useful for
+ * setting up a project that supports multiple agents, allowing developers to switch
+ * between them seamlessly.
+ *
+ * @param options - Configuration options shared across all agents
+ * @returns Promise resolving to Map of agent names to their generated configs
+ * @throws May throw filesystem errors if unable to write files
+ * @example
+ * ```typescript
+ * const allConfigs = await configureAllAgents({
+ *   projectDir: '/my/project',
+ *   rapidConfig: myRapidConfig
+ * });
+ *
+ * console.log(`Configured ${allConfigs.size} agents:`);
+ * for (const [name, config] of allConfigs) {
+ *   console.log(`- ${name}: ${config.files.length} files created`);
+ * }
+ * ```
  */
 export async function configureAllAgents(
   options: AgentConfigOptions

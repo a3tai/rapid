@@ -677,6 +677,7 @@ async function runInteractiveInit(
   vault: string | undefined;
   createDevcontainer: boolean;
   usePrebuilt: boolean;
+  teamConfig?: { autoSpawn: boolean; personas: string[]; orchestrator: string };
 } | null> {
   console.log();
   clack.intro(chalk.cyan.bold('  RAPID Setup'));
@@ -780,13 +781,78 @@ async function runInteractiveInit(
     usePrebuilt = prebuiltChoice;
   }
 
-  return {
+  // Multi-agent team configuration
+  const enableTeam = await clack.confirm({
+    message: 'Enable multi-agent team support?',
+    initialValue: true,
+  });
+
+  if (clack.isCancel(enableTeam)) {
+    clack.cancel('Setup cancelled');
+    return null;
+  }
+
+  let teamConfig: { autoSpawn: boolean; personas: string[]; orchestrator: string } | undefined;
+  if (enableTeam) {
+    const autoSpawnChoice = await clack.confirm({
+      message: 'Auto-spawn agent team on rapid start?',
+      initialValue: true,
+    });
+
+    if (clack.isCancel(autoSpawnChoice)) {
+      clack.cancel('Setup cancelled');
+      return null;
+    }
+
+    const personaOptions = [
+      { value: 'orchestrator', label: 'Orchestrator', hint: 'Coordinates tasks' },
+      { value: 'worker', label: 'Worker', hint: 'Executes tasks' },
+      { value: 'architect', label: 'Architect', hint: 'Plans systems' },
+      { value: 'critic', label: 'Critic', hint: 'Reviews code' },
+      { value: 'test-writer', label: 'Test Writer', hint: 'Writes tests' },
+      { value: 'security-reviewer', label: 'Security Reviewer', hint: 'Reviews security' },
+    ];
+
+    const selectedPersonas = await clack.multiselect({
+      message: 'Team personas to include',
+      options: personaOptions,
+      initialValues: ['orchestrator', 'worker'],
+      required: true,
+    });
+
+    if (clack.isCancel(selectedPersonas)) {
+      clack.cancel('Setup cancelled');
+      return null;
+    }
+
+    teamConfig = {
+      autoSpawn: autoSpawnChoice,
+      personas: selectedPersonas as string[],
+      orchestrator: 'orchestrator',
+    };
+  }
+
+  const result: Record<string, unknown> = {
     projectName,
     mcpServers: selectedMcp as string[],
     secretsProvider: secretsProvider as 'env' | '1password' | 'vault',
     vault,
     createDevcontainer,
     usePrebuilt,
+  };
+
+  if (teamConfig) {
+    result.teamConfig = teamConfig;
+  }
+
+  return result as {
+    projectName: string;
+    mcpServers: string[];
+    secretsProvider: 'env' | '1password' | 'vault';
+    vault: string | undefined;
+    createDevcontainer: boolean;
+    usePrebuilt: boolean;
+    teamConfig?: { autoSpawn: boolean; personas: string[]; orchestrator: string };
   };
 }
 
@@ -843,6 +909,7 @@ export const initCommand = new Command('init')
     let createDevcontainerFlag: boolean;
     let usePrebuilt: boolean;
     let projectName: string;
+    let teamConfig: { autoSpawn: boolean; personas: string[]; orchestrator: string } | undefined;
 
     if (useInteractive) {
       // Run interactive flow
@@ -857,6 +924,7 @@ export const initCommand = new Command('init')
       vault = answers.vault;
       createDevcontainerFlag = answers.createDevcontainer;
       usePrebuilt = answers.usePrebuilt;
+      teamConfig = answers.teamConfig;
     } else {
       // Non-interactive mode (--yes or template specified)
       projectName = cwd.split('/').pop() || 'my-project';
@@ -865,6 +933,12 @@ export const initCommand = new Command('init')
       vault = 'Development';
       createDevcontainerFlag = options.devcontainer !== false;
       usePrebuilt = options.prebuilt === true;
+      // Default team config in non-interactive mode
+      teamConfig = {
+        autoSpawn: true,
+        personas: ['orchestrator', 'worker'],
+        orchestrator: 'orchestrator',
+      };
     }
 
     const spinner2 = ora('Initializing RAPID...').start();
@@ -954,6 +1028,16 @@ export const initCommand = new Command('init')
       // Enable event bus by default
       config.eventBus = { enabled: true };
 
+      // Add team configuration if enabled
+      if (teamConfig) {
+        config.personas = {
+          directory: '.rapid/personas',
+          team: teamConfig.personas,
+          autoSpawn: teamConfig.autoSpawn,
+          orchestrator: teamConfig.orchestrator,
+        };
+      }
+
       spinner2.text = 'Writing rapid.json...';
       await writeFile(configPath, await formatJson(config));
 
@@ -986,6 +1070,84 @@ export const initCommand = new Command('init')
           options.force,
           usePrebuilt
         );
+      }
+
+      // Create persona files if team is enabled
+      if (teamConfig) {
+        spinner2.text = 'Creating persona files...';
+        const personasDir = join(cwd, '.rapid', 'personas');
+        await mkdir(personasDir, { recursive: true });
+
+        // Create default persona files for selected personas
+        const personaTemplates: Record<string, string> = {
+          orchestrator: `# Orchestrator Persona
+
+description: Coordinates and manages team workflows
+role: Project Leader
+specialties:
+  - Task coordination
+  - Resource allocation
+  - Progress tracking
+`,
+          worker: `# Worker Persona
+
+description: Executes assigned tasks and reports progress
+role: Developer
+specialties:
+  - Task execution
+  - Problem solving
+  - Status updates
+`,
+          architect: `# Architect Persona
+
+description: Designs systems and technical solutions
+role: Technical Architect
+specialties:
+  - System design
+  - Architecture planning
+  - Technical decisions
+`,
+          critic: `# Critic Persona
+
+description: Reviews code quality and provides feedback
+role: Code Reviewer
+specialties:
+  - Code review
+  - Quality assurance
+  - Best practices
+`,
+          'test-writer': `# Test Writer Persona
+
+description: Writes and maintains test suites
+role: QA Engineer
+specialties:
+  - Test writing
+  - Test maintenance
+  - Coverage analysis
+`,
+          'security-reviewer': `# Security Reviewer Persona
+
+description: Reviews code for security issues
+role: Security Engineer
+specialties:
+  - Security analysis
+  - Vulnerability detection
+  - Best practices
+`,
+        };
+
+        for (const persona of teamConfig.personas) {
+          const personaFile = join(personasDir, `${persona}.yaml`);
+          if (personaTemplates[persona]) {
+            try {
+              await access(personaFile);
+              // File exists, skip
+            } catch {
+              // File doesn't exist, create it
+              await writeFile(personaFile, personaTemplates[persona]);
+            }
+          }
+        }
       }
 
       // Create Claude Code plugin if using claude and not skipped
@@ -1111,9 +1273,8 @@ function addRapidMcpServer(config: RapidConfig): RapidConfig {
       servers: {
         rapid: {
           enabled: true,
-          type: 'stdio',
-          command: 'rapid',
-          args: ['mcp', 'serve'],
+          type: 'remote',
+          url: 'http://localhost:3100/mcp',
         },
         ...config.mcp?.servers,
       },

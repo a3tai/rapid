@@ -1,0 +1,10 @@
+{
+  'model_list':
+    [
+      {
+        'model_name': 'claude-3.5-sonnet',
+        'litellm_params': { 'model': 'anthropic/claude-3-5-sonnet-20241022' },
+      },
+      { 'model_name': 'gpt-4o', 'litellm_params': { 'model': 'openai/gpt-4o' } },
+    ],
+}

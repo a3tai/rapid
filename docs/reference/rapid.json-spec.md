@@ -18,7 +18,7 @@ RAPID looks for configuration in this order:
 
 ```json
 {
-  "$schema": "https://rapid.dev/schema/v1/rapid.json"
+  "$schema": "https://getrapid.dev/schema/v1/rapid.json"
 }
 ```
 
@@ -192,13 +192,15 @@ AI agent configuration.
 
 Each agent in `available` supports:
 
-| Property          | Type   | Required | Description                             |
-| ----------------- | ------ | -------- | --------------------------------------- |
-| `cli`             | string | Yes      | CLI command to execute                  |
-| `instructionFile` | string | No       | Path to instruction file for this agent |
-| `envVars`         | array  | No       | Required environment variables          |
-| `installCmd`      | string | No       | Command to install the CLI tool         |
-| `args`            | array  | No       | Additional CLI arguments                |
+| Property                | Type    | Required | Description                                    |
+| ----------------------- | ------- | -------- | ---------------------------------------------- |
+| `cli`                   | string  | Yes      | CLI command to execute                         |
+| `instructionFile`       | string  | No       | Path to instruction file for this agent        |
+| `envVars`               | array   | No       | Required environment variables                 |
+| `installCmd`            | string  | No       | Command to install the CLI tool                |
+| `args`                  | array   | No       | Additional CLI arguments                       |
+| `yolo`                  | boolean | No       | Enable auto-accept mode (skip confirmations)   |
+| `readsInstructionFiles` | boolean | No       | Whether agent natively reads instruction files |
 
 ### Example
 
@@ -296,6 +298,51 @@ When running `rapid dev`, RAPID writes the enabled MCP servers to `configFile` a
 
 ---
 
+## gateway
+
+API gateway configuration for proxying and monitoring agent requests.
+
+| Property  | Type    | Default   | Description                                |
+| --------- | ------- | --------- | ------------------------------------------ |
+| `enabled` | boolean | `false`   | Enable the API gateway                     |
+| `mode`    | enum    | `"proxy"` | `"proxy"`, `"managed"`, or `"passthrough"` |
+| `port`    | number  | `3100`    | Gateway port                               |
+
+### Example
+
+```json
+{
+  "gateway": {
+    "enabled": true,
+    "mode": "managed"
+  }
+}
+```
+
+---
+
+## eventBus
+
+Inter-agent communication via event bus.
+
+| Property  | Type    | Default | Description              |
+| --------- | ------- | ------- | ------------------------ |
+| `enabled` | boolean | `false` | Enable the event bus     |
+| `persist` | boolean | `false` | Persist messages to disk |
+| `ttl`     | number  | `3600`  | Message TTL in seconds   |
+
+### Example
+
+```json
+{
+  "eventBus": {
+    "enabled": true
+  }
+}
+```
+
+---
+
 ## Variables
 
 RAPID supports variable substitution in string values:
@@ -327,7 +374,7 @@ RAPID supports variable substitution in string values:
 
 ```json
 {
-  "$schema": "https://rapid.dev/schema/v1/rapid.json",
+  "$schema": "https://getrapid.dev/schema/v1/rapid.json",
   "version": "1.0",
   "name": "my-rapid-project",
 
@@ -394,7 +441,7 @@ For editor IntelliSense and validation, reference the schema:
 
 ```json
 {
-  "$schema": "https://rapid.dev/schema/v1/rapid.json"
+  "$schema": "https://getrapid.dev/schema/v1/rapid.json"
 }
 ```
 

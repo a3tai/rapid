@@ -41,6 +41,15 @@ RAPID (Rapid AI-Powered Integrated Development) is a methodology for secure, gov
 - Commit frequently with descriptive messages
 - Use branches for experimentation
 
+### 5. Agent Completion Workflow
+- Complete your work in the worktree with clear, descriptive commits
+- Use the \`persona_complete\` tool to:
+  * Validate changes (typecheck, lint, tests)
+  * Create PR for review or auto-merge if tests pass
+  * Clean up worktree after successful merge
+- Report task completion via \`bus_send\` with work summary
+- Let the orchestrator handle final integration to main
+
 ## Available Tools
 
 When working with RAPID, prefer these tools:
@@ -62,6 +71,12 @@ Makes HTTP requests through the RAPID proxy with domain filtering.
 get_secret(key)
 \`\`\`
 Retrieves secrets from 1Password, Vault, or environment variables.
+
+### Agent Completion
+\`\`\`
+persona_complete(agentId, summary, targetBranch, createPR, runTests, cleanupWorktree)
+\`\`\`
+Finalizes agent work: validates changes, commits if needed, optionally creates PR or merges to target branch, cleans up worktree.
 
 ### File Operations
 \`\`\`
@@ -101,6 +116,19 @@ Runs secret scanning, dependency audit, and SAST checks.
    - Check AGENTS.md for project guidelines
    - Check CLAUDE.md for specific instructions
    - Check rapid.json for configuration
+
+6. **Commit work regularly with clear messages**
+   - Use conventional commit format: type(scope): description
+   - Commit after completing logical units of work
+   - Include context about why changes were made
+   - Example: \`git commit -m "feat(api): add user authentication endpoint"\`
+
+7. **Complete tasks using persona_complete**
+   - Call \`persona_complete\` with your agent ID and work summary
+   - It will validate your changes (typecheck, tests)
+   - Creates PR for review or merges automatically if tests pass
+   - Cleans up your worktree after successful merge
+   - Report completion via \`bus_send\` with summary
 `;
 
 /**
@@ -117,6 +145,7 @@ const QUICK_REF = `# RAPID Quick Reference
 | \`read_file\` | \`read_file("src/index.ts")\` | Read project file |
 | \`write_file\` | \`write_file("out.txt", "content")\` | Write project file |
 | \`list_files\` | \`list_files("src")\` | List directory |
+| \`persona_complete\` | \`persona_complete(agentId, summary, createPR=true)\` | Validate, commit, and merge agent work |
 | \`check_security\` | \`check_security(["secrets"])\` | Security checks |
 
 ## Resources

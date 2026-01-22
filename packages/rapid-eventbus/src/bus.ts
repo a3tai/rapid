@@ -178,10 +178,12 @@ export class EventBus {
 
   /**
    * Get list of active agents
+   * @param maxAgeSeconds - Max age in seconds. Use 0 or negative to get all agents (no time filter).
    */
   async getActiveAgents(maxAgeSeconds = 300): Promise<AgentInfo[]> {
-    const cutoff = Date.now() - maxAgeSeconds * 1000;
-    const members = await this.redis.zrangebyscore(this.agentsKey, cutoff, '+inf');
+    // If maxAgeSeconds <= 0, get all agents (no time filter)
+    const minScore = maxAgeSeconds > 0 ? String(Date.now() - maxAgeSeconds * 1000) : '-inf';
+    const members = await this.redis.zrangebyscore(this.agentsKey, minScore, '+inf');
 
     const agents: AgentInfo[] = [];
     for (const member of members) {
@@ -193,6 +195,25 @@ export class EventBus {
     }
 
     return agents;
+  }
+
+  /**
+   * Unregister an agent from the event bus
+   */
+  async unregisterAgent(agentId: string): Promise<boolean> {
+    const members = await this.redis.zrangebyscore(this.agentsKey, '-inf', '+inf');
+    for (const member of members) {
+      try {
+        const agent = JSON.parse(member) as AgentInfo;
+        if (agent.id === agentId) {
+          await this.redis.zrem(this.agentsKey, member);
+          return true;
+        }
+      } catch {
+        // Skip invalid entries
+      }
+    }
+    return false;
   }
 
   /**
@@ -240,6 +261,9 @@ export class EventBus {
     types?: MessageType[];
     limit?: number;
     fromAgent?: string;
+    forAgent?: string;
+    excludeBroadcasts?: boolean;
+    onlyActionable?: boolean;
   }): Promise<{ messages: Message[]; cursor: string; hasMore: boolean }> {
     const limit = options?.limit ?? 10;
     const since = options?.since ?? '0';
@@ -282,6 +306,23 @@ export class EventBus {
               continue;
             }
 
+            // Agent-specific filtering: only include messages directed to this agent or broadcasts
+            if (options?.forAgent) {
+              if (validated.toAgents && !validated.toAgents.includes(options.forAgent)) {
+                continue; // Skip messages not intended for this agent
+              }
+            }
+
+            // Exclude broadcast messages (messages with no specific targets)
+            if (options?.excludeBroadcasts && !validated.toAgents) {
+              continue;
+            }
+
+            // Only include actionable messages
+            if (options?.onlyActionable && !validated.payload.actionable) {
+              continue;
+            }
+
             messages.push(validated);
           } catch {
             // Skip invalid messages
@@ -301,6 +342,9 @@ export class EventBus {
     types?: MessageType[];
     fromAgent?: string;
     limit?: number;
+    forAgent?: string;
+    excludeBroadcasts?: boolean;
+    onlyActionable?: boolean;
   }): Promise<Message[]> {
     const hours = options?.hours ?? 1;
     const limit = options?.limit ?? 100;
@@ -331,6 +375,23 @@ export class EventBus {
           continue;
         }
         if (options?.fromAgent && validated.fromAgent.id !== options.fromAgent) {
+          continue;
+        }
+
+        // Agent-specific filtering: only include messages directed to this agent or broadcasts
+        if (options?.forAgent) {
+          if (validated.toAgents && !validated.toAgents.includes(options.forAgent)) {
+            continue; // Skip messages not intended for this agent
+          }
+        }
+
+        // Exclude broadcast messages (messages with no specific targets)
+        if (options?.excludeBroadcasts && !validated.toAgents) {
+          continue;
+        }
+
+        // Only include actionable messages
+        if (options?.onlyActionable && !validated.payload.actionable) {
           continue;
         }
 
@@ -422,6 +483,89 @@ export class EventBus {
       streamLength: streamInfo,
     };
   }
+
+  /**
+   * Wait for new messages (blocking read)
+   * Uses Redis XREAD BLOCK for efficient waiting without polling.
+   * Returns when a message arrives or timeout expires.
+   *
+   * @param cursor - Start reading from this position ('$' for only new messages)
+   * @param timeoutMs - Max time to wait in milliseconds (0 = wait forever, default 30000)
+   * @param options - Filter options for messages
+   */
+  async waitForMessage(
+    cursor: string = '$',
+    timeoutMs: number = 30000,
+    options?: {
+      types?: MessageType[];
+      forAgent?: string;
+      excludeBroadcasts?: boolean;
+      onlyActionable?: boolean;
+    }
+  ): Promise<{ message: Message | null; cursor: string; timedOut: boolean }> {
+    try {
+      // Use XREAD BLOCK to wait for new messages
+      const results = await this.redis.xread(
+        'COUNT',
+        1,
+        'BLOCK',
+        timeoutMs,
+        'STREAMS',
+        this.streamKey,
+        cursor
+      );
+
+      if (!results) {
+        // Timeout - no new messages
+        return { message: null, cursor, timedOut: true };
+      }
+
+      // Parse the result
+      for (const [, entries] of results) {
+        for (const [id, fields] of entries) {
+          const messageJson = fields[1];
+          if (messageJson === undefined) continue;
+
+          try {
+            const parsed = JSON.parse(messageJson);
+            const validated = MessageSchema.parse(parsed);
+
+            // Apply filters
+            if (options?.types && !options.types.includes(validated.type)) {
+              // Message doesn't match filter, return cursor but no message
+              return { message: null, cursor: id, timedOut: false };
+            }
+
+            // Agent-specific filtering
+            if (options?.forAgent) {
+              if (validated.toAgents && !validated.toAgents.includes(options.forAgent)) {
+                return { message: null, cursor: id, timedOut: false };
+              }
+            }
+
+            if (options?.excludeBroadcasts && !validated.toAgents) {
+              return { message: null, cursor: id, timedOut: false };
+            }
+
+            if (options?.onlyActionable && !validated.payload.actionable) {
+              return { message: null, cursor: id, timedOut: false };
+            }
+
+            return { message: validated, cursor: id, timedOut: false };
+          } catch {
+            // Skip invalid messages
+            return { message: null, cursor: id, timedOut: false };
+          }
+        }
+      }
+
+      return { message: null, cursor, timedOut: true };
+    } catch (error) {
+      // Redis error - return as timeout
+      console.error('[EventBus] waitForMessage error:', error);
+      return { message: null, cursor, timedOut: true };
+    }
+  }
 }
 
 /**
@@ -452,6 +596,10 @@ export class InMemoryEventBus {
 
   async getActiveAgents(): Promise<AgentInfo[]> {
     return Array.from(this.agents.values());
+  }
+
+  async unregisterAgent(agentId: string): Promise<boolean> {
+    return this.agents.delete(agentId);
   }
 
   async sendMessage(
@@ -487,6 +635,9 @@ export class InMemoryEventBus {
     since?: string;
     types?: MessageType[];
     limit?: number;
+    forAgent?: string;
+    excludeBroadcasts?: boolean;
+    onlyActionable?: boolean;
   }): Promise<{ messages: Message[]; cursor: string; hasMore: boolean }> {
     const limit = options?.limit ?? 10;
     const sinceIndex = options?.since ? parseInt(options.since, 10) : 0;
@@ -496,6 +647,21 @@ export class InMemoryEventBus {
       filtered = filtered.filter((m) => options.types!.includes(m.type));
     }
 
+    // Agent-specific filtering: only include messages directed to this agent or broadcasts
+    if (options?.forAgent) {
+      filtered = filtered.filter((m) => !m.toAgents || m.toAgents.includes(options.forAgent!));
+    }
+
+    // Exclude broadcast messages (messages with no specific targets)
+    if (options?.excludeBroadcasts) {
+      filtered = filtered.filter((m) => m.toAgents);
+    }
+
+    // Only include actionable messages
+    if (options?.onlyActionable) {
+      filtered = filtered.filter((m) => m.payload.actionable);
+    }
+
     const messages = filtered.slice(0, limit);
     const cursor = (sinceIndex + messages.length).toString();
     const hasMore = filtered.length > limit;
@@ -503,7 +669,13 @@ export class InMemoryEventBus {
     return { messages, cursor, hasMore };
   }
 
-  async getHistory(options?: { hours?: number; types?: MessageType[] }): Promise<Message[]> {
+  async getHistory(options?: {
+    hours?: number;
+    types?: MessageType[];
+    forAgent?: string;
+    excludeBroadcasts?: boolean;
+    onlyActionable?: boolean;
+  }): Promise<Message[]> {
     const hours = options?.hours ?? 1;
     const cutoff = Date.now() - hours * 3600 * 1000;
 
@@ -511,6 +683,21 @@ export class InMemoryEventBus {
 
     if (options?.types) {
       filtered = filtered.filter((m) => options.types!.includes(m.type));
+    }
+
+    // Agent-specific filtering: only include messages directed to this agent or broadcasts
+    if (options?.forAgent) {
+      filtered = filtered.filter((m) => !m.toAgents || m.toAgents.includes(options.forAgent!));
+    }
+
+    // Exclude broadcast messages (messages with no specific targets)
+    if (options?.excludeBroadcasts) {
+      filtered = filtered.filter((m) => m.toAgents);
+    }
+
+    // Only include actionable messages
+    if (options?.onlyActionable) {
+      filtered = filtered.filter((m) => m.payload.actionable);
     }
 
     return filtered;

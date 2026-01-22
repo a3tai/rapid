@@ -36,6 +36,9 @@ Thumbs.db
 npm-debug.log*
 pnpm-debug.log*
 
+# RAPID workspace state
+.rapid/
+
 # Testing
 coverage/
 
@@ -43,3 +46,7 @@ coverage/
 *.local
 .cache/
 .eslintcache
+
+# Local Claude code configuration
+.claude/
+.worktrees/
