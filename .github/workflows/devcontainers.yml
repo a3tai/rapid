@@ -35,7 +35,7 @@ env:
 jobs:
   build-matrix:
     name: Determine templates to build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, karuna]
     permissions:
       contents: read
     # Skip if triggered by a failed workflow_run
@@ -54,7 +54,7 @@ jobs:
 
   build:
     name: Build ${{ matrix.template }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, karuna]
     needs: build-matrix
     permissions:
       contents: read
@@ -138,7 +138,7 @@ jobs:
   # Update the devcontainer.json files to reference pre-built images (only on release)
   update-templates:
     name: Update template references
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, karuna]
     needs: build
     if: github.event_name == 'release'
     permissions:
